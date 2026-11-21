@@ -25,6 +25,7 @@ import { accountTypeFor, defaultAccount, ensureAccounts, ownedAccount } from './
 import { Converter, findRate, inBase, reportingCurrency } from './fx';
 import { totalCash } from './accounts';
 import { now, today, uid, type Db, type Row } from './core';
+import { cleanCustom, customSchema, customValuesSchema, parseCustom } from './workspace';
 
 // ---------------------------------------------------------------- schemas
 
@@ -85,6 +86,7 @@ export const clientSchema = z.object({
   creditLimit: z.number().int().min(0).max(1e13).default(0),
   notes: text(4000),
   status: z.enum(['active', 'inactive']).default('active'),
+  custom: customSchema,
 });
 
 export const serviceSchema = z.object({
@@ -96,6 +98,8 @@ export const serviceSchema = z.object({
   taxRateBp: bp.default(0),
   defaultDiscountBp: bp.default(0),
   status: z.enum(['active', 'inactive']).default('active'),
+  itemType: text(40),
+  custom: customSchema,
 });
 
 const lineSchema = z.object({
@@ -139,6 +143,8 @@ export const invoiceSchema = z.object({
   overrideCreditLimit: z.boolean().default(false),
   finalize: z.boolean().default(false),
   initialPayment: initialPaymentSchema.optional(),
+  /** left out by invoices the system makes (recurring, converted quotes): required fields are then not enforced */
+  custom: customValuesSchema.optional(),
 });
 export type InvoiceBody = z.infer<typeof invoiceSchema>;
 
@@ -220,6 +226,7 @@ export function mapClient(r: Row): Client {
     creditLimit: r.credit_limit,
     notes: r.notes,
     status: r.status,
+    custom: parseCustom(r.custom),
     outstanding: r.outstanding === undefined ? undefined : Math.round(r.outstanding),
     credit: r.credit === undefined ? undefined : Math.round(r.credit),
   };
@@ -236,6 +243,8 @@ export function mapService(r: Row): Service {
     taxRateBp: r.tax_rate_bp,
     defaultDiscountBp: r.default_discount_bp,
     status: r.status,
+    itemType: r.item_type ?? '',
+    custom: parseCustom(r.custom),
   };
 }
 
@@ -282,6 +291,7 @@ export function mapInvoice(r: Row, installmentRows: Row[] = []): Invoice {
     charges: JSON.parse(r.charges),
     notes: r.notes,
     paymentTerms: r.payment_terms,
+    custom: parseCustom(r.custom),
     installments: installmentRows.map((x, i) => ({ id: x.id, dueDate: x.due_date, amount: x.amount, paid: states[i].paid, status: states[i].status })),
     clientRequestId: r.client_request_id ?? undefined,
     currency: r.currency,
@@ -509,6 +519,7 @@ export function createInvoice(db: Db, auth: AuthContext, body: InvoiceBody, canV
       body.clientRequestId ?? null, auth.userId, ts, ts, body.finalize ? ts : null,
     );
     writeInstallments(db, auth.tenantId, id, body.installments);
+    db.run('update invoice set custom = ? where id = ?', JSON.stringify(cleanCustom(db, auth.tenantId, 'invoice', body.custom, body.finalize && body.custom !== undefined)), id);
     db.audit(auth.tenantId, auth.userId, body.finalize ? 'invoice.finalize' : 'invoice.create_draft', 'invoice', id, { total: totals.total });
 
     if (body.initialPayment) {
@@ -545,6 +556,7 @@ export function updateDraft(db: Db, auth: AuthContext, id: string, body: Invoice
       ts, body.finalize ? ts : null, id, auth.tenantId,
     );
     writeInstallments(db, auth.tenantId, id, body.installments);
+    db.run('update invoice set custom = ? where id = ?', JSON.stringify(cleanCustom(db, auth.tenantId, 'invoice', body.custom, body.finalize && body.custom !== undefined)), id);
     db.audit(auth.tenantId, auth.userId, body.finalize ? 'invoice.finalize' : 'invoice.update_draft', 'invoice', id, { total: totals.total });
     if (body.initialPayment) {
       recordPayment(db, auth, { ...body.initialPayment, clientId: body.clientId, businessId: body.businessId, invoiceId: id, proof: '', autoAllocate: false }, canVerify);
@@ -558,6 +570,7 @@ export function finalizeInvoice(db: Db, auth: AuthContext, id: string, overrideC
     const inv = getInvoice(db, auth.tenantId, id);
     if (inv.status !== 'draft') throw new HttpError(409, 'This invoice is already finalized.');
     assertFinalizable(inv, inv.total);
+    cleanCustom(db, auth.tenantId, 'invoice', inv.custom);
     const row = ownedRow(db, 'invoice', auth.tenantId, id);
     assertCreditLimit(db, auth.tenantId, inv.clientId, inBase(inv.total, row.fx_factor), overrideCreditLimit);
     const business = ownedRow(db, 'business', auth.tenantId, inv.businessId);

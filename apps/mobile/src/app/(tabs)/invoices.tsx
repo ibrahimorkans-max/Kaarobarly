@@ -7,6 +7,7 @@ import { Btn, Chips, Empty, FadeIn, IconBtn, Loading, Row, SearchBar, Txt, fm, s
 import { qs, useApi, usePaged } from '@/lib/api';
 import { useAuth, useTheme } from '@/lib/app-context';
 import type { DashboardSummary, Invoice } from '@/lib/shared';
+import { lower, useWorkspace } from '@/lib/workspace';
 
 const FILTERS = [
   { value: '', label: 'All' },
@@ -22,6 +23,7 @@ const FILTERS = [
 export default function Invoices() {
   const t = useTheme();
   const { can } = useAuth();
+  const { t: term } = useWorkspace();
   const params = useLocalSearchParams<{ status?: string }>();
   const [status, setStatus] = useState(params.status ?? '');
   const [q, setQ] = useState('');
@@ -51,7 +53,7 @@ export default function Invoices() {
   const header = (
     <View style={{ gap: 12, paddingBottom: 6 }}>
       <Row style={{ justifyContent: 'space-between' }}>
-        <Txt v="title">Invoices</Txt>
+        <Txt v="title">{term('invoices')}</Txt>
         <IconBtn icon="color-palette-outline" label="Change invoices dashboard style" onPress={() => setPicker(true)} />
       </Row>
       {d && (
@@ -101,7 +103,7 @@ export default function Invoices() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <HeroStylePicker visible={picker} onClose={() => setPicker(false)} value={look} onChange={setLook} title="Invoices dashboard style" />
+      <HeroStylePicker visible={picker} onClose={() => setPicker(false)} value={look} onChange={setLook} title={`${term('invoices')} dashboard style`} />
       <FlatList
         ListHeaderComponent={header}
         data={list.items}
@@ -119,9 +121,9 @@ export default function Invoices() {
           ) : (
             <Empty
               icon="document-text-outline"
-              title={q || status ? 'No invoices match' : 'No invoices yet'}
-              hint={q || status ? 'Try a different search or filter.' : 'Create your first invoice to get started.'}
-              action={can('invoices.create') && !q && !status ? <Btn small icon="add" title="Create Invoice" onPress={() => router.push('/invoice/new')} /> : undefined}
+              title={`No ${lower(term('invoices'))} ${q || status ? 'match' : 'yet'}`}
+              hint={q || status ? 'Try a different search or filter.' : `Create your first ${lower(term('invoice'))} to get started.`}
+              action={can('invoices.create') && !q && !status ? <Btn small icon="add" title={`Create ${term('invoice')}`} onPress={() => router.push('/invoice/new')} /> : undefined}
             />
           )
         }

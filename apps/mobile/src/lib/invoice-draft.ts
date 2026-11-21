@@ -19,6 +19,7 @@ import {
   type InvoiceTotals,
   type PaymentMethod,
   type Service,
+  type CustomValues,
 } from './shared';
 
 /** Form state of the invoice builder. Numbers stay as typed text until they are calculated or sent. */
@@ -67,6 +68,8 @@ export interface InvoiceDraft {
   currency: string;
   /** typed exchange rate (business currency per 1 unit), empty = latest recorded */
   fxRate: string;
+  /** values for the workspace's custom invoice fields */
+  custom: CustomValues;
 }
 
 export interface RecurringDraft {
@@ -102,6 +105,7 @@ export function emptyDraft(): InvoiceDraft {
     charges: [],
     notes: '',
     paymentTerms: '',
+    custom: {},
     paymentMode: 'unpaid',
     payAmount: '',
     payMethod: 'cash',
@@ -163,6 +167,7 @@ export function draftFromInvoice(i: Invoice): InvoiceDraft {
     charges: i.charges.map((c) => ({ key: newKey(), label: c.label, amount: moneyToInput(c.amount, p) })),
     notes: i.notes,
     paymentTerms: i.paymentTerms,
+    custom: i.custom ?? {},
     paymentMode: i.installments.length ? 'installments' : 'unpaid',
     installments: i.installments.map((s) => ({ key: newKey(), dueDate: s.dueDate, amount: moneyToInput(s.amount, p) })),
     currency: i.currency,
@@ -251,6 +256,7 @@ export function draftToBody(d: InvoiceDraft, business: BusinessProfile | undefin
     charges: chargesToApi(d, precision),
     notes: d.notes.trim(),
     paymentTerms: d.paymentTerms.trim(),
+    custom: d.custom ?? {},
     installments:
       d.paymentMode === 'installments'
         ? d.installments.map((s) => ({ dueDate: s.dueDate, amount: parseMoney(s.amount, precision) ?? 0 })).filter((s) => s.amount > 0)
@@ -302,7 +308,7 @@ export function draftPreview(d: InvoiceDraft, business: BusinessProfile, client:
   };
   const blankClient: Client = {
     id: d.clientId, name: d.clientName, contactPerson: '', phone: '', whatsapp: '', email: '', cnic: '', ntn: '', address: '', city: '', province: '', country: '',
-    extraAddresses: [], extraContacts: [], category: '', openingBalance: 0, creditLimit: 0, notes: '', status: 'active',
+    extraAddresses: [], extraContacts: [], category: '', openingBalance: 0, creditLimit: 0, notes: '', status: 'active', custom: {},
   };
   return { invoice, business, client: client ?? blankClient, payments: [] };
 }
@@ -344,6 +350,7 @@ export function draftFromQuote(q: Quotation): InvoiceDraft {
     charges: q.charges.map((c) => ({ key: newKey(), label: c.label, amount: moneyToInput(c.amount, p) })),
     notes: q.notes,
     paymentTerms: q.terms,
+    custom: q.custom ?? {},
     currency: q.currency,
   };
 }
@@ -363,6 +370,7 @@ export function draftToQuoteBody(d: InvoiceDraft, business: BusinessProfile | un
     charges: chargesToApi(d, precision),
     notes: d.notes.trim(),
     terms: d.paymentTerms.trim(),
+    custom: d.custom ?? {},
     clientRequestId: d.clientRequestId,
     ...currencyFields(d, business),
   };

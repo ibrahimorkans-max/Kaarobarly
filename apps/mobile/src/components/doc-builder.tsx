@@ -2,6 +2,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Switch, View } from 'react-native';
+import { CustomFieldInputs } from '@/components/custom-fields';
 import { DocumentViewer } from '@/components/doc-viewer';
 import { CurrencySelect } from '@/components/money';
 import { StepSlide, Stepper, type StepDef } from '@/components/stepper';
@@ -829,6 +830,7 @@ export default function DocBuilder({ kind = 'invoice' }: { kind?: BuilderKind })
           ))}
         </Card>
       )}
+      {kind !== 'recurring' && <CustomFieldInputs entity="invoice" values={draft.custom ?? {}} onChange={(custom) => set({ custom })} />}
       <Field
         label={kind === 'quote' ? 'Terms & conditions (optional)' : 'Payment terms (optional)'}
         value={draft.paymentTerms}

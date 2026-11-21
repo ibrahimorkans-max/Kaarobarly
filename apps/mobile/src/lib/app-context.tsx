@@ -4,6 +4,7 @@ import { Alert, Platform as RNPlatform } from 'react-native';
 import { api, clearSession, remoteForEngine, restoreSession, setSignedOutHandler, storeSession } from './api';
 import { engine } from './engine';
 import { local } from './storage';
+import { loadWorkspace, resetWorkspace } from './workspace';
 import type { Permission, User } from './shared';
 
 // ---------------------------------------------------------------- theme
@@ -152,12 +153,14 @@ export function AppProviders({ children }: { children: ReactNode }) {
         await storeSession(s);
         await startOffline(s.user);
         setUser(s.user);
+        void loadWorkspace();
       },
       async register(input) {
         const s = await api('/auth/register', { body: { ...input, deviceName }, auth: false });
         await storeSession(s);
         await startOffline(s.user);
         setUser(s.user);
+        void loadWorkspace();
       },
       async signOut(force = false) {
         const waiting = engine.state.pending + engine.state.failed;
@@ -169,6 +172,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
         await api('/auth/logout', { method: 'POST' }).catch(() => {});
         await clearSession();
         engine.wipe();
+        resetWorkspace();
         setUser(null);
       },
       can: (p) => !!user?.permissions.includes(p),

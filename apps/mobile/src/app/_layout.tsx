@@ -64,6 +64,9 @@ function Navigation() {
           <Stack.Screen name="purchase/new" options={{ title: 'New Purchase' }} />
           <Stack.Screen name="purchase/[id]" options={{ title: 'Purchase' }} />
           <Stack.Screen name="sync" options={{ title: 'Sync & Offline' }} />
+          <Stack.Screen name="setup" options={{ title: 'Set up your business' }} />
+          <Stack.Screen name="workspace" options={{ title: 'Business setup' }} />
+          <Stack.Screen name="custom-fields" options={{ title: 'Custom fields' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="login" options={{ headerShown: false }} />

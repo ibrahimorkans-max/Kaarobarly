@@ -1,6 +1,8 @@
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
+import { CustomFieldInputs } from '@/components/custom-fields';
 import { Btn, Card, Chips, Field, IconBtn, Loading, Row, Screen, Section } from '@/components/ui';
+import { useWorkspace } from '@/lib/workspace';
 import { api } from '@/lib/api';
 import { useTheme, useToast } from '@/lib/app-context';
 import { moneyToInput, parseMoney, type Client } from '@/lib/shared';
@@ -8,7 +10,7 @@ import { moneyToInput, parseMoney, type Client } from '@/lib/shared';
 type Form = Omit<Client, 'id' | 'openingBalance' | 'creditLimit' | 'outstanding' | 'credit'> & { openingBalance: string; creditLimit: string };
 const blank: Form = {
   name: '', contactPerson: '', phone: '', whatsapp: '', email: '', cnic: '', ntn: '', address: '', city: '', province: '', country: 'Pakistan',
-  extraAddresses: [], extraContacts: [], category: '', openingBalance: '', creditLimit: '', notes: '', status: 'active',
+  extraAddresses: [], extraContacts: [], category: '', openingBalance: '', creditLimit: '', notes: '', status: 'active', custom: {},
 };
 
 export default function ClientEdit() {
@@ -19,6 +21,8 @@ export default function ClientEdit() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const set = (p: Partial<Form>) => setF((x) => (x ? { ...x, ...p } : x));
+  const { t: term, fields } = useWorkspace();
+  const one = term('client');
 
   useEffect(() => {
     if (!id) return;
@@ -33,7 +37,7 @@ export default function ClientEdit() {
 
   async function save() {
     if (!f) return;
-    if (!f.name.trim()) return setError('Client name is required');
+    if (!f.name.trim()) return setError(`${one} name is required`);
     const openingBalance = f.openingBalance.trim() ? parseMoney(f.openingBalance) : 0;
     if (openingBalance === null) return toast('Opening balance is not a valid amount', 'error');
     const creditLimit = f.creditLimit.trim() ? parseMoney(f.creditLimit) : 0;
@@ -48,7 +52,7 @@ export default function ClientEdit() {
         extraContacts: f.extraContacts.filter((c) => c.name.trim() || c.phone.trim()),
       };
       const c = await api<Client>(id ? `/clients/${id}` : '/clients', { method: id ? 'PUT' : 'POST', body });
-      toast(id ? 'Client updated' : 'Client added');
+      toast(id ? `${one} updated` : `${one} added`);
       if (id) router.back();
       else router.replace({ pathname: '/client/[id]', params: { id: c.id } });
     } catch (e: any) {
@@ -67,16 +71,22 @@ export default function ClientEdit() {
   }
 
   return (
-    <Screen footer={<Btn title={id ? 'Save changes' : 'Save client'} onPress={save} loading={busy} />}>
-      <Stack.Screen options={{ title: id ? 'Edit Client' : 'New Client' }} />
+    <Screen footer={<Btn title={id ? 'Save changes' : `Save ${one.toLowerCase()}`} onPress={save} loading={busy} />}>
+      <Stack.Screen options={{ title: id ? `Edit ${one}` : `New ${one}` }} />
       <Section title="Basics">
-        <Field label="Client / business name" value={f.name} onChangeText={(v) => (set({ name: v }), setError(''))} error={error} autoCapitalize="words" />
+        <Field label={`${one} name`} value={f.name} onChangeText={(v) => (set({ name: v }), setError(''))} error={error} autoCapitalize="words" />
         <Field label="Contact person" value={f.contactPerson} onChangeText={(v) => set({ contactPerson: v })} autoCapitalize="words" />
         <Field label="Phone number" value={f.phone} onChangeText={(v) => set({ phone: v })} keyboardType="phone-pad" autoComplete="tel" />
         <Field label="WhatsApp number" value={f.whatsapp} onChangeText={(v) => set({ whatsapp: v })} keyboardType="phone-pad" hint="Leave empty to use the phone number" />
         <Field label="Email" value={f.email} onChangeText={(v) => set({ email: v })} keyboardType="email-address" autoCapitalize="none" />
-        <Field label="Client category" value={f.category} onChangeText={(v) => set({ category: v })} placeholder="e.g. Mill, Retail, Corporate" />
+        <Field label="Category" value={f.category} onChangeText={(v) => set({ category: v })} placeholder="e.g. Mill, Retail, Corporate" />
       </Section>
+
+      {fields('client').length > 0 && (
+        <Section title="Details">
+          <CustomFieldInputs entity="client" values={f.custom} onChange={(custom) => set({ custom })} />
+        </Section>
+      )}
 
       <Section title="Billing address">
         <Field label="Address" value={f.address} onChangeText={(v) => set({ address: v })} multiline />

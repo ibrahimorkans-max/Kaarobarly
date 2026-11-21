@@ -1,3 +1,4 @@
+import type { CustomValues } from './workspace';
 import type { ChargeInput, DiscountType, RoundingRule } from './calc';
 import type { Frequency } from './schedule';
 
@@ -227,6 +228,8 @@ export interface Client {
   creditLimit: number;
   notes: string;
   status: 'active' | 'inactive';
+  /** values for the workspace's custom client fields */
+  custom: CustomValues;
   /** present on list/detail responses */
   outstanding?: number;
   credit?: number;
@@ -242,6 +245,9 @@ export interface Service {
   taxRateBp: number;
   defaultDiscountBp: number;
   status: 'active' | 'inactive';
+  /** one of the workspace's item types, e.g. Product, Service, Raw material */
+  itemType: string;
+  custom: CustomValues;
 }
 
 export interface InvoiceLine {
@@ -291,6 +297,8 @@ export interface InvoiceInput {
   fxRate?: number;
   /** finalize even though the client's credit limit would be exceeded (needs approval permission) */
   overrideCreditLimit?: boolean;
+  /** values for the workspace's custom invoice fields */
+  custom?: CustomValues;
 }
 
 export interface Invoice extends InvoiceInput {
@@ -455,6 +463,7 @@ export interface QuotationInput {
   notes: string;
   terms: string;
   clientRequestId?: string;
+  custom?: CustomValues;
 }
 
 export interface Quotation extends QuotationInput {

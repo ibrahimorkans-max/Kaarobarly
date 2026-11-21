@@ -10,6 +10,10 @@ import { api, qs, useApi } from '@/lib/api';
 import { useAuth, useTheme, useToast } from '@/lib/app-context';
 import { DASHBOARD_STYLES, DASHBOARD_STYLE_LABELS, type BusinessProfile, type DashboardStyle, type DashboardSummary, type Invoice } from '@/lib/shared';
 import { local } from '@/lib/storage';
+import { useWorkspace } from '@/lib/workspace';
+
+/** The setup wizard opens by itself once per app start for an owner who has not set up yet. */
+let setupOffered = false;
 
 type Range = 'all' | 'month' | '30d' | 'year';
 const STYLE_KEY = 'kaarobarly.dashboardStyle';
@@ -44,6 +48,13 @@ export default function Home() {
   const styleKey = selectedId || 'all';
   const style: DashboardStyle = overrides[styleKey] ?? business?.dashboardStyle ?? d?.dashboardStyle ?? 'classic';
   useEffect(() => reportDashboardStyle(style), [style]);
+  const { ws, loaded: wsLoaded } = useWorkspace();
+  useEffect(() => {
+    if (wsLoaded && !ws.configured && can('businesses.manage') && !setupOffered) {
+      setupOffered = true;
+      router.push('/setup');
+    }
+  }, [wsLoaded, ws.configured, can]);
 
   async function chooseStyle(s: DashboardStyle) {
     setPicker(false);

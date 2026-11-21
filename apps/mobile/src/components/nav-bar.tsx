@@ -4,6 +4,8 @@ import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useTheme } from '@/lib/app-context';
+import type { ModuleKey, TermKey } from '@/lib/shared';
+import { useWorkspace } from '@/lib/workspace';
 import { SyncBanner } from './sync-ui';
 import { MAX_WIDTH, Sheet, Txt, type IconName } from './ui';
 
@@ -73,25 +75,31 @@ export function NavTracker() {
 
 // ------------------------------------------------------------ bar
 
-const JUMPS: { icon: IconName; title: string; href: string }[] = [
-  { icon: 'grid-outline', title: 'Home', href: '/' },
-  { icon: 'document-text-outline', title: 'Invoices', href: '/invoices' },
-  { icon: 'add-circle-outline', title: 'Create Invoice', href: '/invoice/new' },
-  { icon: 'people-outline', title: 'Clients', href: '/clients' },
-  { icon: 'cash-outline', title: 'Payments', href: '/payments' },
-  { icon: 'document-outline', title: 'Quotations', href: '/quotations' },
-  { icon: 'repeat-outline', title: 'Recurring', href: '/recurring' },
-  { icon: 'bag-handle-outline', title: 'Purchases', href: '/purchases' },
-  { icon: 'stats-chart-outline', title: 'Finance', href: '/finance' },
-  { icon: 'wallet-outline', title: 'Accounts', href: '/accounts' },
-  { icon: 'book-outline', title: 'Cashbook', href: '/cashbook' },
-  { icon: 'trending-up-outline', title: 'Profit & Loss', href: '/statements' },
-  { icon: 'bar-chart-outline', title: 'Reports', href: '/reports' },
-  { icon: 'pricetags-outline', title: 'Services', href: '/services' },
-  { icon: 'business-outline', title: 'Businesses', href: '/businesses' },
-  { icon: 'settings-outline', title: 'Settings', href: '/settings' },
-  { icon: 'menu-outline', title: 'More', href: '/more' },
-];
+type Jump = { icon: IconName; title: string; href: string; mod?: ModuleKey };
+/** Pages in the Go to menu, in this business's words, without switched-off modules. */
+function jumps(t: (k: TermKey) => string, on: (m: ModuleKey) => boolean): Jump[] {
+  const all: Jump[] = [
+    { icon: 'grid-outline', title: 'Home', href: '/' },
+    { icon: 'document-text-outline', title: t('invoices'), href: '/invoices' },
+    { icon: 'add-circle-outline', title: `New ${t('invoice')}`, href: '/invoice/new' },
+    { icon: 'people-outline', title: t('clients'), href: '/clients' },
+    { icon: 'cash-outline', title: 'Payments', href: '/payments', mod: 'payments' },
+    { icon: 'document-outline', title: t('quotations'), href: '/quotations', mod: 'quotations' },
+    { icon: 'repeat-outline', title: 'Recurring', href: '/recurring', mod: 'recurring' },
+    { icon: 'bag-handle-outline', title: t('purchases'), href: '/purchases', mod: 'purchases' },
+    { icon: 'stats-chart-outline', title: 'Finance', href: '/finance', mod: 'finance' },
+    { icon: 'wallet-outline', title: 'Accounts', href: '/accounts', mod: 'accounts' },
+    { icon: 'book-outline', title: 'Cashbook', href: '/cashbook', mod: 'accounts' },
+    { icon: 'trending-up-outline', title: 'Profit & Loss', href: '/statements', mod: 'reports' },
+    { icon: 'bar-chart-outline', title: 'Reports', href: '/reports', mod: 'reports' },
+    { icon: 'pricetags-outline', title: t('items'), href: '/services' },
+    { icon: 'business-outline', title: 'Businesses', href: '/businesses' },
+    { icon: 'options-outline', title: 'Business setup', href: '/workspace' },
+    { icon: 'settings-outline', title: 'Settings', href: '/settings' },
+    { icon: 'menu-outline', title: 'More', href: '/more' },
+  ];
+  return all.filter((j) => !j.mod || on(j.mod));
+}
 
 function NavBtn({ icon, label, onPress, disabled }: { icon: IconName; label: string; onPress: () => void; disabled?: boolean }) {
   const t = useTheme();
@@ -126,6 +134,7 @@ export function NavBar({ title }: { title?: string }) {
   const pathname = usePathname();
   const { user } = useAuth();
   const [menu, setMenu] = useState(false);
+  const { t: term, on } = useWorkspace();
   useHistoryVersion();
   const isHome = pathname === '/';
   const go = (href: string) => {
@@ -148,7 +157,7 @@ export function NavBar({ title }: { title?: string }) {
       {!!user && <SyncBanner embedded />}
       <Sheet visible={menu} title="Go to" onClose={() => setMenu(false)}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
-          {JUMPS.map((j) => {
+          {jumps(term, on).map((j) => {
             const active = j.href === pathname;
             return (
               <Pressable

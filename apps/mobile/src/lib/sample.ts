@@ -17,7 +17,7 @@ export function sampleInvoiceDoc(business: BusinessProfile): { invoice: Invoice;
   const tax = Math.round(subtotal * 0.1);
   const client: Client = {
     id: 'sample', name: 'Sample Client (Pvt) Ltd', contactPerson: 'Ayesha Khan', phone: '+92 300 0000000', whatsapp: '', email: 'accounts@client.example', cnic: '', ntn: '',
-    address: '14 Canal Road', city: 'Lahore', province: 'Punjab', country: 'Pakistan', extraAddresses: [], extraContacts: [], category: '', openingBalance: 0, creditLimit: 0, notes: '', status: 'active',
+    address: '14 Canal Road', city: 'Lahore', province: 'Punjab', country: 'Pakistan', extraAddresses: [], extraContacts: [], category: '', openingBalance: 0, creditLimit: 0, notes: '', status: 'active', custom: {},
   };
   const invoice: Invoice = {
     id: 'sample', number: `${business.invoicePrefix}00042`, status: 'final', displayStatus: 'unpaid', businessId: business.id, businessName: business.tradingName || business.legalName,

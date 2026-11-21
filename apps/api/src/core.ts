@@ -305,7 +305,13 @@ export const MIGRATIONS: [table: string, column: string, definition: string][] =
     "finance_entry",
     "purchase_id",
     "text"
-  ]
+  ],
+  ['tenant', 'settings', "text not null default ''"],
+  ['client', 'custom', "text not null default '{}'"],
+  ['service', 'custom', "text not null default '{}'"],
+  ['service', 'item_type', "text not null default ''"],
+  ['invoice', 'custom', "text not null default '{}'"],
+  ['quotation', 'custom', "text not null default '{}'"],
 ];
 
 export abstract class BaseDb {

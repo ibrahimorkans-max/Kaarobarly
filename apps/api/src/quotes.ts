@@ -1,6 +1,7 @@
 import { z } from 'zod';
 import type { Quotation, QuotationDisplayStatus } from '../../../packages/shared/src/index';
 import { HttpError, type AuthContext } from './perm';
+import { cleanCustom, customSchema, parseCustom } from './workspace';
 import { now, today, uid, type Db, type Row } from './core';
 import { computeFor, createInvoice, lineSchemaPublic, nextDocNumber, ownedRow } from './domain';
 
@@ -23,6 +24,7 @@ export const quotationSchema = z.object({
   clientRequestId: z.string().min(8).max(64).optional(),
   currency: z.string().trim().length(3).toUpperCase().optional(),
   fxRate: z.number().int().min(1).max(1e15).optional(),
+  custom: customSchema,
 });
 export type QuotationBody = z.infer<typeof quotationSchema>;
 
@@ -59,6 +61,7 @@ export function mapQuote(r: Row): Quotation {
     charges: JSON.parse(r.charges),
     notes: r.notes,
     terms: r.terms,
+    custom: parseCustom(r.custom),
     clientRequestId: r.client_request_id ?? undefined,
     currency: r.currency,
     currencyPrecision: r.currency_precision,
@@ -136,6 +139,7 @@ export function saveQuote(db: Db, auth: AuthContext, body: QuotationBody, id?: s
          where id=? and tenant_id=?`,
         ...values, now(), fx.fxRate, fx.fxFactor, id, auth.tenantId,
       );
+      db.run('update quotation set custom = ? where id = ?', JSON.stringify(cleanCustom(db, auth.tenantId, 'invoice', body.custom, false)), id);
       db.audit(auth.tenantId, auth.userId, 'quotation.update', 'quotation', id, { total: totals.total });
       return getQuote(db, auth.tenantId, id);
     }
@@ -150,6 +154,7 @@ export function saveQuote(db: Db, auth: AuthContext, body: QuotationBody, id?: s
        values (?,?,?, 'draft', ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?,?)`,
       newId, auth.tenantId, number, ...values, body.clientRequestId ?? null, auth.userId, now(), now(), fx.fxRate, fx.fxFactor,
     );
+    db.run('update quotation set custom = ? where id = ?', JSON.stringify(cleanCustom(db, auth.tenantId, 'invoice', body.custom, false)), newId);
     db.audit(auth.tenantId, auth.userId, 'quotation.create', 'quotation', newId, { total: totals.total });
     return getQuote(db, auth.tenantId, newId);
   });
@@ -199,6 +204,7 @@ export function convertQuote(db: Db, auth: AuthContext, id: string, canVerify: b
         charges: JSON.parse(q.charges),
         notes: q.notes,
         paymentTerms: q.terms,
+        custom: parseCustom(q.custom),
         installments: [],
         clientRequestId: `quote-${q.id}`.slice(0, 64),
         currency: q.currency,

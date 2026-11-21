@@ -8,6 +8,7 @@ import * as pur from './purchases';
 import { HttpError, can, need, type Req, type Res } from './perm';
 import * as quotes from './quotes';
 import * as rec from './recurring';
+import * as ws from './workspace';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -51,6 +52,17 @@ export function registerRoutes(app: AppLike, db: Db) {
     q: String(req.query.q ?? '').trim(),
   });
 
+  const withCustom = <B extends { custom?: Record<string, unknown> }>(tenantId: string, entity: 'client' | 'item', body: B): B => ({ ...body, custom: ws.cleanCustom(db, tenantId, entity, body.custom as any) });
+
+  // ------------------------------------------------------------ workspace: business type, modules, wording, custom fields
+
+  app.get('/workspace', (req: Req, res: Res) => res.json(ws.getWorkspace(db, T(req))));
+  app.put('/workspace', need('businesses.manage'), (req: Req, res: Res) => res.json(ws.saveWorkspace(db, req.auth, ws.workspaceSchema.parse(req.body))));
+  app.post('/workspace/preset', need('businesses.manage'), (req: Req, res: Res) => {
+    const { businessType } = z.object({ businessType: ws.workspaceSchema.shape.businessType }).parse(req.body);
+    res.json(ws.applyPreset(db, req.auth, businessType));
+  });
+
   // ------------------------------------------------------------ business profiles
 
   app.get('/businesses', (req: Req, res: Res) => {
@@ -77,12 +89,12 @@ export function registerRoutes(app: AppLike, db: Db) {
   app.get('/clients/:id', (req: Req, res: Res) => res.json(d.getClient(db, T(req), String(req.params.id))));
   app.get('/clients/:id/ledger', need('invoices.view'), (req: Req, res: Res) => res.json(d.clientLedger(db, T(req), String(req.params.id))));
   app.post('/clients', need('clients.manage'), (req: Req, res: Res) => {
-    const id = upsert(db, 'client', T(req), d.clientSchema.parse(req.body));
+    const id = upsert(db, 'client', T(req), withCustom(T(req), 'client', d.clientSchema.parse(req.body)));
     db.audit(T(req), req.auth.userId, 'client.create', 'client', id);
     res.status(201).json(d.getClient(db, T(req), id));
   });
   app.put('/clients/:id', need('clients.manage'), (req: Req, res: Res) => {
-    upsert(db, 'client', T(req), d.clientSchema.parse(req.body), String(req.params.id));
+    upsert(db, 'client', T(req), withCustom(T(req), 'client', d.clientSchema.parse(req.body)), String(req.params.id));
     db.audit(T(req), req.auth.userId, 'client.update', 'client', String(req.params.id));
     res.json(d.getClient(db, T(req), String(req.params.id)));
   });
@@ -99,11 +111,11 @@ export function registerRoutes(app: AppLike, db: Db) {
     );
   });
   app.post('/services', need('invoices.create'), (req: Req, res: Res) => {
-    const id = upsert(db, 'service', T(req), d.serviceSchema.parse(req.body));
+    const id = upsert(db, 'service', T(req), withCustom(T(req), 'item', d.serviceSchema.parse(req.body)));
     res.status(201).json(d.mapService(d.ownedRow(db, 'service', T(req), id)));
   });
   app.put('/services/:id', need('invoices.create'), (req: Req, res: Res) => {
-    upsert(db, 'service', T(req), d.serviceSchema.parse(req.body), String(req.params.id));
+    upsert(db, 'service', T(req), withCustom(T(req), 'item', d.serviceSchema.parse(req.body)), String(req.params.id));
     res.json(d.mapService(d.ownedRow(db, 'service', T(req), String(req.params.id))));
   });
 

@@ -16,13 +16,13 @@ const ICONS: Record<string, [IconName, IconName]> = {
   more: ['menu-outline', 'menu'],
 };
 
-function Fab({ size, raised, disabled, ring }: { size: number; raised: boolean; disabled: boolean; ring: string }) {
+function Fab({ size, raised, disabled, ring, label }: { size: number; raised: boolean; disabled: boolean; ring: string; label: string }) {
   const press = usePressScale(0.88);
   return (
     <Animated.View style={{ transform: [{ scale: press.scale }], marginTop: raised ? -26 : 0, opacity: disabled ? 0.4 : 1 }}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Create invoice"
+        accessibilityLabel={label}
         disabled={disabled}
         onPress={() => router.push('/invoice/new')}
         onPressIn={press.onPressIn}
@@ -52,10 +52,11 @@ export function StyledTabBar({ state, descriptors, emitter, navigateToTab, canCr
   const items = state.routes.map((route: any, index: number) => {
     const focused = state.index === index;
     const { options } = descriptors[route.key];
+    if (options.hidden) return null;
     if (route.name === 'create') {
       return (
         <View key={route.key} style={{ flex: 1, alignItems: 'center', justifyContent: 'center' }}>
-          <Fab size={style === 'classic' ? 60 : 50} raised={style === 'classic'} disabled={!canCreate} ring={t.card} />
+          <Fab size={style === 'classic' ? 60 : 50} raised={style === 'classic'} disabled={!canCreate} ring={t.card} label={options.title ?? 'Create'} />
         </View>
       );
     }

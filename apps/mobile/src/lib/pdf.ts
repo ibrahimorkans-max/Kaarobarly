@@ -3,12 +3,15 @@ import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
 import {
   PAYMENT_METHOD_LABELS,
+  customValueText,
   formatMoney,
   percentToString,
   qtyToString,
   type BusinessProfile,
   type Client,
   type ClientLedger,
+  type CustomField,
+  type CustomValues,
   type Invoice,
   type InvoiceTemplate,
   type Payment,
@@ -130,6 +133,21 @@ ${BASE_CSS}${css}
 
 // ---------------------------------------------------------------- shared invoice pieces
 
+/** Custom fields marked "print on invoices", kept current by the workspace store. */
+let printFields: CustomField[] = [];
+export function setPrintFields(fields: CustomField[]) {
+  printFields = fields.filter((f) => f.showOnPdf);
+}
+function printedValues(entity: 'client' | 'invoice', values: CustomValues | undefined): [string, string][] {
+  return printFields
+    .filter((f) => f.entity === entity)
+    .map((f): [string, string] => {
+      const v = customValueText(f, values?.[f.id]);
+      return [f.label, f.type === 'date' && /^d{4}-d{2}-d{2}$/.test(v) ? fd(v) : v];
+    })
+    .filter(([, v]) => !!v);
+}
+
 interface InvoiceDoc {
   /** what the document is; quotations and purchases reuse the invoice designs with their own wording */
   docType?: 'invoice' | 'quotation' | 'purchase';
@@ -172,17 +190,18 @@ function parts(d: InvoiceDoc) {
     .map((p) => `<tr><td>${fd(p.date)}</td><td>${esc(p.number)}</td><td>${PAYMENT_METHOD_LABELS[p.method]}</td><td>${esc(txnId(p.method, p.reference))}</td><td class="r">${m(p.allocations.find((x) => x.invoiceId === i.id)?.amount ?? 0)}</td></tr>`)
     .join('');
   const info = (d.info ?? []).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r">${esc(v)}</td></tr>`).join('');
+  const details = printedValues('invoice', i.custom).map(([k, v]) => `<tr><td>${esc(k)}</td><td class="r">${esc(v)}</td></tr>`).join('');
   const schedule = i.installments
     .map((s, n) => `<tr><td>${n + 1}</td><td>${fd(s.dueDate)}</td><td>${s.status === 'paid' ? 'Paid' : s.status === 'partial' ? `Part paid ${m(s.paid ?? 0)}` : s.status === 'overdue' ? 'Overdue (unpaid)' : 'Unpaid'}</td><td class="r">${m(s.amount)}</td></tr>`)
     .join('');
-  const extras = `${info ? `<div class="extra"><div class="label">Payment details</div><table>${info}</table></div>` : ''}${schedule ?`<div class="extra"><div class="label">Installment schedule</div><table><tr><th>#</th><th>Due</th><th>Status</th><th class="r">Amount</th></tr>${schedule}</table></div>` : ''}
+  const extras = `${details ? `<div class="extra"><div class="label">Details</div><table>${details}</table></div>` : ''}${info ? `<div class="extra"><div class="label">Payment details</div><table>${info}</table></div>` : ''}${schedule ?`<div class="extra"><div class="label">Installment schedule</div><table><tr><th>#</th><th>Due</th><th>Status</th><th class="r">Amount</th></tr>${schedule}</table></div>` : ''}
     ${paymentRows ? `<div class="extra"><div class="label">Payments received</div><table><tr><th>Date</th><th>Receipt</th><th>Method</th><th>Transaction ID</th><th class="r">Amount</th></tr>${paymentRows}</table></div>` : ''}
     ${tailHtml(i.notes, b)}`;
 
   const purchase = d.docType === 'purchase';
   const bank = purchase ? '' : [b.bankDetails && nl(b.bankDetails), b.iban && `IBAN: ${esc(b.iban)}`, b.paymentInstructions && nl(b.paymentInstructions)].filter(Boolean).join('<br/>');
   const name = esc(b.tradingName || b.legalName);
-  const clientLines = [esc(c.contactPerson), nl(i.billingAddress || [c.address, c.city, c.province, c.country].filter(Boolean).join(', ')), esc(c.phone), esc(c.email), c.ntn && `NTN: ${esc(c.ntn)}`].filter(Boolean).join('<br/>');
+  const clientLines = [esc(c.contactPerson), nl(i.billingAddress || [c.address, c.city, c.province, c.country].filter(Boolean).join(', ')), esc(c.phone), esc(c.email), c.ntn && `NTN: ${esc(c.ntn)}`, ...printedValues('client', c.custom).map(([k, v]) => `${esc(k)}: ${esc(v)}`)].filter(Boolean).join('<br/>');
   const issuerLines = [nl(b.address), b.ntn && `NTN: ${esc(b.ntn)}`, b.registrationNo && `Reg: ${esc(b.registrationNo)}`].filter(Boolean).join('<br/>');
   const logo = b.logo ? `<img class="logo" src="${esc(b.logo)}" alt=""/>` : '';
   const sig = `<div class="sig">${b.stamp ? `<img class="stamp" src="${esc(b.stamp)}" alt=""/>` : ''}${b.signature ? `<img src="${esc(b.signature)}" alt=""/>` : '<div style="height:44px"></div>'}

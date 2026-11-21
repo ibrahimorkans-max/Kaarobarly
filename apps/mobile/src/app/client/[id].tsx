@@ -2,6 +2,7 @@ import * as Clipboard from 'expo-clipboard';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Linking, View } from 'react-native';
+import { CustomFieldValues } from '@/components/custom-fields';
 import { DocumentViewer } from '@/components/doc-viewer';
 import { InstallmentItem, InvoiceRow, PaymentRow, settleAmounts } from '@/components/rows';
 import { Badge, Btn, Card, Chips, IconBtn, KV, Loader, Row, Screen, Txt, fd, fm, Sheet, Field, DateField } from '@/components/ui';
@@ -142,7 +143,7 @@ export default function ClientProfile() {
                   </Card>
                 )}
                 <Card>
-                  <Txt v="h">Client information</Txt>
+                  <Txt v="h">Details</Txt>
                   {(
                     [
                       ['Phone', c.phone],
@@ -161,6 +162,7 @@ export default function ClientProfile() {
                     .map(([k, v]) => (
                       <KV key={k} k={k} v={v} />
                     ))}
+                  <CustomFieldValues entity="client" values={c.custom} />
                 </Card>
               </>
             )}

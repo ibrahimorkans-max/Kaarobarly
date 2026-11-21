@@ -6,10 +6,12 @@ import { Btn, Empty, Loading, SearchBar, styles } from '@/components/ui';
 import { qs, usePaged } from '@/lib/api';
 import { useAuth, useTheme } from '@/lib/app-context';
 import type { Client } from '@/lib/shared';
+import { lower, useWorkspace } from '@/lib/workspace';
 
 export default function Clients() {
   const t = useTheme();
   const { can } = useAuth();
+  const { t: term } = useWorkspace();
   const [q, setQ] = useState('');
   const query = useDebounced(q);
   const list = usePaged<Client>(`/clients${qs({ q: query })}`);
@@ -17,10 +19,10 @@ export default function Clients() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <Stack.Screen options={{ title: 'Clients' }} />
+      <Stack.Screen options={{ title: term('clients') }} />
       <View style={[styles.content, { paddingBottom: 10 }]}>
         <SearchBar value={q} onChange={setQ} placeholder="Search name, phone or city" />
-        {can('clients.manage') && <Btn icon="person-add-outline" title="Add client" onPress={add} />}
+        {can('clients.manage') && <Btn icon="person-add-outline" title={`Add ${lower(term('client'))}`} onPress={add} />}
       </View>
       <FlatList
         data={list.items}
@@ -38,7 +40,7 @@ export default function Clients() {
           ) : (
             <Empty
               icon="people-outline"
-              title={q ? 'No clients match' : 'No clients yet'}
+              title={`No ${lower(term('clients'))} ${q ? 'match' : 'yet'}`}
               hint={q ? 'Try a different search.' : 'Add the businesses and people you invoice.'}
               action={can('clients.manage') && !q ? <Btn small icon="add" title="Add Client" onPress={add} /> : undefined}
             />
