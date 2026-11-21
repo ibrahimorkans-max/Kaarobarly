@@ -4,6 +4,8 @@ import { HttpError, type AuthContext } from './perm';
 import { now, today, uid, type Db, type Row } from './core';
 import { ownedRow } from './domain';
 import { accountTypeFor, defaultAccount, ensureAccounts, ownedAccount } from './accounts';
+import { clearMoves, postIncoming } from './stock';
+import { cleanCustom, customSchema, parseCustom } from './workspace';
 
 /**
  * Purchase bills: what the business bought, from whom, and for how much.
@@ -13,11 +15,16 @@ import { accountTypeFor, defaultAccount, ensureAccounts, ownedAccount } from './
 export const purchaseSchema = z.object({
   businessId: z.string().min(1, 'Choose a business'),
   supplier: z.string().trim().min(1, 'Enter who you bought from').max(200),
+  /** a saved supplier; when left out the supplier is found or added by name */
+  supplierId: z.string().nullable().optional(),
+  /** set when the bill is made from a goods receipt (stock was counted there) */
+  receiptId: z.string().nullable().optional(),
   billNo: z.string().trim().max(60).default(''),
   date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD'),
   lines: z
     .array(
       z.object({
+        itemId: z.string().nullable().optional(),
         name: z.string().trim().min(1, 'Every item needs a name').max(200),
         qty: z.number().int().min(1, 'Quantity must be above zero').max(1e12),
         unit: z.string().trim().max(20).default(''),
@@ -44,6 +51,7 @@ export const purchaseSchema = z.object({
     .default([]),
   attachment: z.string().max(1_500_000).default(''),
   clientRequestId: z.string().min(8).max(64).optional(),
+  custom: customSchema,
 });
 export type PurchaseBody = z.infer<typeof purchaseSchema>;
 
@@ -88,6 +96,9 @@ function map(r: Row): Purchase {
     notes: r.notes,
     hasAttachment: !!r.attachment,
     financeEntryId: r.entry_id ?? null,
+    supplierId: r.supplier_id ?? null,
+    receiptId: r.receipt_id ?? null,
+    custom: parseCustom(r.custom),
     currency: r.currency,
     currencyPrecision: r.currency_precision,
     createdAt: r.created_at,
@@ -146,12 +157,17 @@ export function savePurchase(db: Db, auth: AuthContext, body: PurchaseBody, id?:
       : ownedAccount(db, auth.tenantId, defaultAccount(db, body.businessId, accountTypeFor(body.method)));
     if (account.business_id !== body.businessId) throw new HttpError(422, 'That account belongs to another business.');
 
+    const supplier = supplierFor(db, auth, body.supplierId, body.supplier);
+    const custom = JSON.stringify(cleanCustom(db, auth.tenantId, 'purchase', body.custom));
+    for (const l of body.lines) if (l.itemId && !db.get('select 1 from service where id = ? and tenant_id = ?', l.itemId, auth.tenantId)) throw new HttpError(422, 'One of the items no longer exists.');
     const t = now();
     let number: string;
+    let receiptId = body.receiptId ?? null;
     if (id) {
       const old = db.get('select * from purchase where id = ? and tenant_id = ?', id, auth.tenantId);
       if (!old) throw new HttpError(404, 'Purchase not found.');
       number = old.number;
+      receiptId = old.receipt_id ?? null;
       db.run(
         'update purchase set business_id=?, supplier=?, bill_no=?, date=?, lines=?, total=?, category=?, method=?, account_id=?, notes=?, reference=?, installments=?, attachment=?, updated_at=? where id=? and tenant_id=?',
         body.businessId, body.supplier, body.billNo, body.date, JSON.stringify(lines), total, body.category, body.method, account.id, body.notes, body.reference, JSON.stringify(plan),
@@ -168,6 +184,10 @@ export function savePurchase(db: Db, auth: AuthContext, body: PurchaseBody, id?:
       );
     }
 
+    db.run('update purchase set supplier = ?, supplier_id = ?, receipt_id = ?, custom = ? where id = ?', supplier.name, supplier.id, receiptId, custom, id);
+    // a bill made from goods received does not count the stock a second time
+    if (receiptId) clearMoves(db, auth.tenantId, 'purchase', id);
+    else postIncoming(db, auth, 'purchase', id, number, body.date, lines);
     syncEntry(db, auth, id);
     db.audit(auth.tenantId, auth.userId, 'purchase.save', 'purchase', id, { number, total, currency: biz.currency });
     return getPurchase(db, auth.tenantId, id);
@@ -226,9 +246,25 @@ export function deletePurchase(db: Db, auth: AuthContext, id: string) {
     const p = db.get('select number from purchase where id = ? and tenant_id = ?', id, auth.tenantId);
     if (!p) throw new HttpError(404, 'Purchase not found.');
     db.run('delete from finance_entry where purchase_id = ? and tenant_id = ?', id, auth.tenantId);
+    clearMoves(db, auth.tenantId, 'purchase', id);
+    db.run('update goods_receipt set purchase_id = null where purchase_id = ? and tenant_id = ?', id, auth.tenantId);
     db.run('delete from purchase where id = ?', id);
     db.audit(auth.tenantId, auth.userId, 'purchase.delete', 'purchase', id, { number: p.number });
   });
+}
+
+/** Supplier for a bill: an existing one by id, or found (and added if new) by the typed name. */
+export function supplierFor(db: Db, auth: AuthContext, supplierId: string | null | undefined, name: string): Row {
+  if (supplierId) {
+    const s = db.get('select * from supplier where id = ? and tenant_id = ?', supplierId, auth.tenantId);
+    if (!s) throw new HttpError(422, 'That supplier no longer exists.');
+    return s;
+  }
+  const found = db.get('select * from supplier where tenant_id = ? and lower(name) = lower(?)', auth.tenantId, name.trim());
+  if (found) return found;
+  const id = uid();
+  db.run('insert into supplier (id, tenant_id, name, created_at) values (?,?,?,?)', id, auth.tenantId, name.trim(), now());
+  return db.get('select * from supplier where id = ?', id)!;
 }
 
 /** Suppliers already used, most recent first, so they can be picked instead of retyped. */

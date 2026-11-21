@@ -26,6 +26,7 @@ import { Converter, findRate, inBase, reportingCurrency } from './fx';
 import { totalCash } from './accounts';
 import { now, today, uid, type Db, type Row } from './core';
 import { cleanCustom, customSchema, customValuesSchema, parseCustom } from './workspace';
+import { clearMoves, postInvoice } from './stock';
 
 // ---------------------------------------------------------------- schemas
 
@@ -100,6 +101,11 @@ export const serviceSchema = z.object({
   status: z.enum(['active', 'inactive']).default('active'),
   itemType: text(40),
   custom: customSchema,
+  trackStock: z.boolean().default(false),
+  sku: text(60),
+  barcode: text(60),
+  costPrice: money.default(0),
+  reorderLevel: z.number().int().min(0).max(1e12).default(0),
 });
 
 const lineSchema = z.object({
@@ -245,6 +251,12 @@ export function mapService(r: Row): Service {
     status: r.status,
     itemType: r.item_type ?? '',
     custom: parseCustom(r.custom),
+    trackStock: !!r.track_stock,
+    sku: r.sku ?? '',
+    barcode: r.barcode ?? '',
+    costPrice: r.cost_price ?? 0,
+    reorderLevel: r.reorder_level ?? 0,
+    ...(r.on_hand !== undefined ? { onHand: r.on_hand } : {}),
   };
 }
 
@@ -520,6 +532,7 @@ export function createInvoice(db: Db, auth: AuthContext, body: InvoiceBody, canV
     );
     writeInstallments(db, auth.tenantId, id, body.installments);
     db.run('update invoice set custom = ? where id = ?', JSON.stringify(cleanCustom(db, auth.tenantId, 'invoice', body.custom, body.finalize && body.custom !== undefined)), id);
+    if (body.finalize) postInvoice(db, auth, id);
     db.audit(auth.tenantId, auth.userId, body.finalize ? 'invoice.finalize' : 'invoice.create_draft', 'invoice', id, { total: totals.total });
 
     if (body.initialPayment) {
@@ -557,6 +570,7 @@ export function updateDraft(db: Db, auth: AuthContext, id: string, body: Invoice
     );
     writeInstallments(db, auth.tenantId, id, body.installments);
     db.run('update invoice set custom = ? where id = ?', JSON.stringify(cleanCustom(db, auth.tenantId, 'invoice', body.custom, body.finalize && body.custom !== undefined)), id);
+    if (body.finalize) postInvoice(db, auth, id);
     db.audit(auth.tenantId, auth.userId, body.finalize ? 'invoice.finalize' : 'invoice.update_draft', 'invoice', id, { total: totals.total });
     if (body.initialPayment) {
       recordPayment(db, auth, { ...body.initialPayment, clientId: body.clientId, businessId: body.businessId, invoiceId: id, proof: '', autoAllocate: false }, canVerify);
@@ -576,6 +590,7 @@ export function finalizeInvoice(db: Db, auth: AuthContext, id: string, overrideC
     const business = ownedRow(db, 'business', auth.tenantId, inv.businessId);
     const ts = now();
     db.run("update invoice set status = 'final', number = ?, finalized_at = ?, updated_at = ? where id = ? and tenant_id = ?", assignNumber(db, auth.tenantId, business, inv.issueDate), ts, ts, id, auth.tenantId);
+    postInvoice(db, auth, id);
     db.audit(auth.tenantId, auth.userId, 'invoice.finalize', 'invoice', id, { total: inv.total });
     return getInvoice(db, auth.tenantId, id);
   });
@@ -589,6 +604,7 @@ export function cancelInvoice(db: Db, auth: AuthContext, id: string, reason: str
     const released = db.get('select coalesce(sum(amount), 0) as s from payment_allocation where invoice_id = ? and tenant_id = ?', id, auth.tenantId)!.s;
     db.run('delete from payment_allocation where invoice_id = ? and tenant_id = ?', id, auth.tenantId);
     db.run("update invoice set status = 'cancelled', cancelled_at = ?, cancel_reason = ?, updated_at = ? where id = ? and tenant_id = ?", now(), reason, now(), id, auth.tenantId);
+    clearMoves(db, auth.tenantId, 'invoice', id); // the goods come back into stock
     db.audit(auth.tenantId, auth.userId, 'invoice.cancel', 'invoice', id, { reason, releasedToCredit: released });
     return getInvoice(db, auth.tenantId, id);
   });

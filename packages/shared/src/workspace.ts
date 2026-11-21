@@ -68,7 +68,7 @@ export const TERM_PAIRS: { one: TermKey; many: TermKey; label: string; examples:
 
 // ---------------------------------------------------------------- custom fields
 
-export const FIELD_ENTITIES = ['client', 'item', 'invoice', 'purchase'] as const;
+export const FIELD_ENTITIES = ['client', 'item', 'invoice', 'supplier', 'purchase'] as const;
 export type FieldEntity = (typeof FIELD_ENTITIES)[number];
 export const FIELD_TYPES = ['text', 'number', 'date', 'select', 'checkbox'] as const;
 export type FieldType = (typeof FIELD_TYPES)[number];

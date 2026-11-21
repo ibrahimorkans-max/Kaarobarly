@@ -65,6 +65,15 @@
         {
           "faceIDPermission": "Kaarobarly uses Face ID to unlock the app."
         }
+      ],
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kaarobarly uses the camera to scan barcodes on products.",
+          "microphonePermission": false,
+          "recordAudioAndroid": false,
+          "barcodeScannerEnabled": true
+        }
       ]
     ],
     "experiments": {}

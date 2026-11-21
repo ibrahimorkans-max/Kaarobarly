@@ -23,7 +23,7 @@ export default function CustomFields() {
   const [form, setForm] = useState<Form | null>(null);
   const [busy, setBusy] = useState(false);
   const canEdit = can('businesses.manage');
-  const entityName: Record<FieldEntity, string> = { client: t('client'), item: t('item'), invoice: `${t('invoice')} / ${t('quotation')}`, purchase: t('purchase') };
+  const entityName: Record<FieldEntity, string> = { client: t('client'), item: t('item'), invoice: `${t('invoice')} / ${t('quotation')}`, supplier: t('supplier'), purchase: t('purchase') };
   const set = (p: Partial<Form>) => setForm((f) => (f ? { ...f, ...p } : f));
 
   async function store(fields: CustomField[]) {

@@ -20,6 +20,9 @@ export default function More() {
         <MenuRow icon="people-outline" title={t('clients')} sub="Profiles, ledgers and statements" onPress={() => router.push('/clients')} />
         {on('finance') && <MenuRow icon="stats-chart-outline" title="Finance" sub="Money in, money out and expenses" onPress={() => router.push('/finance')} />}
         {on('purchases') && <MenuRow icon="bag-handle-outline" title={t('purchases')} sub={`Bills from ${lower(t('suppliers'))}, paid as money out`} onPress={() => router.push('/purchases')} />}
+        {on('purchases') && <MenuRow icon="cart-outline" title="Buying" sub="Requests, purchase orders and goods received" onPress={() => router.push('/buying')} />}
+        {on('purchases') && <MenuRow icon="storefront-outline" title={t('suppliers')} sub="Who you buy from and what you owe them" onPress={() => router.push('/suppliers')} />}
+        {on('inventory') && <MenuRow icon="cube-outline" title="Stock" sub="In hand, value, low stock and counts" onPress={() => router.push('/stock')} />}
         {on('accounts') && <MenuRow icon="wallet-outline" title="Cash & Bank Accounts" sub="Balances, transfers between accounts" onPress={() => router.push('/accounts')} />}
         {on('accounts') && <MenuRow icon="book-outline" title="Daily Cashbook" sub="Opening, in, out and closing for each day" onPress={() => router.push('/cashbook')} />}
         {on('reports') && <MenuRow icon="trending-up-outline" title="Profit & Loss · Cash Flow" sub="Is the business making money?" onPress={() => router.push('/statements')} />}

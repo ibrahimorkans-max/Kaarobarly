@@ -67,6 +67,14 @@ function Navigation() {
           <Stack.Screen name="setup" options={{ title: 'Set up your business' }} />
           <Stack.Screen name="workspace" options={{ title: 'Business setup' }} />
           <Stack.Screen name="custom-fields" options={{ title: 'Custom fields' }} />
+          <Stack.Screen name="buying" options={{ title: 'Buying' }} />
+          <Stack.Screen name="suppliers" options={{ title: 'Suppliers' }} />
+          <Stack.Screen name="supplier/[id]" options={{ title: 'Supplier' }} />
+          <Stack.Screen name="stock/index" options={{ title: 'Stock' }} />
+          <Stack.Screen name="stock/[id]" options={{ title: 'Stock' }} />
+          <Stack.Screen name="request/[id]" options={{ title: 'Purchase request' }} />
+          <Stack.Screen name="order/[id]" options={{ title: 'Purchase order' }} />
+          <Stack.Screen name="receipt/[id]" options={{ title: 'Goods received' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="login" options={{ headerShown: false }} />

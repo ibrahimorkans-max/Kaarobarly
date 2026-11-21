@@ -9,6 +9,7 @@ import { useDebounced } from '@/components/rows';
 import { Hero, HeroStylePicker, useScreenStyle } from '@/components/styles-kit';
 import { Btn, Card, Chips, Empty, FadeIn, IconBtn, InstallmentBadge, Loader, Row, Screen, SearchBar, Section, Txt, addDays, fd, fm, todayStr } from '@/components/ui';
 import { qs, useApi } from '@/lib/api';
+import { useWorkspace } from '@/lib/workspace';
 import { useAuth, useTheme } from '@/lib/app-context';
 import { qtyToString, type BusinessProfile, type Purchase, type PurchaseSummary } from '@/lib/shared';
 
@@ -83,6 +84,7 @@ function Ranked({ title, rows, color, money, empty }: { title: string; rows: { n
 export default function Purchases() {
   const t = useTheme();
   const { can } = useAuth();
+  const { on } = useWorkspace();
   const [range, setRange] = useState<Range>('month');
   const [q, setQ] = useState('');
   const query = useDebounced(q);
@@ -115,6 +117,11 @@ export default function Purchases() {
         <IconBtn icon="color-palette-outline" label="Change purchases dashboard style" onPress={() => setPicker(true)} />
       </Row>
       {can('finance.manage') && <Btn icon="add" title="New purchase" onPress={() => router.push('/purchase/new')} />}
+      <Row gap={8}>
+        <Btn style={{ flex: 1 }} small kind="secondary" icon="cart-outline" title="Buying" onPress={() => router.push('/buying')} />
+        <Btn style={{ flex: 1 }} small kind="secondary" icon="storefront-outline" title="Suppliers" onPress={() => router.push('/suppliers')} />
+        {on('inventory') && <Btn style={{ flex: 1 }} small kind="secondary" icon="cube-outline" title="Stock" onPress={() => router.push('/stock')} />}
+      </Row>
       <Chips
         value={range}
         onChange={setRange}

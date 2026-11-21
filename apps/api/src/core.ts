@@ -177,6 +177,45 @@ create table if not exists audit_log (
   action text not null, entity text not null, entity_id text, detail text not null default '{}', at text not null
 );
 create index if not exists audit_tenant on audit_log (tenant_id, at);
+create table if not exists supplier (
+  id text primary key, tenant_id text not null references tenant,
+  name text not null, contact_person text not null default '', phone text not null default '', email text not null default '',
+  address text not null default '', ntn text not null default '', opening_balance integer not null default 0,
+  notes text not null default '', status text not null default 'active', custom text not null default '{}', created_at text not null
+);
+create index if not exists supplier_tenant on supplier (tenant_id, name);
+create table if not exists stock_move (
+  id text primary key, tenant_id text not null references tenant, item_id text not null references service,
+  date text not null, qty integer not null, unit_cost integer not null default 0,
+  kind text not null check (kind in ('opening','receipt','purchase','sale','adjust','return')),
+  ref_type text not null default '', ref_id text, ref_number text not null default '', note text not null default '',
+  created_by text not null, created_at text not null
+);
+create index if not exists stock_item on stock_move (tenant_id, item_id, date);
+create index if not exists stock_ref on stock_move (tenant_id, ref_type, ref_id);
+create table if not exists purchase_request (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business,
+  number text not null, date text not null, needed_by text not null default '', lines text not null, notes text not null default '',
+  status text not null check (status in ('pending','approved','rejected','ordered')),
+  requested_by text not null, requested_by_name text not null, decided_by_name text not null default '', decided_at text,
+  decision_note text not null default '', order_id text, created_at text not null, updated_at text not null,
+  unique (tenant_id, number)
+);
+create table if not exists purchase_order (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business,
+  number text not null, supplier_id text not null references supplier, request_id text, date text not null,
+  expected_date text not null default '', lines text not null, total integer not null, notes text not null default '',
+  terms text not null default '', status text not null check (status in ('draft','sent','partial','received','closed','cancelled')),
+  created_by text not null, created_at text not null, updated_at text not null, unique (tenant_id, number)
+);
+create index if not exists order_tenant on purchase_order (tenant_id, date);
+create table if not exists goods_receipt (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business,
+  number text not null, supplier_id text not null references supplier, order_id text, date text not null,
+  lines text not null, total integer not null, notes text not null default '', purchase_id text,
+  created_by text not null, created_at text not null, unique (tenant_id, number)
+);
+create index if not exists receipt_tenant on goods_receipt (tenant_id, date);
 `;
 
 /** Columns added after the first release, applied to older databases on start. */
@@ -312,6 +351,14 @@ export const MIGRATIONS: [table: string, column: string, definition: string][] =
   ['service', 'item_type', "text not null default ''"],
   ['invoice', 'custom', "text not null default '{}'"],
   ['quotation', 'custom', "text not null default '{}'"],
+  ['service', 'track_stock', 'integer not null default 0'],
+  ['service', 'sku', "text not null default ''"],
+  ['service', 'barcode', "text not null default ''"],
+  ['service', 'cost_price', 'integer not null default 0'],
+  ['service', 'reorder_level', 'integer not null default 0'],
+  ['purchase', 'supplier_id', 'text'],
+  ['purchase', 'receipt_id', 'text'],
+  ['purchase', 'custom', "text not null default '{}'"],
 ];
 
 export abstract class BaseDb {

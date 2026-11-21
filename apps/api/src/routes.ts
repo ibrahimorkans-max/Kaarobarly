@@ -9,6 +9,8 @@ import { HttpError, can, need, type Req, type Res } from './perm';
 import * as quotes from './quotes';
 import * as rec from './recurring';
 import * as ws from './workspace';
+import * as proc from './procurement';
+import * as stock from './stock';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -106,9 +108,19 @@ export function registerRoutes(app: AppLike, db: Db) {
     const like = `%${q}%`;
     res.json(
       db
-        .all('select * from service where tenant_id = ? and (name like ? or category like ?) order by name collate nocase limit ? offset ?', T(req), like, like, Math.max(limit, 100), offset)
-        .map(d.mapService),
+        .all(
+          `select s.*, case when s.track_stock = 1 then coalesce((select sum(m.qty) from stock_move m where m.item_id = s.id), 0) end as on_hand
+           from service s where s.tenant_id = ? and (s.name like ? or s.category like ? or s.sku like ? or s.barcode = ?) order by s.name collate nocase limit ? offset ?`,
+          T(req), like, like, like, q, Math.max(limit, 100), offset,
+        )
+        .map((r) => d.mapService(r.on_hand === null ? { ...r, on_hand: undefined } : r)),
     );
+  });
+  /** Exact barcode / SKU lookup for scanners. */
+  app.get('/services/by-code/:code', (req: Req, res: Res) => {
+    const r = stock.findByCode(db, T(req), String(req.params.code));
+    if (!r) throw new HttpError(404, 'No item has this barcode.');
+    res.json(d.mapService(r));
   });
   app.post('/services', need('invoices.create'), (req: Req, res: Res) => {
     const id = upsert(db, 'service', T(req), withCustom(T(req), 'item', d.serviceSchema.parse(req.body)));
@@ -117,6 +129,60 @@ export function registerRoutes(app: AppLike, db: Db) {
   app.put('/services/:id', need('invoices.create'), (req: Req, res: Res) => {
     upsert(db, 'service', T(req), withCustom(T(req), 'item', d.serviceSchema.parse(req.body)), String(req.params.id));
     res.json(d.mapService(d.ownedRow(db, 'service', T(req), String(req.params.id))));
+  });
+
+  // ------------------------------------------------------------ stock
+
+  app.get('/stock', (req: Req, res: Res) => res.json(stock.stockSummary(db, T(req), String(req.query.q ?? '').trim())));
+  app.get('/stock/reorder', (req: Req, res: Res) => res.json(proc.reorderList(db, T(req))));
+  app.get('/stock/:id', (req: Req, res: Res) => res.json({ item: stock.stockItem(db, T(req), String(req.params.id)), moves: stock.moves(db, T(req), String(req.params.id)) }));
+  app.post('/stock/adjust', need('stock.manage'), (req: Req, res: Res) => res.status(201).json(stock.adjust(db, req.auth, stock.adjustSchema.parse(req.body))));
+
+  // ------------------------------------------------------------ suppliers
+
+  app.get('/suppliers', (req: Req, res: Res) => res.json(proc.listSuppliers(db, T(req), String(req.query.q ?? '').trim())));
+  app.get('/suppliers/:id', (req: Req, res: Res) => res.json(proc.supplierActivity(db, T(req), String(req.params.id))));
+  app.post('/suppliers', need('purchases.manage'), (req: Req, res: Res) => res.status(201).json(proc.saveSupplier(db, req.auth, proc.supplierSchema.parse(req.body))));
+  app.put('/suppliers/:id', need('purchases.manage'), (req: Req, res: Res) => res.json(proc.saveSupplier(db, req.auth, proc.supplierSchema.parse(req.body), String(req.params.id))));
+
+  // ------------------------------------------------------------ demand → purchase order → goods received → bill
+
+  app.get('/purchase-requests', (req: Req, res: Res) => res.json(proc.listRequests(db, T(req), String(req.query.status ?? ''))));
+  app.get('/purchase-requests/:id', (req: Req, res: Res) => res.json(proc.getRequest(db, T(req), String(req.params.id))));
+  app.post('/purchase-requests', need('purchases.request'), (req: Req, res: Res) => res.status(201).json(proc.saveRequest(db, req.auth, proc.requestSchema.parse(req.body))));
+  app.put('/purchase-requests/:id', need('purchases.request'), (req: Req, res: Res) => res.json(proc.saveRequest(db, req.auth, proc.requestSchema.parse(req.body), String(req.params.id))));
+  app.post('/purchase-requests/:id/decide', need('purchases.approve'), (req: Req, res: Res) => {
+    const b = z.object({ decision: z.enum(['approved', 'rejected']), note: z.string().trim().max(500).default('') }).parse(req.body);
+    res.json(proc.decideRequest(db, req.auth, String(req.params.id), b.decision, b.note));
+  });
+  app.delete('/purchase-requests/:id', need('purchases.request'), (req: Req, res: Res) => {
+    proc.deleteRequest(db, req.auth, String(req.params.id));
+    res.json({ ok: true });
+  });
+
+  app.get('/purchase-orders', (req: Req, res: Res) => res.json(proc.listOrders(db, T(req), String(req.query.status ?? ''))));
+  app.get('/purchase-orders/:id', (req: Req, res: Res) => {
+    const order = proc.getOrder(db, T(req), String(req.params.id));
+    res.json({ order, supplier: proc.getSupplier(db, T(req), order.supplierId), business: d.mapBusiness(d.ownedRow(db, 'business', T(req), order.businessId)), receipts: proc.listReceipts(db, T(req)).filter((g) => g.orderId === order.id) });
+  });
+  app.post('/purchase-orders', need('purchases.manage'), (req: Req, res: Res) => res.status(201).json(proc.saveOrder(db, req.auth, proc.orderSchema.parse(req.body))));
+  app.put('/purchase-orders/:id', need('purchases.manage'), (req: Req, res: Res) => res.json(proc.saveOrder(db, req.auth, proc.orderSchema.parse(req.body), String(req.params.id))));
+  app.post('/purchase-orders/:id/status', need('purchases.manage'), (req: Req, res: Res) => {
+    const { status } = z.object({ status: z.enum(['sent', 'cancelled', 'closed']) }).parse(req.body);
+    res.json(proc.setOrderStatus(db, req.auth, String(req.params.id), status));
+  });
+  app.delete('/purchase-orders/:id', need('purchases.manage'), (req: Req, res: Res) => {
+    proc.deleteOrder(db, req.auth, String(req.params.id));
+    res.json({ ok: true });
+  });
+
+  app.get('/goods-receipts', (req: Req, res: Res) => res.json(proc.listReceipts(db, T(req), req.query.unbilled === '1')));
+  app.get('/goods-receipts/:id', (req: Req, res: Res) => res.json(proc.getReceipt(db, T(req), String(req.params.id))));
+  app.post('/goods-receipts', need('purchases.manage'), (req: Req, res: Res) => res.status(201).json(proc.createReceipt(db, req.auth, proc.receiptSchema.parse(req.body))));
+  app.post('/goods-receipts/:id/bill', need('finance.manage'), (req: Req, res: Res) => res.status(201).json(proc.billReceipt(db, req.auth, String(req.params.id), proc.billSchema.parse(req.body ?? {}))));
+  app.delete('/goods-receipts/:id', need('purchases.manage'), (req: Req, res: Res) => {
+    proc.deleteReceipt(db, req.auth, String(req.params.id));
+    res.json({ ok: true });
   });
 
   // ------------------------------------------------------------ invoices

@@ -30,6 +30,10 @@ export const PERMISSIONS = [
   'clients.manage',
   'businesses.manage',
   'users.manage',
+  'purchases.request',
+  'purchases.approve',
+  'purchases.manage',
+  'stock.manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -39,8 +43,8 @@ export type Role = (typeof ROLES)[number];
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   owner: PERMISSIONS,
   manager: PERMISSIONS.filter((p) => p !== 'businesses.manage' && p !== 'users.manage'),
-  accountant: ['invoices.view', 'invoices.create', 'invoices.edit_draft', 'invoices.finalize', 'payments.record', 'payments.verify', 'reports.view', 'finance.manage', 'clients.manage'],
-  staff: ['invoices.view', 'invoices.create', 'invoices.edit_draft', 'payments.record', 'clients.manage'],
+  accountant: ['invoices.view', 'invoices.create', 'invoices.edit_draft', 'invoices.finalize', 'payments.record', 'payments.verify', 'reports.view', 'finance.manage', 'clients.manage', 'purchases.request', 'purchases.manage', 'stock.manage'],
+  staff: ['invoices.view', 'invoices.create', 'invoices.edit_draft', 'payments.record', 'clients.manage', 'purchases.request'],
   viewer: ['invoices.view'],
 };
 
@@ -85,6 +89,8 @@ export interface FinanceEntry {
 
 /** A bill for things the business bought. Saving it records its total as Money out. */
 export interface PurchaseLine {
+  /** catalogue item; stock goes up when it is tracked */
+  itemId?: string | null;
   name: string;
   /** thousandths: 1000 = 1 */
   qty: number;
@@ -117,6 +123,10 @@ export interface Purchase {
   balance: number;
   hasAttachment: boolean;
   financeEntryId: string | null;
+  supplierId: string | null;
+  /** goods receipt this bill was made from (its stock was counted there) */
+  receiptId: string | null;
+  custom: CustomValues;
   currency: string;
   currencyPrecision: number;
   createdAt: string;
@@ -248,6 +258,16 @@ export interface Service {
   /** one of the workspace's item types, e.g. Product, Service, Raw material */
   itemType: string;
   custom: CustomValues;
+  /** keep a stock count for this item */
+  trackStock: boolean;
+  sku: string;
+  barcode: string;
+  /** last purchase price, minor units per 1 */
+  costPrice: number;
+  /** thousandths; warn when stock falls to this */
+  reorderLevel: number;
+  /** thousandths; present when trackStock */
+  onHand?: number;
 }
 
 export interface InvoiceLine {

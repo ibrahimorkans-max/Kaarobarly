@@ -3,6 +3,7 @@ import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pressable, Switch, View } from 'react-native';
 import { CustomFieldInputs } from '@/components/custom-fields';
+import { BarcodeScanner } from '@/components/scanner';
 import { DocumentViewer } from '@/components/doc-viewer';
 import { CurrencySelect } from '@/components/money';
 import { StepSlide, Stepper, type StepDef } from '@/components/stepper';
@@ -40,6 +41,7 @@ import {
   moneyToInput,
   occurrence,
   parseMoney,
+  qtyToString,
   parseQty,
   type BusinessProfile,
   type Client,
@@ -92,6 +94,7 @@ export default function DocBuilder({ kind = 'invoice' }: { kind?: BuilderKind })
   const businesses = useApi<BusinessProfile[]>('/businesses');
   const clients = useApi<Client[]>('/clients?limit=100');
   const services = useApi<Service[]>('/services');
+  const [scan, setScan] = useState(false);
 
   const [draft, setDraft] = useState<InvoiceDraft | null>(null);
   const [restored, setRestored] = useState(false);
@@ -496,13 +499,26 @@ export default function DocBuilder({ kind = 'invoice' }: { kind?: BuilderKind })
         items={(services.data ?? []).filter((s) => s.status === 'active')}
         getKey={(s) => s.id}
         getLabel={(s) => s.name}
-        getSub={(s) => `${money(s.defaultPrice)}${s.unit ? ` / ${s.unit}` : ''}${s.category ? ` · ${s.category}` : ''}`}
+        getSub={(s) => `${money(s.defaultPrice)}${s.unit ? ` / ${s.unit}` : ''}${s.category ? ` · ${s.category}` : ''}${s.onHand !== undefined ? ` · ${qtyToString(s.onHand)} in stock` : ''}`}
         onSelect={(s) => set({ lines: [...draft.lines, lineFromService(s, precision)] })}
         onAdd={can('invoices.create') ? (typed) => setServiceSheet({ name: typed, price: '', unit: '', tax: '' }) : undefined}
         addLabel="Quick-add service"
         error={errors.lines}
       />
-      <Btn kind="secondary" icon="create-outline" title="Add custom item" onPress={() => setEditing(emptyLine())} />
+      <Row gap={10}>
+        <Btn style={{ flex: 1 }} kind="secondary" icon="create-outline" title="Add custom item" onPress={() => setEditing(emptyLine())} />
+        <Btn style={{ flex: 1 }} kind="secondary" icon="barcode-outline" title="Scan" onPress={() => setScan(true)} />
+      </Row>
+      <BarcodeScanner
+        visible={scan}
+        onClose={() => setScan(false)}
+        onCode={async (code) => {
+          const s = (services.data ?? []).find((x) => x.status === 'active' && (x.barcode === code || x.sku === code)) ?? (await api<Service>(`/services/by-code/${encodeURIComponent(code)}`).catch(() => null));
+          if (!s) return toast('No item has this barcode', 'error');
+          set({ lines: [...draft.lines, lineFromService(s, precision)] });
+          toast(`${s.name} added`);
+        }}
+      />
       {draft.lines.length === 0 && <Txt v="sub">No items yet. Pick a saved service or add a custom item.</Txt>}
       {draft.lines.map((l, i) => (
         <Card key={l.key}>

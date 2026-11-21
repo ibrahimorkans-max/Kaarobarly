@@ -63,6 +63,8 @@ const LABELS = {
   invoice: { title: 'INVOICE', to: 'Invoice to', short: 'Invoice', due: 'Due date', dueLower: 'due' },
   quotation: { title: 'QUOTATION', to: 'Quotation for', short: 'Quote', due: 'Valid until', dueLower: 'valid until' },
   purchase: { title: 'PURCHASE', to: 'Bought from', short: 'Purchase', due: 'Recorded', dueLower: 'recorded' },
+  order: { title: 'PURCHASE ORDER', to: 'Supplier', short: 'PO', due: 'Deliver by', dueLower: 'deliver by' },
+  receipt: { title: 'GOODS RECEIVED', to: 'Received from', short: 'GRN', due: 'Received', dueLower: 'received' },
 };
 
 export const DEFAULT_DISCLAIMER =
@@ -150,7 +152,7 @@ function printedValues(entity: 'client' | 'invoice', values: CustomValues | unde
 
 interface InvoiceDoc {
   /** what the document is; quotations and purchases reuse the invoice designs with their own wording */
-  docType?: 'invoice' | 'quotation' | 'purchase';
+  docType?: 'invoice' | 'quotation' | 'purchase' | 'order' | 'receipt';
   invoice: Invoice;
   business: BusinessProfile;
   client: Client;
@@ -198,7 +200,7 @@ function parts(d: InvoiceDoc) {
     ${paymentRows ? `<div class="extra"><div class="label">Payments received</div><table><tr><th>Date</th><th>Receipt</th><th>Method</th><th>Transaction ID</th><th class="r">Amount</th></tr>${paymentRows}</table></div>` : ''}
     ${tailHtml(i.notes, b)}`;
 
-  const purchase = d.docType === 'purchase';
+  const purchase = d.docType === 'purchase' || d.docType === 'order' || d.docType === 'receipt';
   const bank = purchase ? '' : [b.bankDetails && nl(b.bankDetails), b.iban && `IBAN: ${esc(b.iban)}`, b.paymentInstructions && nl(b.paymentInstructions)].filter(Boolean).join('<br/>');
   const name = esc(b.tradingName || b.legalName);
   const clientLines = [esc(c.contactPerson), nl(i.billingAddress || [c.address, c.city, c.province, c.country].filter(Boolean).join(', ')), esc(c.phone), esc(c.email), c.ntn && `NTN: ${esc(c.ntn)}`, ...printedValues('client', c.custom).map(([k, v]) => `${esc(k)}: ${esc(v)}`)].filter(Boolean).join('<br/>');
@@ -504,6 +506,56 @@ export function purchaseSlipHtml(p: Purchase, b: BusinessProfile, paper: Paper =
     ['Category', p.category],
   ];
   return invoiceHtml({ docType: 'purchase', invoice, business: b, client: supplier, payments: [], info }, paper, template);
+}
+
+/** A purchase order or goods received note, printed with the invoice designs (supplier in the client's place). */
+export function buyingDocHtml(
+  kind: 'order' | 'receipt',
+  doc: { id: string; number: string; businessId: string; date: string; dueDate: string; lines: { name: string; qty: number; unit: string; unitPrice: number; amount: number; note?: string }[]; total: number; notes: string; terms?: string; currency: string; currencyPrecision: number; createdAt: string; reference?: string },
+  supplier: { name: string; contactPerson?: string; phone?: string; email?: string; address?: string; ntn?: string },
+  b: BusinessProfile,
+  paper: Paper = 'A4',
+  template?: InvoiceTemplate,
+): string {
+  const invoice = {
+    id: doc.id,
+    number: doc.number,
+    businessId: doc.businessId,
+    clientId: '',
+    clientName: supplier.name,
+    businessName: b.tradingName || b.legalName,
+    issueDate: doc.date,
+    dueDate: doc.dueDate || doc.date,
+    reference: doc.reference ?? '',
+    billingAddress: '',
+    lines: doc.lines.map((l) => ({ serviceId: null, name: l.name, description: l.note ?? '', qty: l.qty, unit: l.unit, unitPrice: l.unitPrice, discountType: 'percent', discountValue: 0, taxRateBp: 0, lineTotal: l.amount })),
+    overallDiscountType: 'percent',
+    overallDiscountValue: 0,
+    charges: [],
+    notes: doc.notes,
+    paymentTerms: doc.terms ?? '',
+    installments: [],
+    status: 'final',
+    displayStatus: '',
+    currency: doc.currency,
+    currencyPrecision: doc.currencyPrecision,
+    taxInclusive: false,
+    rounding: 'none',
+    subtotal: doc.total,
+    itemDiscounts: 0,
+    overallDiscount: 0,
+    taxableAmount: doc.total,
+    taxAmount: 0,
+    chargesTotal: 0,
+    roundingAdjustment: 0,
+    total: doc.total,
+    paid: 0,
+    balance: doc.total,
+    createdAt: doc.createdAt,
+    finalizedAt: doc.createdAt,
+  } as unknown as Invoice;
+  const client = { name: supplier.name, contactPerson: supplier.contactPerson ?? '', phone: supplier.phone ?? '', email: supplier.email ?? '', address: supplier.address ?? '', ntn: supplier.ntn ?? '', city: '', province: '', country: '', custom: {} } as unknown as Client;
+  return invoiceHtml({ docType: kind, invoice, business: b, client, payments: [] }, paper, template);
 }
 
 /** Every purchase bill in a period on one sheet, with a grand total. */

@@ -19,16 +19,19 @@ import {
   type MoneyAccount,
   type PaymentMethod,
   type Purchase,
+  type Service,
 } from '@/lib/shared';
 
 interface Line {
   key: string;
+  /** catalogue item; tracked items go into stock */
+  itemId: string | null;
   name: string;
   qty: string;
   unit: string;
   unitPrice: string;
 }
-const blankLine = (): Line => ({ key: newKey(), name: '', qty: '1', unit: '', unitPrice: '' });
+const blankLine = (): Line => ({ key: newKey(), itemId: null, name: '', qty: '1', unit: '', unitPrice: '' });
 const CATEGORIES = ['Purchases', 'Stock / inventory', 'Raw materials', 'Supplies', 'Equipment', 'Maintenance'];
 
 export default function NewPurchase() {
@@ -39,6 +42,7 @@ export default function NewPurchase() {
   const businesses = useApi<BusinessProfile[]>('/businesses');
   const accounts = useApi<MoneyAccount[]>('/accounts');
   const supplierList = useApi<string[]>('/purchases/suppliers');
+  const catalogue = useApi<Service[]>('/services?limit=100');
   const requestId = useRef(`pur-${newKey()}`);
 
   const [businessId, setBusinessId] = useState('');
@@ -72,7 +76,7 @@ export default function NewPurchase() {
     setSupplier(p.supplier);
     setBillNo(p.billNo);
     setDate(p.date);
-    setLines(p.lines.map((l) => ({ key: newKey(), name: l.name, qty: qtyToString(l.qty), unit: l.unit, unitPrice: moneyToInput(l.unitPrice, p.currencyPrecision) })));
+    setLines(p.lines.map((l) => ({ key: newKey(), itemId: l.itemId ?? null, name: l.name, qty: qtyToString(l.qty), unit: l.unit, unitPrice: moneyToInput(l.unitPrice, p.currencyPrecision) })));
     setCategory(p.category);
     setMethod(p.method);
     setAccountId(p.accountId ?? '');
@@ -114,7 +118,7 @@ export default function NewPurchase() {
     if (!isDate(date)) e.date = 'Enter a valid date';
     const body = lines
       .filter((l) => l.name.trim() || l.unitPrice.trim())
-      .map((l) => ({ key: l.key, name: l.name.trim(), qty: parseQty(l.qty), unit: l.unit.trim(), unitPrice: parseMoney(l.unitPrice || '0', precision) }));
+      .map((l) => ({ key: l.key, itemId: l.itemId, name: l.name.trim(), qty: parseQty(l.qty), unit: l.unit.trim(), unitPrice: parseMoney(l.unitPrice || '0', precision) }));
     if (!body.length) e.lines = 'Add at least one item';
     for (const l of body) {
       if (!l.name) e[`name-${l.key}`] = 'Item name';
@@ -213,7 +217,17 @@ export default function NewPurchase() {
                 <Txt v="label">Item {i + 1}</Txt>
                 {lines.length > 1 && <IconBtn icon="trash-outline" label={`Remove item ${i + 1}`} color={t.danger} onPress={() => setLines((ls) => ls.filter((x) => x.key !== l.key))} />}
               </Row>
-              <Field label="Item name" value={l.name} onChangeText={(v) => setLine(l.key, { name: v })} placeholder="e.g. Cement bag" error={errors[`name-${l.key}`]} />
+              <Field label="Item name" value={l.name} onChangeText={(v) => setLine(l.key, { name: v, itemId: null })} placeholder="e.g. Cement bag" error={errors[`name-${l.key}`]} hint={l.itemId ? 'From your catalogue' : undefined} />
+              {!l.itemId && l.name.trim().length > 1 && (
+                <Row gap={6} style={{ flexWrap: 'wrap' }}>
+                  {(catalogue.data ?? [])
+                    .filter((s) => s.status === 'active' && `${s.name} ${s.sku} ${s.barcode}`.toLowerCase().includes(l.name.trim().toLowerCase()))
+                    .slice(0, 4)
+                    .map((s) => (
+                      <Btn key={s.id} small kind="secondary" icon={s.trackStock ? 'cube-outline' : 'pricetag-outline'} title={s.name} onPress={() => setLine(l.key, { itemId: s.id, name: s.name, unit: s.unit, unitPrice: l.unitPrice || (s.costPrice ? moneyToInput(s.costPrice, precision) : '') })} />
+                    ))}
+                </Row>
+              )}
               <Row gap={8} style={{ alignItems: 'flex-start' }}>
                 <Field style={{ flex: 1 }} label="Qty" money value={l.qty} onChangeText={(v) => setLine(l.key, { qty: v })} error={errors[`qty-${l.key}`]} />
                 <Field style={{ flex: 1 }} label="Unit" value={l.unit} onChangeText={(v) => setLine(l.key, { unit: v })} placeholder="pcs, kg" />

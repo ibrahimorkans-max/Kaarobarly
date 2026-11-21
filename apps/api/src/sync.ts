@@ -10,6 +10,7 @@ export const SYNC_TABLES = [
   'business',
   'client',
   'service',
+  'supplier',
   'money_account',
   'purchase',
   'invoice',
@@ -22,6 +23,10 @@ export const SYNC_TABLES = [
   'client_refund',
   'exchange_rate',
   'finance_entry',
+  'stock_move',
+  'purchase_request',
+  'purchase_order',
+  'goods_receipt',
   'counter',
 ] as const;
 type SyncTable = (typeof SYNC_TABLES)[number];
