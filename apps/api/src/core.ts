@@ -216,6 +216,40 @@ create table if not exists goods_receipt (
   created_by text not null, created_at text not null, unique (tenant_id, number)
 );
 create index if not exists receipt_tenant on goods_receipt (tenant_id, date);
+create table if not exists cheque (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business,
+  direction text not null check (direction in ('in','out')), number text not null, bank text not null default '',
+  party text not null, client_id text, supplier_id text, amount integer not null check (amount > 0),
+  cheque_date text not null, received_date text not null,
+  status text not null check (status in ('pending','deposited','cleared','bounced','cancelled')), status_date text,
+  account_id text, payment_id text, purchase_id text, notes text not null default '', created_by text not null, created_at text not null
+);
+create index if not exists cheque_tenant on cheque (tenant_id, cheque_date);
+create table if not exists loan (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business,
+  direction text not null check (direction in ('borrowed','lent')), party text not null, principal integer not null,
+  rate_bp integer not null default 0, start_date text not null, end_date text not null default '',
+  installment_amount integer not null default 0, notes text not null default '',
+  status text not null default 'active' check (status in ('active','closed')), created_by text not null, created_at text not null
+);
+create table if not exists loan_txn (
+  id text primary key, tenant_id text not null references tenant, loan_id text not null references loan,
+  kind text not null check (kind in ('disbursement','repayment','interest')), amount integer not null check (amount > 0),
+  date text not null, account_id text not null references money_account, notes text not null default '',
+  created_by text not null, created_at text not null
+);
+create index if not exists loan_txn_account on loan_txn (tenant_id, account_id, date);
+create table if not exists budget (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business,
+  category text not null, month text not null, amount integer not null, created_at text not null
+);
+create index if not exists budget_lookup on budget (tenant_id, business_id, month);
+create table if not exists day_close (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business,
+  account_id text not null references money_account, date text not null, expected integer not null, counted integer not null,
+  difference integer not null, notes text not null default '', entry_id text, closed_by_name text not null, created_at text not null
+);
+create index if not exists day_close_business on day_close (tenant_id, business_id, date);
 `;
 
 /** Columns added after the first release, applied to older databases on start. */

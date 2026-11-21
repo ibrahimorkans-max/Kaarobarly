@@ -11,6 +11,7 @@ import * as rec from './recurring';
 import * as ws from './workspace';
 import * as proc from './procurement';
 import * as stock from './stock';
+import * as adv from './advanced';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -182,6 +183,65 @@ export function registerRoutes(app: AppLike, db: Db) {
   app.post('/goods-receipts/:id/bill', need('finance.manage'), (req: Req, res: Res) => res.status(201).json(proc.billReceipt(db, req.auth, String(req.params.id), proc.billSchema.parse(req.body ?? {}))));
   app.delete('/goods-receipts/:id', need('purchases.manage'), (req: Req, res: Res) => {
     proc.deleteReceipt(db, req.auth, String(req.params.id));
+    res.json({ ok: true });
+  });
+
+  // ------------------------------------------------------------ advanced finance
+
+  const biz = (req: Req) => (req.query.businessId ? String(req.query.businessId) : undefined);
+  const isoQ = (req: Req, key: string, fallback: string) => (/^\d{4}-\d{2}-\d{2}$/.test(String(req.query[key] ?? '')) ? String(req.query[key]) : fallback);
+  const todayQ = () => new Date().toISOString().slice(0, 10);
+
+  app.get('/cheques', need('reports.view'), (req: Req, res: Res) => res.json(adv.listCheques(db, T(req), { direction: req.query.direction ? String(req.query.direction) : undefined, status: req.query.status ? String(req.query.status) : undefined })));
+  app.get('/cheques/:id', need('reports.view'), (req: Req, res: Res) => res.json(adv.getCheque(db, T(req), String(req.params.id))));
+  app.post('/cheques', need('finance.manage'), (req: Req, res: Res) => res.status(201).json(adv.saveCheque(db, req.auth, adv.chequeSchema.parse(req.body))));
+  app.put('/cheques/:id', need('finance.manage'), (req: Req, res: Res) => res.json(adv.saveCheque(db, req.auth, adv.chequeSchema.parse(req.body), String(req.params.id))));
+  app.post('/cheques/:id/status', need('finance.manage'), (req: Req, res: Res) => {
+    const b = z.object({ status: z.enum(['deposited', 'cleared', 'bounced', 'cancelled']), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional(), accountId: z.string().nullable().optional() }).parse(req.body);
+    res.json(adv.setChequeStatus(db, req.auth, String(req.params.id), b.status, { date: b.date, accountId: b.accountId }));
+  });
+  app.delete('/cheques/:id', need('finance.manage'), (req: Req, res: Res) => {
+    adv.deleteCheque(db, req.auth, String(req.params.id));
+    res.json({ ok: true });
+  });
+
+  app.get('/loans', need('reports.view'), (req: Req, res: Res) => res.json(adv.listLoans(db, T(req))));
+  app.get('/loans/:id', need('reports.view'), (req: Req, res: Res) => res.json(adv.getLoan(db, T(req), String(req.params.id))));
+  app.post('/loans', need('finance.manage'), (req: Req, res: Res) => res.status(201).json(adv.createLoan(db, req.auth, adv.loanSchema.parse(req.body))));
+  app.post('/loans/:id/txns', need('finance.manage'), (req: Req, res: Res) => res.status(201).json(adv.addLoanTxn(db, req.auth, String(req.params.id), adv.loanTxnSchema.parse(req.body))));
+  app.delete('/loans/:id/txns/:txnId', need('finance.manage'), (req: Req, res: Res) => {
+    adv.deleteLoanTxn(db, req.auth, String(req.params.id), String(req.params.txnId));
+    res.json({ ok: true });
+  });
+  app.delete('/loans/:id', need('finance.manage'), (req: Req, res: Res) => {
+    adv.deleteLoan(db, req.auth, String(req.params.id));
+    res.json({ ok: true });
+  });
+
+  app.get('/budgets', need('reports.view'), (req: Req, res: Res) => {
+    const month = /^\d{4}-\d{2}$/.test(String(req.query.month ?? '')) ? String(req.query.month) : todayQ().slice(0, 7);
+    res.json(adv.budgetReport(db, T(req), biz(req), month));
+  });
+  app.put('/budgets', need('finance.manage'), (req: Req, res: Res) => {
+    const body = adv.budgetSchema.parse(req.body);
+    adv.saveBudget(db, req.auth, body);
+    res.json(adv.budgetReport(db, T(req), body.businessId, body.month === 'default' ? todayQ().slice(0, 7) : body.month));
+  });
+
+  app.get('/calendar', need('reports.view'), (req: Req, res: Res) => {
+    const from = isoQ(req, 'from', todayQ());
+    res.json(adv.calendar(db, T(req), biz(req), from, isoQ(req, 'to', from.slice(0, 8) + '31')));
+  });
+  app.get('/forecast', need('reports.view'), (req: Req, res: Res) => res.json(adv.forecast(db, T(req), biz(req), Math.min(Math.max(Number(req.query.days) || 30, 7), 180))));
+  app.get('/reports/balance-sheet', need('reports.view'), (req: Req, res: Res) => res.json(adv.balanceSheet(db, T(req), biz(req))));
+
+  app.get('/day-close', need('reports.view'), (req: Req, res: Res) => res.json(adv.listCloses(db, T(req), biz(req))));
+  app.get('/day-close/expected', need('reports.view'), (req: Req, res: Res) =>
+    res.json(adv.expectedCash(db, T(req), biz(req), req.query.accountId ? String(req.query.accountId) : null, isoQ(req, 'date', todayQ()))),
+  );
+  app.post('/day-close', need('finance.manage'), (req: Req, res: Res) => res.status(201).json(adv.closeDay(db, req.auth, adv.dayCloseSchema.parse(req.body))));
+  app.delete('/day-close/:id', need('finance.manage'), (req: Req, res: Res) => {
+    adv.reopenDay(db, req.auth, String(req.params.id));
     res.json({ ok: true });
   });
 

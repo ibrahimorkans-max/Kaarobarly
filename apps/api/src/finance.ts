@@ -4,6 +4,7 @@ import { HttpError, type AuthContext } from './perm';
 import { now, today, uid, type Db, type Row } from './core';
 import { ownedRow } from './domain';
 import { accountTypeFor, defaultAccount, ensureAccounts, ownedAccount } from './accounts';
+import { assertDayOpen } from './daylock';
 
 export const financeSchema = z.object({
   businessId: z.string().min(1, 'Choose a business'),
@@ -126,6 +127,7 @@ export function saveEntry(db: Db, auth: AuthContext, body: FinanceBody, id?: str
       const dup = db.get('select id from finance_entry where tenant_id = ? and client_request_id = ?', auth.tenantId, body.clientRequestId);
       if (dup) return listEntries(db, auth.tenantId, {}, 1000, 0).find((e) => e.id === dup.id)!;
     }
+    assertDayOpen(db, auth.tenantId, body.businessId, body.date, id ? db.get('select date from finance_entry where id = ?', id)?.date : null);
     ensureAccounts(db, { businessId: body.businessId });
     const account = body.accountId ? ownedAccount(db, auth.tenantId, body.accountId) : ownedAccount(db, auth.tenantId, defaultAccount(db, body.businessId, accountTypeFor(body.method)));
     if (account.business_id !== body.businessId) throw new HttpError(422, 'That account belongs to another business.');
@@ -151,6 +153,8 @@ export function saveEntry(db: Db, auth: AuthContext, body: FinanceBody, id?: str
 
 export function deleteEntry(db: Db, auth: AuthContext, id: string) {
   notFromPurchase(db, auth.tenantId, id);
+  const old = db.get('select business_id, date from finance_entry where id = ? and tenant_id = ?', id, auth.tenantId);
+  if (old) assertDayOpen(db, auth.tenantId, old.business_id, old.date);
   const r = db.run('delete from finance_entry where id = ? and tenant_id = ?', id, auth.tenantId);
   if (!r.changes) throw new HttpError(404, 'Entry not found.');
   db.audit(auth.tenantId, auth.userId, 'finance.delete', 'finance_entry', id);

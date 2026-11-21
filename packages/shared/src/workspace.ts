@@ -16,6 +16,10 @@ export const MODULES = [
   'inventory',
   'finance',
   'accounts',
+  'cheques',
+  'loans',
+  'budgets',
+  'dayClose',
   'multiCurrency',
   'reports',
 ] as const;
@@ -31,6 +35,10 @@ export const MODULE_INFO: Record<ModuleKey, { name: string; hint: string; icon: 
   inventory: { name: 'Stock', hint: 'Quantities in hand, stock in and out', icon: 'cube-outline' },
   finance: { name: 'Money in / out', hint: 'Expenses and other income', icon: 'stats-chart-outline' },
   accounts: { name: 'Cash & bank', hint: 'Balances, transfers and the daily cashbook', icon: 'wallet-outline' },
+  cheques: { name: 'Cheques', hint: 'Post-dated cheques in hand and issued, clearing and bounces', icon: 'card-outline' },
+  loans: { name: 'Loans', hint: 'Money borrowed or lent, repayments and interest', icon: 'git-compare-outline' },
+  budgets: { name: 'Budgets', hint: 'Monthly spending limits by category', icon: 'pie-chart-outline' },
+  dayClose: { name: 'Day close', hint: 'Count the cash each evening and lock the day', icon: 'lock-closed-outline' },
   multiCurrency: { name: 'Multiple currencies', hint: 'Invoices and accounts in other currencies', icon: 'globe-outline' },
   reports: { name: 'Reports', hint: 'Profit & loss, cash flow, PDF and Excel', icon: 'bar-chart-outline' },
 };
@@ -152,7 +160,7 @@ export interface Preset {
 }
 
 const ALL: ModuleKey[] = [...MODULES];
-const BASIC: ModuleKey[] = ['invoices', 'payments', 'quotations', 'finance', 'accounts', 'reports'];
+const BASIC: ModuleKey[] = ['invoices', 'payments', 'quotations', 'finance', 'accounts', 'reports', 'budgets'];
 const field = (entity: FieldEntity, label: string, type: FieldType = 'text', options: string[] = [], showOnPdf = false): Omit<CustomField, 'id'> => ({ entity, label, type, options, required: false, showOnPdf });
 
 export const PRESETS: Record<BusinessType, Preset> = {
@@ -169,7 +177,7 @@ export const PRESETS: Record<BusinessType, Preset> = {
     name: 'Shop / retail',
     hint: 'General store, pharmacy, electronics, clothing',
     icon: 'storefront-outline',
-    modules: ['invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports'],
+    modules: ['invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports', 'dayClose', 'budgets'],
     terms: { client: 'Customer', clients: 'Customers', item: 'Product', items: 'Products', invoice: 'Sale', invoices: 'Sales' },
     itemTypes: ['Product', 'Service'],
     fields: [field('item', 'Barcode'), field('item', 'Brand')],
@@ -178,7 +186,7 @@ export const PRESETS: Record<BusinessType, Preset> = {
     name: 'Wholesale / distribution',
     hint: 'Distributors, traders, dealers',
     icon: 'cube-outline',
-    modules: ['invoices', 'payments', 'quotations', 'installments', 'purchases', 'inventory', 'finance', 'accounts', 'reports'],
+    modules: ['invoices', 'payments', 'quotations', 'installments', 'purchases', 'inventory', 'finance', 'accounts', 'reports', 'cheques', 'loans', 'budgets', 'dayClose'],
     terms: { client: 'Customer', clients: 'Customers', item: 'Product', items: 'Products', supplier: 'Vendor', suppliers: 'Vendors' },
     itemTypes: ['Product', 'Service'],
     fields: [field('client', 'Route / area'), field('client', 'Salesman'), field('invoice', 'Vehicle no.', 'text', [], true)],
@@ -196,7 +204,7 @@ export const PRESETS: Record<BusinessType, Preset> = {
     name: 'Restaurant / food',
     hint: 'Restaurants, cafés, bakeries, caterers',
     icon: 'restaurant-outline',
-    modules: ['invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports'],
+    modules: ['invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports', 'dayClose', 'budgets'],
     terms: { client: 'Customer', clients: 'Customers', item: 'Dish', items: 'Menu', invoice: 'Bill', invoices: 'Bills' },
     itemTypes: ['Dish', 'Drink', 'Deal'],
     fields: [field('invoice', 'Table no.', 'text', [], true), field('invoice', 'Order type', 'select', ['Dine-in', 'Takeaway', 'Delivery'], true)],
@@ -214,7 +222,7 @@ export const PRESETS: Record<BusinessType, Preset> = {
     name: 'Construction / contractor',
     hint: 'Builders, contractors, interior work',
     icon: 'hammer-outline',
-    modules: [...BASIC, 'installments', 'purchases', 'inventory'],
+    modules: [...BASIC, 'installments', 'purchases', 'inventory', 'cheques', 'loans'],
     terms: { client: 'Client', clients: 'Clients', item: 'Work item', items: 'Work items', quotation: 'Estimate', quotations: 'Estimates' },
     itemTypes: ['Labour', 'Material', 'Equipment'],
     fields: [field('invoice', 'Project / site', 'text', [], true), field('invoice', 'Running bill no.', 'number', [], true)],

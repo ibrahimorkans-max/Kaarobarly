@@ -75,6 +75,13 @@ function Navigation() {
           <Stack.Screen name="request/[id]" options={{ title: 'Purchase request' }} />
           <Stack.Screen name="order/[id]" options={{ title: 'Purchase order' }} />
           <Stack.Screen name="receipt/[id]" options={{ title: 'Goods received' }} />
+          <Stack.Screen name="cheques" options={{ title: 'Cheques' }} />
+          <Stack.Screen name="loans" options={{ title: 'Loans' }} />
+          <Stack.Screen name="loan/[id]" options={{ title: 'Loan' }} />
+          <Stack.Screen name="budgets" options={{ title: 'Budgets' }} />
+          <Stack.Screen name="calendar" options={{ title: 'Bills calendar' }} />
+          <Stack.Screen name="forecast" options={{ title: 'Cash forecast · Balance sheet' }} />
+          <Stack.Screen name="day-close" options={{ title: 'Day close' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="login" options={{ headerShown: false }} />

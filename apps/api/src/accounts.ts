@@ -16,6 +16,7 @@ import {
 import { HttpError, type AuthContext } from './perm';
 import { now, today, uid, type Db, type Row } from './core';
 import { Converter, inBase, reportingCurrency } from './fx';
+import { assertDayOpen } from './daylock';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
 
@@ -113,12 +114,18 @@ function rawMovements(db: Db, tenantId: string, accountIds: string[], from = '00
       union all
       select r.id, 'refund', r.account_id, r.date, r.created_at, 0, r.amount, 'Advance refund', c.name
         from client_refund r join client c on c.id = r.client_id where r.tenant_id = ? and r.account_id in (${ids})
+      union all
+      select t.id, 'loan', t.account_id, t.date, t.created_at,
+             case when (l.direction = 'borrowed' and t.kind = 'disbursement') or (l.direction = 'lent' and t.kind <> 'disbursement') then t.amount else 0 end,
+             case when (l.direction = 'borrowed' and t.kind <> 'disbursement') or (l.direction = 'lent' and t.kind = 'disbursement') then t.amount else 0 end,
+             case t.kind when 'interest' then 'Loan interest' when 'repayment' then 'Loan repayment' else (case l.direction when 'borrowed' then 'Loan received' else 'Loan given' end) end, l.party
+        from loan_txn t join loan l on l.id = t.loan_id where t.tenant_id = ? and t.account_id in (${ids})
     ) where date between ? and ? order by date, at`,
-    tenantId, ...accountIds, tenantId, ...accountIds, tenantId, ...accountIds, tenantId, ...accountIds, tenantId, ...accountIds, tenantId, ...accountIds, from, to,
+    tenantId, ...accountIds, tenantId, ...accountIds, tenantId, ...accountIds, tenantId, ...accountIds, tenantId, ...accountIds, tenantId, ...accountIds, tenantId, ...accountIds, from, to,
   );
 }
 
-function balanceOf(db: Db, tenantId: string, accountId: string, onOrBefore = '9999-12-31'): number {
+export function balanceOf(db: Db, tenantId: string, accountId: string, onOrBefore = '9999-12-31'): number {
   return rawMovements(db, tenantId, [accountId], '0000-01-01', onOrBefore).reduce((a, m) => a + m.money_in - m.money_out, 0);
 }
 
@@ -239,6 +246,7 @@ export function saveTransfer(db: Db, auth: AuthContext, body: z.infer<typeof tra
     const to = ownedAccount(db, auth.tenantId, body.toAccountId);
     if (from.business_id !== to.business_id) throw new HttpError(422, 'Both accounts must belong to the same business.');
     if (from.status !== 'active' || to.status !== 'active') throw new HttpError(409, 'Archived accounts cannot be used.');
+    assertDayOpen(db, auth.tenantId, from.business_id, body.date);
     const toAmount = from.currency === to.currency ? body.amount : body.toAmount;
     if (!toAmount) throw new HttpError(422, `Enter how much arrives in ${to.name} (${to.currency}).`);
     const id = uid();
@@ -253,6 +261,8 @@ export function saveTransfer(db: Db, auth: AuthContext, body: z.infer<typeof tra
 }
 
 export function deleteTransfer(db: Db, auth: AuthContext, id: string) {
+  const old = db.get('select business_id, date from transfer where id = ? and tenant_id = ?', id, auth.tenantId);
+  if (old) assertDayOpen(db, auth.tenantId, old.business_id, old.date);
   const r = db.run('delete from transfer where id = ? and tenant_id = ?', id, auth.tenantId);
   if (!r.changes) throw new HttpError(404, 'Transfer not found.');
   db.audit(auth.tenantId, auth.userId, 'transfer.delete', 'transfer', id);
@@ -423,6 +433,21 @@ export function profitLoss(db: Db, tenantId: string, f: { businessId?: string; f
         monthly.get(e.date.slice(0, 7))!.expenses += v;
       }
     }
+    // interest on loans is a cost (borrowed) or income (lent); the loan money itself is not
+    for (const t of db.all(
+      `select t.amount, t.date, l.direction, a.currency from loan_txn t join loan l on l.id = t.loan_id join money_account a on a.id = t.account_id
+       where t.tenant_id = ? and t.kind = 'interest' and l.business_id in (${ph}) and t.date between ? and ?`,
+      tenantId, ...ids, f.from, f.to,
+    )) {
+      const v = conv.convert(t.amount, t.currency);
+      if (t.direction === 'borrowed') {
+        add(expenses, 'Loan interest', v);
+        monthly.get(t.date.slice(0, 7))!.expenses += v;
+      } else {
+        add(income, 'Interest received', v);
+        monthly.get(t.date.slice(0, 7))!.income += v;
+      }
+    }
   }
   for (const m of monthly.values()) m.profit = m.income - m.expenses;
   const totalIncome = [...income.values()].reduce((a, b) => a + b, 0);
@@ -473,7 +498,7 @@ export function cashFlow(db: Db, tenantId: string, f: { businessId?: string; fro
     }
     const vIn = conv.convert(m.money_in, currencyOf.get(m.account_id)!);
     const vOut = conv.convert(m.money_out, currencyOf.get(m.account_id)!);
-    const label = m.kind === 'payment' ? 'Client payments' : m.kind === 'refund' ? 'Advance refunds' : m.kind.startsWith('transfer') ? 'Transfers' : m.label;
+    const label = m.kind === 'payment' ? 'Client payments' : m.kind === 'refund' ? 'Advance refunds' : m.kind.startsWith('transfer') ? 'Transfers' : m.kind === 'loan' ? (m.label === 'Loan interest' ? 'Loan interest' : 'Loans') : m.label;
     if (vIn) add(inflows, label, vIn);
     if (vOut) add(outflows, label, vOut);
     const row = monthly.get(m.date.slice(0, 7))!;

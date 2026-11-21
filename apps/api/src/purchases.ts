@@ -5,6 +5,7 @@ import { now, today, uid, type Db, type Row } from './core';
 import { ownedRow } from './domain';
 import { accountTypeFor, defaultAccount, ensureAccounts, ownedAccount } from './accounts';
 import { clearMoves, postIncoming } from './stock';
+import { assertDayOpen } from './daylock';
 import { cleanCustom, customSchema, parseCustom } from './workspace';
 
 /**
@@ -157,6 +158,7 @@ export function savePurchase(db: Db, auth: AuthContext, body: PurchaseBody, id?:
       : ownedAccount(db, auth.tenantId, defaultAccount(db, body.businessId, accountTypeFor(body.method)));
     if (account.business_id !== body.businessId) throw new HttpError(422, 'That account belongs to another business.');
 
+    assertDayOpen(db, auth.tenantId, body.businessId, body.date, id ? db.get('select date from purchase where id = ?', id)?.date : null);
     const supplier = supplierFor(db, auth, body.supplierId, body.supplier);
     const custom = JSON.stringify(cleanCustom(db, auth.tenantId, 'purchase', body.custom));
     for (const l of body.lines) if (l.itemId && !db.get('select 1 from service where id = ? and tenant_id = ?', l.itemId, auth.tenantId)) throw new HttpError(422, 'One of the items no longer exists.');
@@ -243,8 +245,9 @@ export function setInstallmentPaid(db: Db, auth: AuthContext, id: string, index:
 
 export function deletePurchase(db: Db, auth: AuthContext, id: string) {
   db.tx(() => {
-    const p = db.get('select number from purchase where id = ? and tenant_id = ?', id, auth.tenantId);
+    const p = db.get('select number, business_id, date from purchase where id = ? and tenant_id = ?', id, auth.tenantId);
     if (!p) throw new HttpError(404, 'Purchase not found.');
+    assertDayOpen(db, auth.tenantId, p.business_id, p.date);
     db.run('delete from finance_entry where purchase_id = ? and tenant_id = ?', id, auth.tenantId);
     clearMoves(db, auth.tenantId, 'purchase', id);
     db.run('update goods_receipt set purchase_id = null where purchase_id = ? and tenant_id = ?', id, auth.tenantId);

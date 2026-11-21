@@ -798,15 +798,15 @@ export function Badge({ status, label }: { status: string; label?: string }) {
   );
 }
 
-export function Progress({ value, total }: { value: number; total: number }) {
+export function Progress({ value, total, word = 'paid', fullIsBad }: { value: number; total: number; word?: string; fullIsBad?: boolean }) {
   const t = useTheme();
   const pct = total > 0 ? Math.min(100, Math.max(0, Math.round((value / total) * 100))) : 0;
   return (
     <View accessibilityRole="progressbar" accessibilityValue={{ min: 0, max: 100, now: pct }} style={{ gap: 4 }}>
       <View style={[styles.track, { backgroundColor: t.neutralSoft }]}>
-        <View style={{ width: `${pct}%`, height: '100%', backgroundColor: pct >= 100 ? t.success : t.primary, borderRadius: 6 }} />
+        <View style={{ width: `${pct}%`, height: '100%', backgroundColor: pct >= 100 ? (fullIsBad ? t.danger : t.success) : t.primary, borderRadius: 6 }} />
       </View>
-      <Txt v="small">{pct}% paid</Txt>
+      <Txt v="small">{pct}% {word}</Txt>
     </View>
   );
 }

@@ -27,6 +27,7 @@ import { totalCash } from './accounts';
 import { now, today, uid, type Db, type Row } from './core';
 import { cleanCustom, customSchema, customValuesSchema, parseCustom } from './workspace';
 import { clearMoves, postInvoice } from './stock';
+import { assertDayOpen } from './daylock';
 
 // ---------------------------------------------------------------- schemas
 
@@ -655,6 +656,7 @@ export function recordPayment(db: Db, auth: AuthContext, body: PaymentBody, veri
     }
     ownedRow(db, 'client', auth.tenantId, body.clientId);
     const business = ownedRow(db, 'business', auth.tenantId, body.businessId);
+    assertDayOpen(db, auth.tenantId, business.id, body.date);
     ensureAccounts(db, { businessId: business.id });
 
     // Which invoices this money pays, and how much each gets. Never more than an invoice's balance.

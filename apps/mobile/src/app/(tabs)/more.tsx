@@ -25,6 +25,12 @@ export default function More() {
         {on('inventory') && <MenuRow icon="cube-outline" title="Stock" sub="In hand, value, low stock and counts" onPress={() => router.push('/stock')} />}
         {on('accounts') && <MenuRow icon="wallet-outline" title="Cash & Bank Accounts" sub="Balances, transfers between accounts" onPress={() => router.push('/accounts')} />}
         {on('accounts') && <MenuRow icon="book-outline" title="Daily Cashbook" sub="Opening, in, out and closing for each day" onPress={() => router.push('/cashbook')} />}
+        <MenuRow icon="calendar-number-outline" title="Bills calendar" sub="What to collect and pay, day by day" onPress={() => router.push('/calendar')} />
+        {on('reports') && <MenuRow icon="analytics-outline" title="Cash forecast · Balance sheet" sub="Will there be enough cash? What the business is worth" onPress={() => router.push('/forecast')} />}
+        {on('cheques') && <MenuRow icon="card-outline" title="Cheques" sub="Post-dated cheques, deposits and bounces" onPress={() => router.push('/cheques')} />}
+        {on('loans') && <MenuRow icon="git-compare-outline" title="Loans" sub="Borrowed and lent, repayments and interest" onPress={() => router.push('/loans')} />}
+        {on('budgets') && <MenuRow icon="pie-chart-outline" title="Budgets" sub="Monthly spending limits by category" onPress={() => router.push('/budgets')} />}
+        {on('dayClose') && <MenuRow icon="lock-closed-outline" title="Day close" sub="Count the cash and lock the day" onPress={() => router.push('/day-close')} />}
         {on('reports') && <MenuRow icon="trending-up-outline" title="Profit & Loss · Cash Flow" sub="Is the business making money?" onPress={() => router.push('/statements')} />}
         {on('multiCurrency') && <MenuRow icon="globe-outline" title="Exchange Rates" sub={`Multi-currency ${lower(t('invoices'))} and accounts`} onPress={() => router.push('/rates')} />}
         {on('quotations') && <MenuRow icon="document-outline" title={t('quotations')} sub={`Price quotes you can turn into ${lower(t('invoices'))}`} onPress={() => router.push('/quotations')} />}
