@@ -1,6 +1,8 @@
 import { z } from 'zod';
 import {
   DASHBOARD_STYLES,
+  DOC_LANGUAGES,
+  QR_MODES,
   RATE_SCALE,
   financialYear,
   minorFactor,
@@ -66,6 +68,9 @@ export const businessSchema = z.object({
   fyStartMonth: z.number().int().min(1).max(12).default(7),
   numberReset: z.enum(['never', 'yearly']).default('never'),
   dashboardStyle: z.enum(DASHBOARD_STYLES).default('classic'),
+  qrMode: z.enum(QR_MODES).default('none'),
+  reminderTemplate: text(2000),
+  docLanguage: z.enum(DOC_LANGUAGES).default('en'),
   status: z.enum(['active', 'inactive']).default('active'),
 });
 
@@ -152,6 +157,7 @@ export const invoiceSchema = z.object({
   initialPayment: initialPaymentSchema.optional(),
   /** left out by invoices the system makes (recurring, converted quotes): required fields are then not enforced */
   custom: customValuesSchema.optional(),
+  docType: z.enum(['invoice', 'debit_note']).optional(),
 });
 export type InvoiceBody = z.infer<typeof invoiceSchema>;
 
@@ -208,6 +214,9 @@ export function mapBusiness(r: Row): BusinessProfile {
     fyStartMonth: r.fy_start_month,
     numberReset: r.number_reset,
     dashboardStyle: r.dashboard_style,
+    qrMode: r.qr_mode ?? 'none',
+    reminderTemplate: r.reminder_template ?? '',
+    docLanguage: r.doc_language ?? 'en',
     status: r.status,
   };
 }
@@ -234,6 +243,7 @@ export function mapClient(r: Row): Client {
     notes: r.notes,
     status: r.status,
     custom: parseCustom(r.custom),
+    portalToken: r.portal_token ?? null,
     outstanding: r.outstanding === undefined ? undefined : Math.round(r.outstanding),
     credit: r.credit === undefined ? undefined : Math.round(r.credit),
   };
@@ -266,7 +276,9 @@ export const INVOICE_SELECT = `
   select i.*, c.name as client_name,
     case when b.trading_name <> '' then b.trading_name else b.legal_name end as business_name,
     coalesce((select sum(a.amount) from payment_allocation a join payment p on p.id = a.payment_id
-              where a.invoice_id = i.id and p.verification_status <> 'rejected'), 0) as paid
+              where a.invoice_id = i.id and p.verification_status <> 'rejected'), 0)
+      + coalesce((select sum(n.total) from credit_note n where n.invoice_id = i.id and n.status = 'final'), 0) as paid,
+    coalesce((select sum(n.total) from credit_note n where n.invoice_id = i.id and n.status = 'final'), 0) as credited
   from invoice i join client c on c.id = i.client_id join business b on b.id = i.business_id`;
 
 function displayStatus(r: Row): InvoiceDisplayStatus {
@@ -321,6 +333,8 @@ export function mapInvoice(r: Row, installmentRows: Row[] = []): Invoice {
     roundingAdjustment: r.rounding_adjustment,
     total: r.total,
     paid: r.status === 'final' ? r.paid : 0,
+    credited: r.status === 'final' ? (r.credited ?? 0) : 0,
+    docType: r.doc_type ?? 'invoice',
     balance: r.status === 'final' ? r.total - r.paid : 0,
     createdAt: r.created_at,
     finalizedAt: r.finalized_at,
@@ -402,7 +416,9 @@ const CLIENT_SELECT = `
       + coalesce((select sum(i.total * (i.fx_factor / 1000000.0)) from invoice i where i.client_id = c.id and i.status = 'final'), 0)
       - coalesce((select sum(a.amount * (i.fx_factor / 1000000.0)) from payment_allocation a join payment p on p.id = a.payment_id
                   join invoice i on i.id = a.invoice_id
-                  where i.client_id = c.id and i.status = 'final' and p.verification_status <> 'rejected'), 0) as outstanding,
+                  where i.client_id = c.id and i.status = 'final' and p.verification_status <> 'rejected'), 0)
+      - coalesce((select sum(n.total * (i.fx_factor / 1000000.0)) from credit_note n join invoice i on i.id = n.invoice_id
+                  where n.client_id = c.id and n.status = 'final' and i.status = 'final'), 0) as outstanding,
     coalesce((select sum(p.amount * (p.fx_factor / 1000000.0)) from payment p where p.client_id = c.id and p.verification_status <> 'rejected'), 0)
       - coalesce((select sum(a.amount * (p.fx_factor / 1000000.0)) from payment_allocation a join payment p on p.id = a.payment_id
                   where p.client_id = c.id and p.verification_status <> 'rejected'), 0)
@@ -477,8 +493,8 @@ function writeInstallments(db: Db, tenantId: string, invoiceId: string, installm
 }
 
 /** Next invoice or quotation number. With yearly reset the financial year is part of the number, e.g. INV-2026-27-00001. */
-export function nextDocNumber(db: Db, tenantId: string, business: Row, kind: 'invoice' | 'quote', date: string): string {
-  const prefix = kind === 'invoice' ? business.invoice_prefix : 'QT-';
+export function nextDocNumber(db: Db, tenantId: string, business: Row, kind: 'invoice' | 'quote' | 'debit', date: string): string {
+  const prefix = kind === 'invoice' ? business.invoice_prefix : kind === 'debit' ? 'DN-' : 'QT-';
   if (business.number_reset === 'yearly') {
     const fy = financialYear(date, business.fy_start_month);
     const seq = db.nextCounter(tenantId, `${kind}:${business.id}:${fy}`);
@@ -487,7 +503,7 @@ export function nextDocNumber(db: Db, tenantId: string, business: Row, kind: 'in
   const seq = db.nextCounter(tenantId, `${kind}:${business.id}`);
   return `${prefix}${String(seq).padStart(5, '0')}`;
 }
-const assignNumber = (db: Db, tenantId: string, business: Row, date: string) => nextDocNumber(db, tenantId, business, 'invoice', date);
+const assignNumber = (db: Db, tenantId: string, business: Row, date: string, docType = 'invoice') => nextDocNumber(db, tenantId, business, docType === 'debit_note' ? 'debit' : 'invoice', date);
 
 /** What the client would owe the business after adding `extra` (business currency), and their limit. */
 export function creditCheck(db: Db, tenantId: string, clientId: string, extra: number): { limit: number; after: number; over: boolean } {
@@ -523,7 +539,7 @@ export function createInvoice(db: Db, auth: AuthContext, body: InvoiceBody, canV
         client_request_id, created_by, created_at, updated_at, finalized_at)
        values (?,?,?,?,?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?, ?,?,?,?,?,?,?,?, ?,?,?,?,?)`,
       id, auth.tenantId, body.businessId, body.clientId,
-      body.finalize ? assignNumber(db, auth.tenantId, business, body.issueDate) : null,
+      body.finalize ? assignNumber(db, auth.tenantId, business, body.issueDate, body.docType) : null,
       body.finalize ? 'final' : 'draft',
       body.issueDate, body.dueDate, body.reference, body.billingAddress,
       JSON.stringify(lines), JSON.stringify(body.charges), body.overallDiscountType, body.overallDiscountValue, body.notes, body.paymentTerms,
@@ -533,6 +549,7 @@ export function createInvoice(db: Db, auth: AuthContext, body: InvoiceBody, canV
     );
     writeInstallments(db, auth.tenantId, id, body.installments);
     db.run('update invoice set custom = ? where id = ?', JSON.stringify(cleanCustom(db, auth.tenantId, 'invoice', body.custom, body.finalize && body.custom !== undefined)), id);
+    db.run('update invoice set doc_type = coalesce(?, doc_type) where id = ?', body.docType ?? null, id);
     if (body.finalize) postInvoice(db, auth, id);
     db.audit(auth.tenantId, auth.userId, body.finalize ? 'invoice.finalize' : 'invoice.create_draft', 'invoice', id, { total: totals.total });
 
@@ -561,7 +578,7 @@ export function updateDraft(db: Db, auth: AuthContext, id: string, body: Invoice
         updated_at=?, finalized_at=?
        where id=? and tenant_id=?`,
       body.businessId, body.clientId,
-      body.finalize ? assignNumber(db, auth.tenantId, business, body.issueDate) : null,
+      body.finalize ? assignNumber(db, auth.tenantId, business, body.issueDate, body.docType ?? existing.doc_type) : null,
       body.finalize ? 'final' : 'draft',
       body.issueDate, body.dueDate, body.reference, body.billingAddress,
       JSON.stringify(lines), JSON.stringify(body.charges), body.overallDiscountType, body.overallDiscountValue, body.notes, body.paymentTerms,
@@ -571,6 +588,7 @@ export function updateDraft(db: Db, auth: AuthContext, id: string, body: Invoice
     );
     writeInstallments(db, auth.tenantId, id, body.installments);
     db.run('update invoice set custom = ? where id = ?', JSON.stringify(cleanCustom(db, auth.tenantId, 'invoice', body.custom, body.finalize && body.custom !== undefined)), id);
+    db.run('update invoice set doc_type = coalesce(?, doc_type) where id = ?', body.docType ?? null, id);
     if (body.finalize) postInvoice(db, auth, id);
     db.audit(auth.tenantId, auth.userId, body.finalize ? 'invoice.finalize' : 'invoice.update_draft', 'invoice', id, { total: totals.total });
     if (body.initialPayment) {
@@ -590,7 +608,7 @@ export function finalizeInvoice(db: Db, auth: AuthContext, id: string, overrideC
     assertCreditLimit(db, auth.tenantId, inv.clientId, inBase(inv.total, row.fx_factor), overrideCreditLimit);
     const business = ownedRow(db, 'business', auth.tenantId, inv.businessId);
     const ts = now();
-    db.run("update invoice set status = 'final', number = ?, finalized_at = ?, updated_at = ? where id = ? and tenant_id = ?", assignNumber(db, auth.tenantId, business, inv.issueDate), ts, ts, id, auth.tenantId);
+    db.run("update invoice set status = 'final', number = ?, finalized_at = ?, updated_at = ? where id = ? and tenant_id = ?", assignNumber(db, auth.tenantId, business, inv.issueDate, row.doc_type), ts, ts, id, auth.tenantId);
     postInvoice(db, auth, id);
     db.audit(auth.tenantId, auth.userId, 'invoice.finalize', 'invoice', id, { total: inv.total });
     return getInvoice(db, auth.tenantId, id);
@@ -606,6 +624,7 @@ export function cancelInvoice(db: Db, auth: AuthContext, id: string, reason: str
     db.run('delete from payment_allocation where invoice_id = ? and tenant_id = ?', id, auth.tenantId);
     db.run("update invoice set status = 'cancelled', cancelled_at = ?, cancel_reason = ?, updated_at = ? where id = ? and tenant_id = ?", now(), reason, now(), id, auth.tenantId);
     clearMoves(db, auth.tenantId, 'invoice', id); // the goods come back into stock
+    db.run("update credit_note set status = 'cancelled' where invoice_id = ? and tenant_id = ?", id, auth.tenantId);
     db.audit(auth.tenantId, auth.userId, 'invoice.cancel', 'invoice', id, { reason, releasedToCredit: released });
     return getInvoice(db, auth.tenantId, id);
   });
@@ -937,6 +956,9 @@ export function clientLedger(db: Db, tenantId: string, clientId: string): Client
     raw.push({ date: p.date, type: 'payment', refId: p.id, label: `Payment ${p.number}${payRows.get(p.id) !== RATE_SCALE ? foreign(p.amount, p.currency, p.currencyPrecision) : ''}`, debit: 0, credit: base });
   }
   for (const r of refunds) raw.push({ date: r.date, type: 'payment', refId: r.id, label: 'Advance refunded', debit: r.amount, credit: 0 });
+  for (const n of db.all("select n.*, i.fx_factor from credit_note n join invoice i on i.id = n.invoice_id where n.tenant_id = ? and n.client_id = ? and n.status = 'final' and i.status = 'final'", tenantId, clientId)) {
+    raw.push({ date: n.date, type: 'payment', refId: n.id, label: `Credit note ${n.number}`, debit: 0, credit: inBase(n.total, n.fx_factor) });
+  }
   raw.sort((a, b) => a.date.localeCompare(b.date) || a.type.localeCompare(b.type));
 
   let balance = client.openingBalance;

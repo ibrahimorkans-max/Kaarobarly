@@ -32,6 +32,8 @@ export const SYNC_TABLES = [
   'loan_txn',
   'budget',
   'day_close',
+  'reminder',
+  'credit_note',
   'counter',
 ] as const;
 type SyncTable = (typeof SYNC_TABLES)[number];

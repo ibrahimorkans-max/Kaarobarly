@@ -1,6 +1,8 @@
 import * as Print from 'expo-print';
 import * as Sharing from 'expo-sharing';
 import { Platform } from 'react-native';
+import { API_URL } from './api';
+import { qrSvg } from './qr';
 import {
   PAYMENT_METHOD_LABELS,
   customValueText,
@@ -10,7 +12,9 @@ import {
   type BusinessProfile,
   type Client,
   type ClientLedger,
+  type CreditNote,
   type CustomField,
+  type DocLanguage,
   type CustomValues,
   type Invoice,
   type InvoiceTemplate,
@@ -64,6 +68,8 @@ const LABELS = {
   quotation: { title: 'QUOTATION', to: 'Quotation for', short: 'Quote', due: 'Valid until', dueLower: 'valid until' },
   purchase: { title: 'PURCHASE', to: 'Bought from', short: 'Purchase', due: 'Recorded', dueLower: 'recorded' },
   order: { title: 'PURCHASE ORDER', to: 'Supplier', short: 'PO', due: 'Deliver by', dueLower: 'deliver by' },
+  debitNote: { title: 'DEBIT NOTE', to: 'Debit to', short: 'Debit note', due: 'Due date', dueLower: 'due' },
+  creditNote: { title: 'CREDIT NOTE', to: 'Credit to', short: 'Credit note', due: 'Against', dueLower: 'against' },
   receipt: { title: 'GOODS RECEIVED', to: 'Received from', short: 'GRN', due: 'Received', dueLower: 'received' },
 };
 
@@ -133,6 +139,71 @@ ${BASE_CSS}${css}
 </style></head><body>${body}</body></html>`;
 }
 
+// ---------------------------------------------------------------- Urdu documents
+
+/** Urdu for the fixed words printed on documents. Business names, items and notes are left as typed. */
+const UR: Record<string, string> = {
+  INVOICE: 'انوائس', QUOTATION: 'کوٹیشن', PURCHASE: 'خریداری', 'PURCHASE ORDER': 'خریداری آرڈر', 'GOODS RECEIVED': 'وصول شدہ مال',
+  'DEBIT NOTE': 'ڈیبٹ نوٹ', 'CREDIT NOTE': 'کریڈٹ نوٹ', RECEIPT: 'رسید', 'PAYMENT RECEIPT': 'ادائیگی کی رسید',
+  'Invoice to': 'بنام', 'Quotation for': 'برائے', 'Bought from': 'خریدا از', Supplier: 'سپلائر', 'Received from': 'وصول از', 'Debit to': 'بنام', 'Credit to': 'بنام',
+  Invoice: 'انوائس', Quote: 'کوٹیشن', Purchase: 'خریداری', PO: 'آرڈر', GRN: 'وصولی', 'Debit note': 'ڈیبٹ نوٹ', 'Credit note': 'کریڈٹ نوٹ',
+  No: 'نمبر', 'No.': 'نمبر', 'Item description': 'تفصیل', Items: 'اشیاء', Price: 'قیمت', Qty: 'مقدار', 'Disc.': 'رعایت', Tax: 'ٹیکس', 'Tax (included)': 'ٹیکس (شامل)',
+  Total: 'کل', 'Sub total': 'ذیلی کل', 'Grand total': 'کل رقم', 'Item discounts': 'اشیاء پر رعایت', Discount: 'رعایت', Rounding: 'راؤنڈنگ',
+  Paid: 'ادا شدہ', 'Balance due': 'بقایا رقم', Date: 'تاریخ', 'Due date': 'آخری تاریخ', 'Valid until': 'کارآمد تا', 'Deliver by': 'ترسیل تا', Received: 'وصول', Recorded: 'درج', Against: 'بمقابلہ',
+  Notes: 'نوٹس', Disclaimer: 'اعلان', 'Payment details': 'ادائیگی کی تفصیل', 'Installment schedule': 'اقساط کا شیڈول', 'Payments received': 'وصول شدہ ادائیگیاں',
+  'Authorized signature': 'مجاز دستخط', Reference: 'حوالہ', Ref: 'حوالہ', Method: 'طریقہ', 'Transaction ID': 'ٹرانزیکشن آئی ڈی', Amount: 'رقم', Receipt: 'رسید', Due: 'واجب',
+  Status: 'حالت', Details: 'تفصیلات', 'Payment method': 'ادائیگی کا طریقہ', 'Received by': 'وصول کنندہ', 'This payment': 'یہ ادائیگی', 'Bank details': 'بینک کی تفصیل',
+  'Thank you for your business!': 'آپ کے کاروبار کا شکریہ!', 'Scan to pay': 'ادائیگی کے لیے اسکین کریں', 'Scan to view online': 'آن لائن دیکھنے کے لیے اسکین کریں',
+  'Bank information': 'بینک کی معلومات', 'Terms and conditions': 'شرائط و ضوابط', 'Payment terms': 'ادائیگی کی شرائط', 'Office address': 'دفتر کا پتہ',
+  'Amount received': 'وصول شدہ رقم', 'Applied to': 'برائے', 'Bill to': 'بنام', Client: 'کلائنٹ', 'Payment info': 'ادائیگی کی معلومات',
+  PAID: 'ادا شدہ', UNPAID: 'غیر ادا شدہ', OVERDUE: 'واجب الادا', 'PARTIALLY PAID': 'جزوی ادا', DRAFT: 'مسودہ', To: 'بنام',
+};
+const UR_CSS = `.ur { font-family: 'Noto Nastaliq Urdu', 'Jameel Noori Nastaleeq', 'Noto Naskh Arabic', serif; direction: rtl; unicode-bidi: isolate; }`;
+
+/** Put Urdu next to (or instead of) the fixed English words of a finished document. */
+export function localize(html: string, lang: DocLanguage): string {
+  if (lang === 'en') return html;
+  const swapped = html.replace(/>([^<>]{1,40})</g, (m, raw: string) => {
+    const text = raw.trim();
+    const colon = text.endsWith(':') ? ':' : '';
+    const ur = UR[text] ?? UR[text.replace(/[:#]\s*$/, '').trim()];
+    if (!ur) return m;
+    return lang === 'ur' ? `><span class="ur">${ur}${colon}</span><` : `>${raw} <span class="ur">${ur}${colon}</span><`;
+  });
+  return swapped.replace('</style>', `${UR_CSS}</style>`);
+}
+
+// ---------------------------------------------------------------- QR code on invoices
+
+const QR_CSS = '.qrbox { display: flex; gap: 12px; align-items: center; } .qrbox svg { width: 92px; height: 92px; display: block; }';
+
+function qrFor(d: InvoiceDoc): { svg: string; label: string; hint: string } | null {
+  const b = d.business;
+  const mode = b.qrMode ?? 'none';
+  if (mode === 'none' || (d.docType && d.docType !== 'invoice' && d.docType !== 'debitNote')) return null;
+  if (mode === 'portal') {
+    if (!d.client.portalToken) return null;
+    const url = `${API_URL}/p/${d.client.portalToken}`;
+    return { svg: qrSvg(url), label: 'Scan to view online', hint: url };
+  }
+  const lines = [b.tradingName || b.legalName, b.iban && `IBAN: ${b.iban}`, b.bankDetails, d.invoice.number && `Ref: ${d.invoice.number}`, `Amount: ${formatMoney(d.invoice.balance || d.invoice.total, d.invoice.currency, d.invoice.currencyPrecision)}`].filter(Boolean);
+  if (!b.iban && !b.bankDetails) return null;
+  return { svg: qrSvg(lines.join('\n')), label: 'Scan to pay', hint: b.iban ? `IBAN ${b.iban}` : 'Bank details' };
+}
+
+/** A credit note, printed with the invoice designs. */
+export function creditNoteHtml(n: CreditNote, client: Client, b: BusinessProfile, paper: Paper = 'A5', template?: InvoiceTemplate): string {
+  const invoice = {
+    id: n.id, number: n.number, businessId: n.businessId, clientId: n.clientId, clientName: n.clientName, businessName: b.tradingName || b.legalName,
+    issueDate: n.date, dueDate: n.date, reference: `Against ${n.invoiceNumber}`, billingAddress: '',
+    lines: n.lines.map((l) => ({ serviceId: null, name: l.name, description: '', qty: l.qty, unit: l.unit, unitPrice: l.unitPrice, discountType: 'percent', discountValue: 0, taxRateBp: 0, lineTotal: l.amount })),
+    overallDiscountType: 'percent', overallDiscountValue: 0, charges: [], notes: n.reason, paymentTerms: '', installments: [], status: 'final', displayStatus: n.status === 'cancelled' ? 'cancelled' : '',
+    currency: n.currency, currencyPrecision: n.currencyPrecision, taxInclusive: false, rounding: 'none', subtotal: n.total, itemDiscounts: 0, overallDiscount: 0, taxableAmount: n.total, taxAmount: 0,
+    chargesTotal: 0, roundingAdjustment: 0, total: n.total, paid: 0, balance: 0, createdAt: n.createdAt, finalizedAt: n.createdAt,
+  } as unknown as Invoice;
+  return invoiceHtml({ docType: 'creditNote', invoice, business: b, client, payments: [] }, paper, template);
+}
+
 // ---------------------------------------------------------------- shared invoice pieces
 
 /** Custom fields marked "print on invoices", kept current by the workspace store. */
@@ -152,7 +223,7 @@ function printedValues(entity: 'client' | 'invoice', values: CustomValues | unde
 
 interface InvoiceDoc {
   /** what the document is; quotations and purchases reuse the invoice designs with their own wording */
-  docType?: 'invoice' | 'quotation' | 'purchase' | 'order' | 'receipt';
+  docType?: 'invoice' | 'quotation' | 'purchase' | 'order' | 'receipt' | 'debitNote' | 'creditNote';
   invoice: Invoice;
   business: BusinessProfile;
   client: Client;
@@ -196,7 +267,8 @@ function parts(d: InvoiceDoc) {
   const schedule = i.installments
     .map((s, n) => `<tr><td>${n + 1}</td><td>${fd(s.dueDate)}</td><td>${s.status === 'paid' ? 'Paid' : s.status === 'partial' ? `Part paid ${m(s.paid ?? 0)}` : s.status === 'overdue' ? 'Overdue (unpaid)' : 'Unpaid'}</td><td class="r">${m(s.amount)}</td></tr>`)
     .join('');
-  const extras = `${details ? `<div class="extra"><div class="label">Details</div><table>${details}</table></div>` : ''}${info ? `<div class="extra"><div class="label">Payment details</div><table>${info}</table></div>` : ''}${schedule ?`<div class="extra"><div class="label">Installment schedule</div><table><tr><th>#</th><th>Due</th><th>Status</th><th class="r">Amount</th></tr>${schedule}</table></div>` : ''}
+  const qr = qrFor(d);
+  const extras = `${qr ? `<div class="extra qrbox"><div>${qr.svg}</div><div><div class="label">${qr.label}</div><div class="muted">${esc(qr.hint)}</div></div></div>` : ''}${details ? `<div class="extra"><div class="label">Details</div><table>${details}</table></div>` : ''}${info ? `<div class="extra"><div class="label">Payment details</div><table>${info}</table></div>` : ''}${schedule ?`<div class="extra"><div class="label">Installment schedule</div><table><tr><th>#</th><th>Due</th><th>Status</th><th class="r">Amount</th></tr>${schedule}</table></div>` : ''}
     ${paymentRows ? `<div class="extra"><div class="label">Payments received</div><table><tr><th>Date</th><th>Receipt</th><th>Method</th><th>Transaction ID</th><th class="r">Amount</th></tr>${paymentRows}</table></div>` : ''}
     ${tailHtml(i.notes, b)}`;
 
@@ -210,7 +282,7 @@ function parts(d: InvoiceDoc) {
     <div class="name">${esc(b.ownerName || b.tradingName || b.legalName)}</div><div class="muted">Authorized signature</div></div>`;
   const contacts = [b.phone, b.email, b.website].filter(Boolean).map(esc);
   return {
-    L: LABELS[d.docType ?? 'invoice'],
+    L: LABELS[d.docType ?? (i.docType === 'debit_note' ? 'debitNote' : 'invoice')],
     i, b, c, m, head, rows, sub, grand, paidRows, extras, bank, name, clientLines, issuerLines, logo, sig, contacts,
     number: esc(i.number ?? 'DRAFT'),
     status: STATUS[i.displayStatus] ?? '',
@@ -401,7 +473,8 @@ export function invoiceHtml(d: InvoiceDoc, paper: Paper = 'A4', template?: Invoi
   // narrow receipt rolls always use the plain layout
   const chosen: InvoiceTemplate = paper === 'thermal' ? 'classic' : (template ?? d.business.invoiceTemplate ?? 'amber');
   const [css, body] = DESIGNS[chosen](parts(d));
-  return shell(`${d.docType === 'quotation' ? 'Quotation' : d.docType === 'purchase' ? 'Purchase' : 'Invoice'} ${d.invoice.number ?? 'Draft'}`, paper, css, body, colorVars(chosen, chosen === (d.business.invoiceTemplate ?? 'amber') ? d.business.accentColor : ''));
+  const html = shell(`${d.docType === 'quotation' ? 'Quotation' : d.docType === 'purchase' ? 'Purchase' : 'Invoice'} ${d.invoice.number ?? 'Draft'}`, paper, css + QR_CSS, body, colorVars(chosen, chosen === (d.business.invoiceTemplate ?? 'amber') ? d.business.accentColor : ''));
+  return localize(html, d.business.docLanguage ?? 'en');
 }
 
 // ---------------------------------------------------------------- receipt and statement

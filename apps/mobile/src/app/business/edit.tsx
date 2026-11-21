@@ -10,7 +10,7 @@ import { useTheme, useToast } from '@/lib/app-context';
 import { pickImage } from '@/lib/image';
 import { DEFAULT_DISCLAIMER, TEMPLATE_COLORS, invoiceHtml, type Paper } from '@/lib/pdf';
 import { sampleInvoiceDoc } from '@/lib/sample';
-import { DASHBOARD_STYLES, DASHBOARD_STYLE_LABELS, INVOICE_TEMPLATES, INVOICE_TEMPLATE_LABELS, financialYear, type BusinessProfile, type DashboardStyle, type InvoiceTemplate } from '@/lib/shared';
+import { DEFAULT_REMINDER, DOC_LANGUAGES, DOC_LANGUAGE_LABELS, QR_MODES, QR_MODE_LABELS, DASHBOARD_STYLES, DASHBOARD_STYLE_LABELS, INVOICE_TEMPLATES, INVOICE_TEMPLATE_LABELS, financialYear, type BusinessProfile, type DashboardStyle, type InvoiceTemplate } from '@/lib/shared';
 import { StylePreview } from '@/components/dashboard-styles';
 
 type Form = Omit<BusinessProfile, 'id'>;
@@ -18,6 +18,7 @@ const blank: Form = {
   legalName: '', tradingName: '', ownerName: '', logo: '', registrationNo: '', ntn: '', phone: '', whatsapp: '', email: '', address: '', website: '',
   bankDetails: '', iban: '', paymentInstructions: '', signature: '', stamp: '', invoiceFooter: '', invoiceDisclaimer: '', currency: 'PKR', currencyPrecision: 2,
   invoicePrefix: 'INV-', taxInclusive: false, rounding: 'none', invoiceTemplate: 'amber', accentColor: '', fyStartMonth: 7, numberReset: 'never', dashboardStyle: 'classic', status: 'active',
+  qrMode: 'none', reminderTemplate: '', docLanguage: 'en',
 };
 const ACCENTS = ['', '#E9A23B', '#1F3A8A', '#4B3F9E', '#E0483E', '#0F766E', '#BE185D', '#334155'];
 
@@ -216,6 +217,15 @@ export default function BusinessEdit() {
         <Field label="Invoice footer" value={f.invoiceFooter} onChangeText={(v) => set({ invoiceFooter: v })} multiline placeholder="Thank you for your business!" />
         <Field label="Disclaimer (end of every invoice and purchase slip)" value={f.invoiceDisclaimer} onChangeText={(v) => set({ invoiceDisclaimer: v })} multiline placeholder={DEFAULT_DISCLAIMER} hint="Leave empty to print the standard disclaimer." />
         <Field label="Invoice number prefix" value={f.invoicePrefix} onChangeText={(v) => set({ invoicePrefix: v })} autoCapitalize="characters" hint={`Next invoices look like ${f.invoicePrefix}00001`} />
+      </Section>
+
+      <Section title="Documents & reminders">
+        <Txt v="label">Language of printed documents</Txt>
+        <Chips value={f.docLanguage ?? 'en'} onChange={(v) => set({ docLanguage: v })} options={DOC_LANGUAGES.map((x) => ({ value: x, label: DOC_LANGUAGE_LABELS[x] }))} />
+        <Txt v="label">QR code on invoices</Txt>
+        <Chips value={f.qrMode ?? 'none'} onChange={(v) => set({ qrMode: v })} options={QR_MODES.map((x) => ({ value: x, label: QR_MODE_LABELS[x] }))} />
+        <Txt v="small">{f.qrMode === 'portal' ? 'Shown for clients whose portal link is turned on (Client › Portal link).' : f.qrMode === 'bank' ? 'Encodes your IBAN / bank details, the invoice number and the amount due.' : 'Nothing is printed.'}</Txt>
+        <Field label="Payment reminder message" value={f.reminderTemplate ?? ''} onChangeText={(v) => set({ reminderTemplate: v })} multiline placeholder={DEFAULT_REMINDER} hint="Use {client}, {amount}, {invoices}, {due}, {business} and {link}. Leave empty for the standard message." />
       </Section>
 
       <Section title="Currency & calculation">

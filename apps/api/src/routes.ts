@@ -12,6 +12,7 @@ import * as ws from './workspace';
 import * as proc from './procurement';
 import * as stock from './stock';
 import * as adv from './advanced';
+import * as col from './collections';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -244,6 +245,26 @@ export function registerRoutes(app: AppLike, db: Db) {
     adv.reopenDay(db, req.auth, String(req.params.id));
     res.json({ ok: true });
   });
+
+  // ------------------------------------------------------------ collections, portal, credit notes
+
+  app.get('/collections', need('invoices.view'), (req: Req, res: Res) => res.json(col.collections(db, T(req), req.query.businessId ? String(req.query.businessId) : undefined)));
+  app.post('/reminders', need('payments.record'), (req: Req, res: Res) => res.status(201).json(col.logReminder(db, req.auth, col.reminderSchema.parse(req.body))));
+  app.get('/clients/:id/reminders', need('invoices.view'), (req: Req, res: Res) => res.json(col.clientReminders(db, T(req), String(req.params.id))));
+  app.post('/clients/:id/portal', need('clients.manage'), (req: Req, res: Res) => res.json(col.enablePortal(db, req.auth, String(req.params.id), req.query.renew === '1')));
+  app.delete('/clients/:id/portal', need('clients.manage'), (req: Req, res: Res) => {
+    col.disablePortal(db, req.auth, String(req.params.id));
+    res.json({ ok: true });
+  });
+  app.get('/credit-notes', need('invoices.view'), (req: Req, res: Res) =>
+    res.json(col.listCreditNotes(db, T(req), { clientId: req.query.clientId ? String(req.query.clientId) : undefined, invoiceId: req.query.invoiceId ? String(req.query.invoiceId) : undefined })),
+  );
+  app.get('/credit-notes/:id', need('invoices.view'), (req: Req, res: Res) => {
+    const note = col.getCreditNote(db, T(req), String(req.params.id));
+    res.json({ note, client: d.getClient(db, T(req), note.clientId), business: d.mapBusiness(d.ownedRow(db, 'business', T(req), note.businessId)) });
+  });
+  app.post('/credit-notes', need('invoices.cancel'), (req: Req, res: Res) => res.status(201).json(col.createCreditNote(db, req.auth, col.creditNoteSchema.parse(req.body))));
+  app.post('/credit-notes/:id/cancel', need('invoices.cancel'), (req: Req, res: Res) => res.json(col.cancelCreditNote(db, req.auth, String(req.params.id))));
 
   // ------------------------------------------------------------ invoices
 

@@ -21,6 +21,7 @@ import * as acc from './accounts';
 import { deleteAccount, exportAllData } from './account';
 import { reportFileName, reportWorkbook } from './excel';
 import { MiniApp } from './mini';
+import { portalInvoice, portalPage } from './portal';
 import { errorResponse } from './perm';
 import { type ReportFilter } from './reports';
 import { registerRoutes, upsert } from './routes';
@@ -40,6 +41,18 @@ export function createApp(db: Db) {
     res.json({ ok: true, service: 'kaarobarly-api', time: now() });
   });
   app.use(express.json({ limit: '6mb' }));
+
+  // Public client portal pages (the token in the link is the key); never cached by proxies.
+  app.get('/p/:token', (req, res) => {
+    const html = portalPage(db, String(req.params.token));
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(html ? 200 : 404).type('html').send(html ?? '<p style="font-family:sans-serif">This link is no longer active. Ask the business for a new one.</p>');
+  });
+  app.get('/p/:token/invoice/:id', (req, res) => {
+    const html = portalInvoice(db, String(req.params.token), String(req.params.id));
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(html ? 200 : 404).type('html').send(html ?? '<p style="font-family:sans-serif">Not found.</p>');
+  });
 
   const requireAuth = makeRequireAuth((sid) => !!db.get("select 1 from auth_session where id = ? and revoked_at is null and expires_at > ?", sid, now()));
 

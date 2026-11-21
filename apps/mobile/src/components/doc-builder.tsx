@@ -84,8 +84,9 @@ export default function DocBuilder({ kind = 'invoice' }: { kind?: BuilderKind })
   const t = useTheme();
   const toast = useToast();
   const { can } = useAuth();
-  const { id, clientId: presetClient } = useLocalSearchParams<{ id?: string; clientId?: string }>();
-  const storageKey = kind === 'invoice' ? `kaarobarly.draft.${id ?? 'new'}` : `kaarobarly.${kind}.${id ?? 'new'}`;
+  const { id, clientId: presetClient, docType: presetType, reference: presetRef } = useLocalSearchParams<{ id?: string; clientId?: string; docType?: string; reference?: string }>();
+  const debitNote = kind === 'invoice' && presetType === 'debit_note';
+  const storageKey = kind === 'invoice' ? `kaarobarly.draft.${id ?? (debitNote ? 'new-debit' : 'new')}` : `kaarobarly.${kind}.${id ?? 'new'}`;
   const flow = FLOW[kind];
   const STEPS = flow.map((x) => STEP_DEFS[x]);
   const at = (x: StepId) => flow.indexOf(x);
@@ -142,7 +143,13 @@ export default function DocBuilder({ kind = 'invoice' }: { kind?: BuilderKind })
         }
         return;
       }
-      setDraft(kind === 'quote' ? { ...emptyDraft(), clientRequestId: `qt-${newKey()}`, dueDate: addDays(todayStr(), 15) } : emptyDraft());
+      setDraft(
+        kind === 'quote'
+          ? { ...emptyDraft(), clientRequestId: `qt-${newKey()}`, dueDate: addDays(todayStr(), 15) }
+          : debitNote
+            ? { ...emptyDraft(), docType: 'debit_note', reference: presetRef ? `Against ${presetRef}` : '' }
+            : emptyDraft(),
+      );
     })();
     return () => {
       alive = false;
@@ -904,7 +911,7 @@ export default function DocBuilder({ kind = 'invoice' }: { kind?: BuilderKind })
           </Row>
         </>
       }>
-      <Stack.Screen options={{ title: TITLES[kind][id ? 1 : 0] }} />
+      <Stack.Screen options={{ title: draft?.docType === 'debit_note' ? (id ? 'Edit debit note' : 'New debit note') : TITLES[kind][id ? 1 : 0] }} />
       <Stepper steps={STEPS} step={step} onStepPress={(i) => (i <= step || validate(i - 1)) && setStep(i)} />
 
       <StepSlide key={step} direction={direction}>

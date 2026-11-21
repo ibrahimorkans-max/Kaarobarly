@@ -1,12 +1,12 @@
 import * as Clipboard from 'expo-clipboard';
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Linking, View } from 'react-native';
+import { Linking, Share, View } from 'react-native';
 import { CustomFieldValues } from '@/components/custom-fields';
 import { DocumentViewer } from '@/components/doc-viewer';
 import { InstallmentItem, InvoiceRow, PaymentRow, settleAmounts } from '@/components/rows';
-import { Badge, Btn, Card, Chips, IconBtn, KV, Loader, Row, Screen, Txt, fd, fm, Sheet, Field, DateField } from '@/components/ui';
-import { api, useApi } from '@/lib/api';
+import { Badge, Btn, Card, Chips, IconBtn, KV, Loader, Row, Screen, Txt, confirm, fd, fm, Sheet, Field, DateField } from '@/components/ui';
+import { API_URL, api, useApi } from '@/lib/api';
 import { AccountSelect } from '@/components/money';
 import { useAuth, useTheme, useToast } from '@/lib/app-context';
 import { statementHtml, type Paper } from '@/lib/pdf';
@@ -142,6 +142,61 @@ export default function ClientProfile() {
                     </Row>
                   </Card>
                 )}
+                <Card>
+                  <Row style={{ justifyContent: 'space-between' }}>
+                    <View style={{ flex: 1 }}>
+                      <Txt v="h">Portal link</Txt>
+                      <Txt v="small">{c.portalToken ? 'This client can see their invoices and balance online.' : 'Give this client a private page with their invoices and balance.'}</Txt>
+                    </View>
+                  </Row>
+                  {can('clients.manage') && (
+                    <Row gap={8} style={{ flexWrap: 'wrap' }}>
+                      {c.portalToken ? (
+                        <>
+                          <Btn small style={{ flex: 1 }} icon="share-social-outline" title="Share" onPress={() => Share.share({ message: `${c.name}, your statement: ${API_URL}/p/${c.portalToken}` }).catch(() => {})} />
+                          <Btn
+                            small
+                            style={{ flex: 1 }}
+                            kind="secondary"
+                            icon="copy-outline"
+                            title="Copy"
+                            onPress={async () => {
+                              await Clipboard.setStringAsync(`${API_URL}/p/${c.portalToken}`);
+                              toast('Link copied');
+                            }}
+                          />
+                          <Btn
+                            small
+                            style={{ flex: 1 }}
+                            kind="ghost"
+                            title="Turn off"
+                            onPress={async () => {
+                              if (!(await confirm('Turn off the portal link?', 'The link stops working. You can make a new one later.', 'Turn off'))) return;
+                              await api(`/clients/${c.id}/portal`, { method: 'DELETE' }).catch((e) => toast(e.message, 'error'));
+                              reload();
+                            }}
+                          />
+                        </>
+                      ) : (
+                        <Btn
+                          small
+                          style={{ flex: 1 }}
+                          icon="link-outline"
+                          title="Make portal link"
+                          onPress={async () => {
+                            try {
+                              await api(`/clients/${c.id}/portal`, { method: 'POST' });
+                              toast('Portal link ready');
+                              reload();
+                            } catch (e: any) {
+                              toast(e.message, 'error');
+                            }
+                          }}
+                        />
+                      )}
+                    </Row>
+                  )}
+                </Card>
                 <Card>
                   <Txt v="h">Details</Txt>
                   {(

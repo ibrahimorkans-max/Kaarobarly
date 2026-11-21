@@ -9,6 +9,7 @@ import { SyncBanner } from '@/components/sync-ui';
 import { Loading } from '@/components/ui';
 import { AppProviders, useAuth, useTheme } from '@/lib/app-context';
 import { LockProvider } from '@/lib/lock';
+import { useLang } from '@/lib/i18n';
 
 function Navigation() {
   const { user, ready } = useAuth();
@@ -82,6 +83,7 @@ function Navigation() {
           <Stack.Screen name="calendar" options={{ title: 'Bills calendar' }} />
           <Stack.Screen name="forecast" options={{ title: 'Cash forecast · Balance sheet' }} />
           <Stack.Screen name="day-close" options={{ title: 'Day close' }} />
+          <Stack.Screen name="collections" options={{ title: 'Collections' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="login" options={{ headerShown: false }} />
@@ -93,11 +95,13 @@ function Navigation() {
 
 export default function RootLayout() {
   const [splash, setSplash] = useState(true);
+  // changing the app language redraws every screen with the new words
+  const lang = useLang();
   return (
     <SafeAreaProvider>
       <AppProviders>
         <LockProvider>
-          <Navigation />
+          <Navigation key={lang} />
         </LockProvider>
       </AppProviders>
       {splash && <SplashReveal onDone={() => setSplash(false)} />}

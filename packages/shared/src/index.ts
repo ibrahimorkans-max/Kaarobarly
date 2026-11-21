@@ -6,3 +6,4 @@ export * from './currency';
 export * from './workspace';
 export * from './procurement';
 export * from './advanced';
+export * from './collections';

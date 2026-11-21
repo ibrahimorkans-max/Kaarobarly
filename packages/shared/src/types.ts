@@ -1,4 +1,5 @@
 import type { CustomValues } from './workspace';
+import type { DocLanguage, QrMode } from './collections';
 import type { ChargeInput, DiscountType, RoundingRule } from './calc';
 import type { Frequency } from './schedule';
 
@@ -214,6 +215,12 @@ export interface BusinessProfile {
   /** look of the Home dashboard while this business is selected */
   dashboardStyle: DashboardStyle;
   status: 'active' | 'inactive';
+  /** what the QR code on invoices opens */
+  qrMode: QrMode;
+  /** payment reminder text; empty = the built-in one */
+  reminderTemplate: string;
+  /** language of printed documents */
+  docLanguage: DocLanguage;
 }
 
 export interface Client {
@@ -240,6 +247,8 @@ export interface Client {
   status: 'active' | 'inactive';
   /** values for the workspace's custom client fields */
   custom: CustomValues;
+  /** key of the client's portal page; null when the portal is off */
+  portalToken?: string | null;
   /** present on list/detail responses */
   outstanding?: number;
   credit?: number;
@@ -319,11 +328,15 @@ export interface InvoiceInput {
   overrideCreditLimit?: boolean;
   /** values for the workspace's custom invoice fields */
   custom?: CustomValues;
+  /** 'debit_note' for extra charges on an earlier invoice (numbered DN-) */
+  docType?: 'invoice' | 'debit_note';
 }
 
 export interface Invoice extends InvoiceInput {
   id: string;
   number: string | null;
+  /** credit notes made against this invoice (part of `paid`) */
+  credited?: number;
   status: InvoiceStatus;
   displayStatus: InvoiceDisplayStatus;
   clientName: string;

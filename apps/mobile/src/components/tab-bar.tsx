@@ -1,3 +1,4 @@
+import { tr } from '@/lib/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { LinearGradient } from 'expo-linear-gradient';
 import { router } from 'expo-router';
@@ -89,7 +90,7 @@ export function StyledTabBar({ state, descriptors, emitter, navigateToTab, canCr
         <View style={[{ alignItems: 'center', justifyContent: 'center', paddingHorizontal: 8, paddingVertical: 5, borderRadius: 16, minWidth: 54 }, pill as any]}>
           <Ionicons name={focused ? filled : outline} size={22} color={color} />
           <Text numberOfLines={1} style={{ color, fontSize: 10.5, fontWeight: focused ? '800' : '600', marginTop: 2 }}>
-            {label}
+            {tr(label)}
           </Text>
         </View>
         {focused && style === 'classic' && <View style={{ position: 'absolute', bottom: 2, width: 5, height: 5, borderRadius: 3, backgroundColor: active }} />}

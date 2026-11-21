@@ -250,6 +250,18 @@ create table if not exists day_close (
   difference integer not null, notes text not null default '', entry_id text, closed_by_name text not null, created_at text not null
 );
 create index if not exists day_close_business on day_close (tenant_id, business_id, date);
+create table if not exists reminder (
+  id text primary key, tenant_id text not null references tenant, client_id text not null references client, invoice_id text,
+  channel text not null, note text not null default '', promise_date text not null default '', by_name text not null, created_at text not null
+);
+create index if not exists reminder_client on reminder (tenant_id, client_id, created_at);
+create table if not exists credit_note (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business,
+  client_id text not null references client, invoice_id text not null references invoice, number text not null, date text not null,
+  lines text not null, reason text not null default '', total integer not null check (total > 0), restock integer not null default 0,
+  status text not null check (status in ('final','cancelled')), created_by text not null, created_at text not null
+);
+create index if not exists credit_note_invoice on credit_note (invoice_id);
 `;
 
 /** Columns added after the first release, applied to older databases on start. */
@@ -393,6 +405,11 @@ export const MIGRATIONS: [table: string, column: string, definition: string][] =
   ['purchase', 'supplier_id', 'text'],
   ['purchase', 'receipt_id', 'text'],
   ['purchase', 'custom', "text not null default '{}'"],
+  ['client', 'portal_token', 'text'],
+  ['invoice', 'doc_type', "text not null default 'invoice'"],
+  ['business', 'qr_mode', "text not null default 'none'"],
+  ['business', 'reminder_template', "text not null default ''"],
+  ['business', 'doc_language', "text not null default 'en'"],
 ];
 
 export abstract class BaseDb {

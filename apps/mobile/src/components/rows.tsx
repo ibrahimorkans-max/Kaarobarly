@@ -5,6 +5,7 @@ import { View } from 'react-native';
 import { useAuth, useTheme } from '@/lib/app-context';
 import { PAYMENT_METHOD_LABELS, moneyToInput, type Client, type InstallmentRow, type Invoice, type Payment } from '@/lib/shared';
 import { PendingTag } from './sync-ui';
+import { tr } from '@/lib/i18n';
 import { Badge, Btn, Card, InstallmentBadge, Row, Txt, fd, fm, type IconName } from './ui';
 
 export function useDebounced<T>(value: T, ms = 300): T {
@@ -168,8 +169,8 @@ export function MenuRow({ icon, title, sub, onPress, disabled }: { icon: IconNam
           <Ionicons name={icon} size={20} color={t.primary} />
         </View>
         <View style={{ flex: 1 }}>
-          <Txt style={{ fontWeight: '600' }}>{title}</Txt>
-          {!!sub && <Txt v="small">{sub}</Txt>}
+          <Txt style={{ fontWeight: '600' }}>{tr(title)}</Txt>
+          {!!sub && <Txt v="small">{tr(sub)}</Txt>}
         </View>
         {!disabled && <Ionicons name="chevron-forward" size={18} color={t.sub} />}
       </Row>

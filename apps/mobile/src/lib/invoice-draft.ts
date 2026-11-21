@@ -70,6 +70,8 @@ export interface InvoiceDraft {
   fxRate: string;
   /** values for the workspace's custom invoice fields */
   custom: CustomValues;
+  /** 'debit_note' for extra charges on an earlier invoice */
+  docType?: 'invoice' | 'debit_note';
 }
 
 export interface RecurringDraft {
@@ -172,6 +174,7 @@ export function draftFromInvoice(i: Invoice): InvoiceDraft {
     installments: i.installments.map((s) => ({ key: newKey(), dueDate: s.dueDate, amount: moneyToInput(s.amount, p) })),
     currency: i.currency,
     fxRate: i.fxRate && i.fxRate !== 1_000_000 ? rateToString(i.fxRate) : '',
+    docType: i.docType ?? 'invoice',
   };
 }
 
@@ -257,6 +260,7 @@ export function draftToBody(d: InvoiceDraft, business: BusinessProfile | undefin
     notes: d.notes.trim(),
     paymentTerms: d.paymentTerms.trim(),
     custom: d.custom ?? {},
+    docType: d.docType ?? 'invoice',
     installments:
       d.paymentMode === 'installments'
         ? d.installments.map((s) => ({ dueDate: s.dueDate, amount: parseMoney(s.amount, precision) ?? 0 })).filter((s) => s.amount > 0)

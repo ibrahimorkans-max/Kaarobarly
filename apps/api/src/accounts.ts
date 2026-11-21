@@ -412,6 +412,12 @@ export function profitLoss(db: Db, tenantId: string, f: { businessId?: string; f
         taxCollected += inTarget(inBase(r.tax_amount, r.fx_factor), r.business_id);
         monthly.get(r.issue_date.slice(0, 7))!.income += revenue;
       }
+      // credit notes reduce sales in the month they are made
+      for (const n of db.all(`select n.total, n.date, i.fx_factor, i.business_id, i.total as inv_total, i.tax_amount from credit_note n join invoice i on i.id = n.invoice_id where n.tenant_id = ? and n.status = 'final' and i.status = 'final' and n.business_id in (${ph}) and n.date between ? and ?`, tenantId, ...ids, f.from, f.to)) {
+        const v = inTarget(inBase(n.total, n.fx_factor), n.business_id);
+        add(income, 'Credit notes (returns)', -v);
+        monthly.get(n.date.slice(0, 7))!.income -= v;
+      }
     } else {
       for (const p of db.all(`select * from payment where tenant_id = ? and verification_status <> 'rejected' and business_id in (${ph}) and date between ? and ?`, tenantId, ...ids, f.from, f.to)) {
         const v = inTarget(inBase(p.amount, p.fx_factor), p.business_id);

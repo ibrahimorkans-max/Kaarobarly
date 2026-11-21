@@ -1,6 +1,6 @@
 import { Stack, router, useLocalSearchParams } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { View } from 'react-native';
+import { Switch, View } from 'react-native';
 import { DocumentViewer } from '@/components/doc-viewer';
 import { usePending } from '@/components/sync-ui';
 import { MarkPaidButton, PaymentRow } from '@/components/rows';
@@ -8,8 +8,8 @@ import { Badge, Btn, Card, DateField, Field, IconBtn, InstallmentBadge, KV, Load
 import { api, useApi } from '@/lib/api';
 import { useAuth, useTheme, useToast } from '@/lib/app-context';
 import { newKey } from '@/lib/invoice-draft';
-import { invoiceHtml, type Paper } from '@/lib/pdf';
-import { moneyToInput, parseMoney, percentToString, qtyToString, type BusinessProfile, type Client, type Invoice, type InvoiceTemplate, type Payment } from '@/lib/shared';
+import { creditNoteHtml, invoiceHtml, type Paper } from '@/lib/pdf';
+import { moneyToInput, parseMoney, parseQty, percentToString, qtyToString, type BusinessProfile, type Client, type CreditNote, type Invoice, type InvoiceTemplate, type Payment } from '@/lib/shared';
 
 interface Detail {
   invoice: Invoice;
@@ -28,6 +28,9 @@ export default function InvoiceDetail() {
   const [viewer, setViewer] = useState(false);
   const [busy, setBusy] = useState('');
   const [schedule, setSchedule] = useState<{ key: string; dueDate: string; amount: string }[] | null>(null);
+  const notes = useApi<CreditNote[]>(`/credit-notes?invoiceId=${id}`);
+  const [credit, setCredit] = useState<{ lines: { serviceId: string | null; name: string; unit: string; unitPrice: number; max: number; qty: string }[]; other: string; reason: string; restock: boolean } | null>(null);
+  const [noteView, setNoteView] = useState<CreditNote | null>(null);
 
   const i = data?.invoice;
   const unsynced = usePending(i?.id);
@@ -45,6 +48,27 @@ export default function InvoiceDetail() {
   }
 
   const buildDoc = useCallback((paper: Paper, template: InvoiceTemplate) => (data ? invoiceHtml(data, paper, template) : ''), [data]);
+  const buildNote = useCallback((paper: Paper, template: InvoiceTemplate) => (data && noteView ? creditNoteHtml(noteView, data.client, data.business, paper, template) : ''), [data, noteView]);
+  const docWord = i?.docType === 'debit_note' ? 'Debit note' : 'Invoice';
+
+  const saveCredit = () =>
+    run('creditNote', async () => {
+      if (!credit || !i) return;
+      const p = i.currencyPrecision;
+      const lines = credit.lines
+        .map((l) => ({ serviceId: l.serviceId, name: l.name, unit: l.unit, unitPrice: l.unitPrice, qty: parseQty(l.qty || '0') ?? -1 }))
+        .filter((l) => l.qty !== 0);
+      if (lines.some((l) => l.qty < 0)) throw new Error('Check the quantities.');
+      const other = credit.other.trim() ? parseMoney(credit.other, p) : 0;
+      if (other === null || other < 0) throw new Error('The extra amount is not valid.');
+      if (other > 0) lines.push({ serviceId: null, name: 'Price adjustment', unit: '', unitPrice: other, qty: 1000 });
+      if (!lines.length) throw new Error('Enter the quantity returned or an amount to credit.');
+      const n = await api<CreditNote>('/credit-notes', { body: { invoiceId: i.id, date: new Date().toISOString().slice(0, 10), reason: credit.reason.trim(), restock: credit.restock, lines } });
+      toast(`Credit note ${n.number} saved`);
+      setCredit(null);
+      reload();
+      notes.reload();
+    });
 
   const finalize = async () => {
     if (!(await confirm('Finalize this invoice?', 'It will get its invoice number and can no longer be edited.', 'Finalize'))) return;
@@ -96,7 +120,7 @@ export default function InvoiceDetail() {
 
   return (
     <Screen onRefresh={reload} refreshing={refreshing}>
-      <Stack.Screen options={{ title: i?.number ?? (i?.status === 'draft' ? 'Draft Invoice' : 'Invoice') }} />
+      <Stack.Screen options={{ title: i?.number ?? (i?.status === 'draft' ? `Draft ${docWord}` : docWord) }} />
       <Loader loading={loading && !data} error={data ? '' : error} onRetry={reload}>
         {data && i && (
           <>
@@ -121,7 +145,8 @@ export default function InvoiceDetail() {
               <Card>
                 <Txt v="h">Payment progress</Txt>
                 <Progress value={i.paid} total={i.total} />
-                <KV k="Invoice total" v={m(i.total)} />
+                <KV k={`${docWord} total`} v={m(i.total)} />
+                {(i.credited ?? 0) > 0 && <KV k="Credit notes" v={`− ${m(i.credited ?? 0)}`} color={t.success} />}
                 {data.payments
                   .filter((p) => p.verificationStatus !== 'rejected')
                   .slice()
@@ -259,7 +284,44 @@ export default function InvoiceDetail() {
               </Section>
             )}
 
-            {i.status === 'final' && can('invoices.cancel') && <Btn kind="danger" icon="close-circle-outline" title="Cancel invoice" onPress={cancel} loading={busy === 'cancel'} />}
+            {i.status === 'final' && (
+              <Section title="Credit & debit notes">
+                {(notes.data ?? []).map((n) => (
+                  <Card key={n.id} label={`Credit note ${n.number}`} onPress={() => setNoteView(n)}>
+                    <Row style={{ justifyContent: 'space-between' }}>
+                      <View style={{ flex: 1 }}>
+                        <Txt style={{ fontWeight: '700' }}>
+                          {n.number} · {fd(n.date)}
+                        </Txt>
+                        <Txt v="small">{n.reason}</Txt>
+                      </View>
+                      <View style={{ alignItems: 'flex-end', gap: 4 }}>
+                        <Txt style={{ fontWeight: '700' }}>− {m(n.total)}</Txt>
+                        {n.status === 'cancelled' && <Badge status="cancelled" />}
+                      </View>
+                    </Row>
+                  </Card>
+                ))}
+                <Row gap={10}>
+                  {can('invoices.cancel') && i.balance > 0 && (
+                    <Btn
+                      style={{ flex: 1 }}
+                      small
+                      kind="secondary"
+                      icon="return-down-back-outline"
+                      title="Credit note"
+                      onPress={() => setCredit({ lines: i.lines.map((l) => ({ serviceId: l.serviceId, name: l.name, unit: l.unit, unitPrice: l.qty ? Math.round(((l.lineTotal ?? 0) * 1000) / l.qty) : l.unitPrice, max: l.qty, qty: '' })), other: '', reason: '', restock: true })}
+                    />
+                  )}
+                  {can('invoices.create') && (
+                    <Btn style={{ flex: 1 }} small kind="secondary" icon="add-circle-outline" title="Debit note" onPress={() => router.push({ pathname: '/invoice/new', params: { clientId: i.clientId, docType: 'debit_note', reference: i.number ?? '' } })} />
+                  )}
+                </Row>
+                <Txt v="small">A credit note lowers what the client owes (returns, price corrections). A debit note bills extra charges (DN- numbers).</Txt>
+              </Section>
+            )}
+
+            {i.status === 'final' && can('invoices.cancel') && <Btn kind="danger" icon="close-circle-outline" title={`Cancel ${docWord.toLowerCase()}`} onPress={cancel} loading={busy === 'cancel'} />}
           </>
         )}
       </Loader>
@@ -274,6 +336,32 @@ export default function InvoiceDetail() {
           template={data.business.invoiceTemplate}
         />
       )}
+
+      {data && noteView && <DocumentViewer visible={!!noteView} onClose={() => setNoteView(null)} title={`Credit note ${noteView.number}`} fileName={`credit-note-${noteView.number}`} build={buildNote} template={data.business.invoiceTemplate} defaultPaper="A5" />}
+
+      <Sheet visible={!!credit} title="Credit note" onClose={() => setCredit(null)}>
+        {i && <Txt v="sub">Up to {m(i.balance)} can be credited (the unpaid part).</Txt>}
+        {(credit?.lines ?? []).map((l, n) => (
+          <Row key={n} gap={10} style={{ alignItems: 'flex-end' }}>
+            <View style={{ flex: 2 }}>
+              <Txt style={{ fontWeight: '600' }}>{l.name}</Txt>
+              <Txt v="small">
+                sold {qtyToString(l.max)} {l.unit} · {m(l.unitPrice)} each
+              </Txt>
+            </View>
+            <Field style={{ flex: 1 }} label="Qty back" money placeholder="0" value={l.qty} onChangeText={(v) => setCredit((c) => c && { ...c, lines: c.lines.map((x, k) => (k === n ? { ...x, qty: v } : x)) })} />
+          </Row>
+        ))}
+        <Field label="Or an amount (price correction / discount)" money placeholder="0" value={credit?.other ?? ''} onChangeText={(v) => setCredit((c) => c && { ...c, other: v })} />
+        <Field label="Reason" value={credit?.reason ?? ''} onChangeText={(v) => setCredit((c) => c && { ...c, reason: v })} placeholder="e.g. 2 bags returned damaged" />
+        {(credit?.lines ?? []).some((l) => l.serviceId) && (
+          <Row style={{ justifyContent: 'space-between' }}>
+            <Txt>Put returned items back in stock</Txt>
+            <Switch accessibilityLabel="Restock returned items" value={!!credit?.restock} onValueChange={(v) => setCredit((c) => c && { ...c, restock: v })} />
+          </Row>
+        )}
+        <Btn title="Save credit note" onPress={saveCredit} loading={busy === 'creditNote'} />
+      </Sheet>
 
       <Sheet visible={!!schedule} title="Installment schedule" onClose={() => setSchedule(null)}>
         {i && <Txt v="sub">Scheduled amounts can total up to {m(i.total)}. Payments already received are applied to the earliest installments.</Txt>}

@@ -24,6 +24,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ToastView, useTheme, type Theme } from '@/lib/app-context';
+import { tr } from '@/lib/i18n';
 import { formatMoney, type InvoiceDisplayStatus } from '@/lib/shared';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -295,7 +296,7 @@ export function Section({ title, action, children }: { title: string; action?: R
   return (
     <View style={{ gap: 8 }}>
       <Row style={{ justifyContent: 'space-between', minHeight: 28 }}>
-        <Txt v="h">{title}</Txt>
+        <Txt v="h">{tr(title)}</Txt>
         {action}
       </Row>
       {children}
@@ -309,7 +310,7 @@ export function KV({ k, v, bold, color }: { k: string; v: string; bold?: boolean
   return (
     <Row style={{ justifyContent: 'space-between', alignItems: 'flex-start', paddingVertical: 3 }}>
       <Txt v="sub" style={bold && { fontWeight: '700' }}>
-        {k}
+        {tr(k)}
       </Txt>
       <Txt v="sub" color={color ?? t.text} style={[{ flexShrink: 1, textAlign: 'right' }, bold && { fontWeight: '700', fontSize: 16 }]}>
         {v}
@@ -359,7 +360,7 @@ export function Btn({
         {primary && <LinearGradient colors={GRADIENT} start={{ x: 0, y: 0 }} end={{ x: 1, y: 0 }} style={StyleSheet.absoluteFill} />}
         {loading ? <ActivityIndicator color={ink} /> : icon ? <Ionicons name={icon} size={small ? 16 : 19} color={ink} /> : null}
         <Text style={{ color: ink, fontSize: small ? 14 : 16, fontWeight: '700' }} numberOfLines={1}>
-          {title}
+          {tr(title)}
         </Text>
       </Pressable>
     </Animated.View>
@@ -393,7 +394,7 @@ export function Chips<T extends string>({ options, value, onChange }: { options:
             accessibilityState={{ selected: on }}
             onPress={() => onChange(o.value)}
             style={[styles.chip, { backgroundColor: on ? t.primary : t.card, borderColor: on ? t.primary : t.border }]}>
-            <Text style={{ color: on ? t.onPrimary : t.text, fontSize: 14, fontWeight: '600' }}>{o.label}</Text>
+            <Text style={{ color: on ? t.onPrimary : t.text, fontSize: 14, fontWeight: '600' }}>{tr(o.label)}</Text>
           </Pressable>
         );
       })}
@@ -417,7 +418,7 @@ export function Field({
   const [focus, setFocus] = useState(false);
   return (
     <View style={[{ gap: 5, minWidth: 0 }, style]}>
-      <Txt v="label">{label}</Txt>
+      <Txt v="label">{tr(label)}</Txt>
       <Row gap={6}>
         <TextInput
           accessibilityLabel={label}
@@ -460,7 +461,7 @@ export function DateField({ label, value, onChange, quick, error }: { label: str
   return (
     <View style={{ gap: 6 }}>
       <View style={{ gap: 5 }}>
-        <Txt v="label">{label}</Txt>
+        <Txt v="label">{tr(label)}</Txt>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={`${label}: ${shown || 'not set'}. Opens a calendar`}
@@ -657,7 +658,7 @@ export function Select<T>({
   };
   return (
     <View style={{ gap: 5 }}>
-      <Txt v="label">{label}</Txt>
+      <Txt v="label">{tr(label)}</Txt>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${label}: ${value || placeholder}`}
@@ -730,7 +731,7 @@ export function Sheet({ visible, title, onClose, children }: { visible: boolean;
         <Pressable style={styles.backdrop} onPress={onClose} accessibilityLabel="Close" />
         <View ref={kb.containerRef} style={[styles.sheet, { backgroundColor: t.bg, paddingBottom: kb.overlap ? kb.overlap + 8 : Math.max(insets.bottom, 12) }]}>
           <Row style={{ justifyContent: 'space-between' }}>
-            <Txt v="h">{title}</Txt>
+            <Txt v="h">{tr(title)}</Txt>
             <IconBtn icon="close" label="Close" onPress={onClose} />
           </Row>
           <View ref={kb.boxRef} style={{ flexShrink: 1 }}>
@@ -836,11 +837,11 @@ export function Empty({ icon, title, hint, action }: { icon: IconName; title: st
     <View style={{ padding: 32, alignItems: 'center', gap: 8 }}>
       <Ionicons name={icon} size={40} color={t.sub} />
       <Txt v="h" style={{ textAlign: 'center' }}>
-        {title}
+        {tr(title)}
       </Txt>
       {!!hint && (
         <Txt v="sub" style={{ textAlign: 'center' }}>
-          {hint}
+          {tr(hint)}
         </Txt>
       )}
       {action}

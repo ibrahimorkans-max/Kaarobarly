@@ -1,3 +1,4 @@
+import { tr } from '@/lib/i18n';
 import { Ionicons } from '@expo/vector-icons';
 import { router, useGlobalSearchParams, usePathname } from 'expo-router';
 import { useEffect, useState, useSyncExternalStore } from 'react';
@@ -94,6 +95,7 @@ function jumps(t: (k: TermKey) => string, on: (m: ModuleKey) => boolean): Jump[]
     { icon: 'wallet-outline', title: 'Accounts', href: '/accounts', mod: 'accounts' },
     { icon: 'book-outline', title: 'Cashbook', href: '/cashbook', mod: 'accounts' },
     { icon: 'trending-up-outline', title: 'Profit & Loss', href: '/statements', mod: 'reports' },
+    { icon: 'alarm-outline', title: 'Collections', href: '/collections' },
     { icon: 'calendar-number-outline', title: 'Calendar', href: '/calendar' },
     { icon: 'analytics-outline', title: 'Forecast', href: '/forecast', mod: 'reports' },
     { icon: 'card-outline', title: 'Cheques', href: '/cheques', mod: 'cheques' },
@@ -157,14 +159,14 @@ export function NavBar({ title }: { title?: string }) {
           <NavBtn icon="chevron-back" label="Back" onPress={navHistory.back} disabled={!navHistory.canBack() && isHome} />
           <NavBtn icon="chevron-forward" label="Forward" onPress={navHistory.forward} disabled={!navHistory.canForward()} />
           <Text accessibilityRole="header" numberOfLines={1} style={{ flex: 1, color: t.text, fontSize: 17, fontWeight: '800', marginLeft: 4 }}>
-            {title ?? 'Kaarobarly'}
+            {title ? tr(title) : 'Kaarobarly'}
           </Text>
           <NavBtn icon={isHome ? 'home' : 'home-outline'} label="Home" onPress={() => go('/')} disabled={isHome} />
           <NavBtn icon="apps-outline" label="Go to page" onPress={() => setMenu(true)} />
         </View>
       </View>
       {!!user && <SyncBanner embedded />}
-      <Sheet visible={menu} title="Go to" onClose={() => setMenu(false)}>
+      <Sheet visible={menu} title={tr('Go to')} onClose={() => setMenu(false)}>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {jumps(term, on).map((j) => {
             const active = j.href === pathname;
@@ -187,7 +189,7 @@ export function NavBar({ title }: { title?: string }) {
                 })}>
                 <Ionicons name={j.icon} size={22} color={t.primary} />
                 <Txt v="small" style={{ fontWeight: '700', color: t.text }} numberOfLines={1}>
-                  {j.title}
+                  {tr(j.title)}
                 </Txt>
               </Pressable>
             );

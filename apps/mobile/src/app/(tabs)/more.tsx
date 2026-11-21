@@ -1,17 +1,19 @@
 import { router } from 'expo-router';
 import { View } from 'react-native';
 import { MenuRow } from '@/components/rows';
-import { Screen, Section, Txt } from '@/components/ui';
+import { Chips, Screen, Section, Txt } from '@/components/ui';
+import { setLang, tr, useLang } from '@/lib/i18n';
 import { useAuth } from '@/lib/app-context';
 import { lower, useWorkspace } from '@/lib/workspace';
 
 export default function More() {
   const { user } = useAuth();
   const { t, on } = useWorkspace();
+  const lang = useLang();
   return (
     <Screen>
       <View style={{ paddingTop: 0 }}>
-        <Txt v="title">More</Txt>
+        <Txt v="title">{tr('More')}</Txt>
         <Txt v="sub">
           {user?.name} · {user?.role}
         </Txt>
@@ -25,6 +27,7 @@ export default function More() {
         {on('inventory') && <MenuRow icon="cube-outline" title="Stock" sub="In hand, value, low stock and counts" onPress={() => router.push('/stock')} />}
         {on('accounts') && <MenuRow icon="wallet-outline" title="Cash & Bank Accounts" sub="Balances, transfers between accounts" onPress={() => router.push('/accounts')} />}
         {on('accounts') && <MenuRow icon="book-outline" title="Daily Cashbook" sub="Opening, in, out and closing for each day" onPress={() => router.push('/cashbook')} />}
+        <MenuRow icon="alarm-outline" title="Collections" sub="Who owes you, how late, and one-tap reminders" onPress={() => router.push('/collections')} />
         <MenuRow icon="calendar-number-outline" title="Bills calendar" sub="What to collect and pay, day by day" onPress={() => router.push('/calendar')} />
         {on('reports') && <MenuRow icon="analytics-outline" title="Cash forecast · Balance sheet" sub="Will there be enough cash? What the business is worth" onPress={() => router.push('/forecast')} />}
         {on('cheques') && <MenuRow icon="card-outline" title="Cheques" sub="Post-dated cheques, deposits and bounces" onPress={() => router.push('/cheques')} />}
@@ -40,6 +43,17 @@ export default function More() {
         <MenuRow icon="cash-outline" title="Payments" sub="Record and review payments" onPress={() => router.push('/payments')} />
         {on('installments') && <MenuRow icon="calendar-outline" title="Installments" sub="Scheduled and overdue installments" onPress={() => router.push('/installments')} />}
         <MenuRow icon="receipt-outline" title="Receipts" sub="Reprint or share any receipt" onPress={() => router.push('/payments')} />
+      </Section>
+      <Section title="Language">
+        <Chips
+          value={lang}
+          onChange={setLang}
+          options={[
+            { value: 'en', label: 'English' },
+            { value: 'ur', label: 'اردو' },
+          ]}
+        />
+        <Txt v="small">Printed documents have their own language setting in Business Profiles.</Txt>
       </Section>
       <Section title="Setup">
         <MenuRow icon="options-outline" title="Business setup" sub="Business type, modules, your words, custom fields" onPress={() => router.push('/workspace')} />
