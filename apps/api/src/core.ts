@@ -290,6 +290,16 @@ create table if not exists expense_claim (
   claimed_by text not null, claimed_by_name text not null, decided_by_name text not null default '', decision_note text not null default '',
   finance_entry_id text, created_at text not null
 );
+create table if not exists ai_config (
+  tenant_id text primary key references tenant, provider text not null, api_key text not null default '', model text not null default '', updated_at text not null
+);
+create table if not exists automation_rule (
+  id text primary key, tenant_id text not null references tenant, kind text not null check (kind in ('categorize','alert')),
+  name text not null default '', enabled integer not null default 1, config text not null, created_at text not null
+);
+create table if not exists alert_dismissal (
+  tenant_id text not null references tenant, key text not null, dismissed_at text not null, primary key (tenant_id, key)
+);
 `;
 
 /** Columns added after the first release, applied to older databases on start. */

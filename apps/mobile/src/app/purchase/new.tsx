@@ -112,6 +112,29 @@ export default function NewPurchase() {
   }
   const known = (supplierList.data ?? []).filter((s) => s.toLowerCase().includes(supplier.trim().toLowerCase()) && s !== supplier).slice(0, 6);
 
+  const [scanning, setScanning] = useState(false);
+  /** Read a photo of the supplier's bill with AI and fill the form; everything stays editable. */
+  async function scanBill() {
+    try {
+      const image = await pickImage();
+      if (!image) return;
+      setScanning(true);
+      const b = await api<{ supplier: string; billNo: string; date: string; total: number; lines: { name: string; qty: number; unit: string; unitPrice: number }[] }>('/ai/scan-bill', { body: { image } });
+      const unit = 10 ** precision;
+      if (b.supplier) setSupplier(b.supplier);
+      if (b.billNo) setBillNo(b.billNo);
+      if (b.date) setDate(b.date);
+      const lines = b.lines.length ? b.lines : b.total > 0 ? [{ name: b.supplier || 'Purchase', qty: 1, unit: '', unitPrice: b.total }] : [];
+      if (lines.length) setLines(lines.map((l) => ({ key: newKey(), itemId: null, name: l.name, qty: qtyToString(Math.round(l.qty * 1000)), unit: l.unit, unitPrice: moneyToInput(Math.round(l.unitPrice * unit), precision) })));
+      setAttachment(image);
+      toast('Bill read. Check the details before saving.');
+    } catch (e: any) {
+      toast(e.message, 'error');
+    } finally {
+      setScanning(false);
+    }
+  }
+
   async function save() {
     const e: Record<string, string> = {};
     if (!supplier.trim()) e.supplier = 'Enter who you bought from';
@@ -177,6 +200,7 @@ export default function NewPurchase() {
       <Loader loading={!!id && editing.loading && !editing.data} error={id && !editing.data ? editing.error : ''} onRetry={editing.reload}>
         <Notice kind="info">The amount you pay is recorded as Money out and taken from the account you pay with. On installments, only paid ones count.</Notice>
 
+        {!id && <Btn kind="secondary" icon="scan-outline" title="Scan the bill (AI)" onPress={scanBill} loading={scanning} />}
         <Section title="Supplier">
           <Field label="Bought from" value={supplier} onChangeText={setSupplier} placeholder="Shop or supplier name" error={errors.supplier} />
           {known.length > 0 && (

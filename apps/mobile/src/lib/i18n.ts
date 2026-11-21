@@ -64,7 +64,7 @@ const UR: Record<string, string> = {
   'Purchase orders': 'خریداری آرڈرز', 'Goods received': 'وصول شدہ مال', Requests: 'درخواستیں', All: 'تمام', Received: 'وصول شدہ', Issued: 'جاری کردہ', Open: 'کھلے',
   'Money in': 'آمدنی', 'Money out': 'اخراجات', 'To collect': 'وصول کرنا ہے', 'To pay': 'ادا کرنا ہے', 'You owe': 'آپ کے ذمے', 'Owed to you': 'آپ کا لینا',
   'Everyone who owes': 'تمام مقروض', 'Running low': 'کم ہو رہا ہے', 'Out of stock': 'ختم', Adjust: 'ایڈجسٹ', Count: 'گنتی', Repay: 'واپسی', Interest: 'سود',
-  Language: 'زبان', People: 'لوگ', Approvals: 'منظوریاں', Payroll: 'تنخواہیں', Employees: 'ملازمین', 'Expense claims': 'اخراجات کے دعوے', Claims: 'دعوے', Team: 'ٹیم', 'App language': 'ایپ کی زبان', 'Sign out': 'سائن آؤٹ',
+  Language: 'زبان', 'Smart tools': 'سمارٹ ٹولز', Alerts: 'الرٹس', 'Ask Kaarobarly': 'کاروبارلی سے پوچھیں', 'Quick entry': 'فوری اندراج', Automation: 'آٹومیشن', 'AI settings': 'اے آئی ترتیبات', People: 'لوگ', Approvals: 'منظوریاں', Payroll: 'تنخواہیں', Employees: 'ملازمین', 'Expense claims': 'اخراجات کے دعوے', Claims: 'دعوے', Team: 'ٹیم', 'App language': 'ایپ کی زبان', 'Sign out': 'سائن آؤٹ',
 };
 
 /** Translate fixed UI text when Urdu is on; anything not in the dictionary is shown as is. */

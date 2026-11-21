@@ -5,6 +5,7 @@ import { now, today, uid, type Db, type Row } from './core';
 import { ownedRow } from './domain';
 import { accountTypeFor, defaultAccount, ensureAccounts, ownedAccount } from './accounts';
 import { assertDayOpen } from './daylock';
+import { categoryFor } from './rules';
 
 export const financeSchema = z.object({
   businessId: z.string().min(1, 'Choose a business'),
@@ -131,6 +132,8 @@ export function saveEntry(db: Db, auth: AuthContext, body: FinanceBody, id?: str
       if (dup) return listEntries(db, auth.tenantId, {}, 1000, 0).find((e) => e.id === dup.id)!;
     }
     assertDayOpen(db, auth.tenantId, body.businessId, body.date, id ? db.get('select date from finance_entry where id = ?', id)?.date : null);
+    // a categorize rule may file a general "Other" record under a better category
+    body = { ...body, category: categoryFor(db, auth.tenantId, body.type, body.category, `${body.party} ${body.notes}`) ?? body.category };
     ensureAccounts(db, { businessId: body.businessId });
     const account = body.accountId ? ownedAccount(db, auth.tenantId, body.accountId) : ownedAccount(db, auth.tenantId, defaultAccount(db, body.businessId, accountTypeFor(body.method)));
     if (account.business_id !== body.businessId) throw new HttpError(422, 'That account belongs to another business.');

@@ -113,6 +113,27 @@ export default function Claims() {
             if (img) setForm((f) => f && { ...f, receipt: img });
           }}
         />
+        {!!form?.receipt && (
+          <Btn
+            kind="ghost"
+            icon="sparkles-outline"
+            title="Read the receipt (AI)"
+            loading={busy === 'read'}
+            onPress={async () => {
+              if (!form) return;
+              setBusy('read');
+              try {
+                const b = await api<{ supplier: string; date: string; total: number; lines: { name: string }[] }>('/ai/scan-bill', { body: { image: form.receipt } });
+                setForm((f) => f && { ...f, amount: b.total ? String(b.total) : f.amount, date: b.date || f.date, description: f.description || [b.supplier, b.lines.map((l) => l.name).slice(0, 3).join(', ')].filter(Boolean).join(' · ') });
+                toast('Receipt read. Check the amount.');
+              } catch (e: any) {
+                toast(e.message, 'error');
+              } finally {
+                setBusy('');
+              }
+            }}
+          />
+        )}
         <Btn title="Send for approval" onPress={submit} loading={busy === 'save'} />
       </Sheet>
       <Sheet visible={!!decide} title={decide ? `${decide.claim.number} · ${decide.claim.claimedByName}` : ''} onClose={() => setDecide(null)}>

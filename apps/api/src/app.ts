@@ -22,6 +22,7 @@ import { deleteAccount, exportAllData } from './account';
 import { reportFileName, reportWorkbook } from './excel';
 import { MiniApp } from './mini';
 import { portalInvoice, portalPage } from './portal';
+import * as ai from './ai';
 import { errorResponse } from './perm';
 import { type ReportFilter } from './reports';
 import { registerRoutes, upsert } from './routes';
@@ -207,6 +208,19 @@ export function createApp(db: Db) {
     db.audit(T(req), req.auth.userId, 'user.update', 'user', u.id, body);
     res.json(db.get('select id, name, email, role, status from app_user where id = ?', u.id));
   });
+
+  // ------------------------------------------------------------ server-only: AI (keys never leave the server)
+
+  app.get('/ai/config', (req, res) => res.json(ai.publicConfig(db, T(req))));
+  app.put('/ai/config', need('businesses.manage'), (req, res) => res.json(ai.saveConfig(db, req.auth, ai.aiConfigSchema.parse(req.body))));
+  const aiRoute = (fn: (req: Request) => Promise<unknown>) => (req: Request, res: Response, next: NextFunction) => fn(req).then((out) => res.json(out), next);
+  app.post('/ai/test', need('businesses.manage'), aiRoute(async (req) => ({ reply: await ai.testConnection(db, T(req)) })));
+  app.post('/ai/ask', need('reports.view'), aiRoute(async (req) => ({ answer: await ai.ask(db, T(req), z.object({ question: z.string().trim().min(2).max(1000) }).parse(req.body).question) })));
+  app.post('/ai/scan-bill', aiRoute(async (req) => {
+    if (!can(req, 'finance.manage') && !can(req, 'expenses.claim')) throw new HttpError(403, 'You do not have permission to do this.');
+    return ai.scanBill(db, T(req), z.object({ image: z.string().min(20).max(1_500_000) }).parse(req.body).image);
+  }));
+  app.post('/ai/parse-entry', aiRoute(async (req) => ai.parseEntry(db, T(req), z.object({ text: z.string().trim().min(3).max(500) }).parse(req.body).text)));
 
   // ------------------------------------------------------------ server-only: Excel and sync
 

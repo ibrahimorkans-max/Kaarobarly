@@ -2,6 +2,7 @@ import { router } from 'expo-router';
 import { View } from 'react-native';
 import { MenuRow } from '@/components/rows';
 import { Chips, Screen, Section, Txt } from '@/components/ui';
+import { useApi } from '@/lib/api';
 import { setLang, tr, useLang } from '@/lib/i18n';
 import { useAuth } from '@/lib/app-context';
 import { lower, useWorkspace } from '@/lib/workspace';
@@ -10,6 +11,7 @@ export default function More() {
   const { user, can } = useAuth();
   const { t, on } = useWorkspace();
   const lang = useLang();
+  const alerts = useApi<unknown[]>('/alerts');
   return (
     <Screen>
       <View style={{ paddingTop: 0 }}>
@@ -18,6 +20,13 @@ export default function More() {
           {user?.name} · {user?.role}
         </Txt>
       </View>
+      <Section title="Smart tools">
+        <MenuRow icon="notifications-outline" title="Alerts" sub={alerts.data?.length ? `${alerts.data.length} need attention` : 'Nothing needs attention'} onPress={() => router.push('/alerts')} />
+        <MenuRow icon="chatbubbles-outline" title="Ask Kaarobarly" sub="Questions about your business, in English or Urdu (AI)" onPress={() => router.push('/assistant')} />
+        <MenuRow icon="mic-outline" title="Quick entry" sub="Say or type it: “Paid 3,500 for petrol” (AI)" onPress={() => router.push('/quick-entry')} />
+        <MenuRow icon="flash-outline" title="Automation" sub="Alert rules and filing rules" onPress={() => router.push('/automation')} />
+        {can('businesses.manage') && <MenuRow icon="key-outline" title="AI settings" sub="Claude, OpenAI or OpenRouter, with your key" onPress={() => router.push('/ai-settings')} />}
+      </Section>
       <Section title="People">
         {(can('approvals.decide') || can('purchases.approve') || can('invoices.finalize')) && <MenuRow icon="checkmark-done-circle-outline" title="Approvals" sub="Requests, claims and payroll waiting for you" onPress={() => router.push('/approvals')} />}
         {on('payroll') && can('payroll.manage') && <MenuRow icon="calculator-outline" title="Payroll" sub="Salaries, advances and payslips" onPress={() => router.push('/payroll')} />}

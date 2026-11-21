@@ -14,6 +14,7 @@ import * as stock from './stock';
 import * as adv from './advanced';
 import * as col from './collections';
 import * as ppl from './people';
+import * as rules from './rules';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -306,6 +307,22 @@ export function registerRoutes(app: AppLike, db: Db) {
   });
 
   app.get('/approvals', (req: Req, res: Res) => res.json(ppl.approvals(db, req.auth)));
+
+  // ------------------------------------------------------------ automation: rules and alerts
+
+  app.get('/rules', (req: Req, res: Res) => res.json(rules.listRules(db, T(req))));
+  app.get('/rules/suggested', (_req: Req, res: Res) => res.json(rules.suggestedRules()));
+  app.post('/rules', need('businesses.manage'), (req: Req, res: Res) => res.status(201).json(rules.saveRule(db, req.auth, rules.ruleSchema.parse(req.body))));
+  app.put('/rules/:id', need('businesses.manage'), (req: Req, res: Res) => res.json(rules.saveRule(db, req.auth, rules.ruleSchema.parse(req.body), String(req.params.id))));
+  app.delete('/rules/:id', need('businesses.manage'), (req: Req, res: Res) => {
+    rules.deleteRule(db, req.auth, String(req.params.id));
+    res.json({ ok: true });
+  });
+  app.get('/alerts', (req: Req, res: Res) => res.json(rules.alerts(db, T(req))));
+  app.post('/alerts/dismiss', (req: Req, res: Res) => {
+    rules.dismissAlert(db, req.auth, z.object({ key: z.string().min(1).max(300) }).parse(req.body).key);
+    res.json({ ok: true });
+  });
 
   // ------------------------------------------------------------ invoices
 

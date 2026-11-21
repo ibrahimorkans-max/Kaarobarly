@@ -90,6 +90,11 @@ function Navigation() {
           <Stack.Screen name="payroll/[id]" options={{ title: 'Payroll' }} />
           <Stack.Screen name="claims" options={{ title: 'Expense claims' }} />
           <Stack.Screen name="approvals" options={{ title: 'Approvals' }} />
+          <Stack.Screen name="assistant" options={{ title: 'Ask Kaarobarly' }} />
+          <Stack.Screen name="quick-entry" options={{ title: 'Quick entry' }} />
+          <Stack.Screen name="ai-settings" options={{ title: 'AI settings' }} />
+          <Stack.Screen name="automation" options={{ title: 'Automation' }} />
+          <Stack.Screen name="alerts" options={{ title: 'Alerts' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="login" options={{ headerShown: false }} />
