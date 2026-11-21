@@ -74,6 +74,8 @@ export default function More() {
       <Section title="Setup">
         <MenuRow icon="options-outline" title="Business setup" sub="Business type, modules, your words, custom fields" onPress={() => router.push('/workspace')} />
         <MenuRow icon="business-outline" title="Business Profiles" sub={`${t('invoice')} design, signature and issuer details`} onPress={() => router.push('/businesses')} />
+        <MenuRow icon="diamond-outline" title="Plan & usage" sub="Your subscription, limits and upgrades" onPress={() => router.push('/plan')} />
+        {user?.isPlatformAdmin && <MenuRow icon="shield-checkmark-outline" title="Kaarobarly admin" sub="All accounts, plans and upgrade requests" onPress={() => router.push('/platform')} />}
         <MenuRow icon="settings-outline" title="Settings & Security" sub="App lock, fingerprint, theme and devices" onPress={() => router.push('/settings')} />
       </Section>
     </Screen>

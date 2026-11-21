@@ -8,3 +8,4 @@ export * from './procurement';
 export * from './advanced';
 export * from './collections';
 export * from './people';
+export * from './plans';

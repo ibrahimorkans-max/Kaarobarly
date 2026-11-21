@@ -15,6 +15,7 @@ import * as adv from './advanced';
 import * as col from './collections';
 import * as ppl from './people';
 import * as rules from './rules';
+import { assertLimit } from './saas';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -75,6 +76,7 @@ export function registerRoutes(app: AppLike, db: Db) {
     res.json(db.all('select * from business where tenant_id = ? order by created_at', T(req)).map(d.mapBusiness));
   });
   app.post('/businesses', need('businesses.manage'), (req: Req, res: Res) => {
+    assertLimit(db, T(req), 'business');
     const id = upsert(db, 'business', T(req), d.businessSchema.parse(req.body));
     acc.ensureAccounts(db, { businessId: id });
     db.audit(T(req), req.auth.userId, 'business.create', 'business', id);
@@ -280,6 +282,7 @@ export function registerRoutes(app: AppLike, db: Db) {
   app.get('/payroll/:id', need('payroll.manage'), (req: Req, res: Res) => res.json(ppl.getRun(db, T(req), String(req.params.id))));
   app.post('/payroll', need('payroll.manage'), (req: Req, res: Res) => {
     const b = z.object({ businessId: z.string().min(1), month: z.string().regex(/^\d{4}-\d{2}$/) }).parse(req.body);
+    assertLimit(db, T(req), 'payroll');
     res.status(201).json(ppl.createRun(db, req.auth, b.businessId, b.month));
   });
   app.put('/payroll/:id/slips/:slipId', need('payroll.manage'), (req: Req, res: Res) => res.json(ppl.updateSlip(db, req.auth, String(req.params.id), String(req.params.slipId), ppl.slipSchema.parse(req.body))));
@@ -367,6 +370,7 @@ export function registerRoutes(app: AppLike, db: Db) {
 
   app.post('/invoices', need('invoices.create'), (req: Req, res: Res) => {
     const body = d.invoiceSchema.parse(req.body);
+    if (body.finalize) assertLimit(db, T(req), 'invoice');
     if (body.overrideCreditLimit && !can(req, 'invoices.approve')) throw new HttpError(403, 'Only a manager can approve going over a credit limit.');
     if (body.finalize && !can(req, 'invoices.finalize')) throw new HttpError(403, 'You can save drafts, but finalizing needs a higher permission.');
     if (body.initialPayment && !can(req, 'payments.record')) throw new HttpError(403, 'You do not have permission to record payments.');
@@ -375,6 +379,7 @@ export function registerRoutes(app: AppLike, db: Db) {
 
   app.put('/invoices/:id', need('invoices.edit_draft'), (req: Req, res: Res) => {
     const body = d.invoiceSchema.parse(req.body);
+    if (body.finalize) assertLimit(db, T(req), 'invoice');
     if (body.overrideCreditLimit && !can(req, 'invoices.approve')) throw new HttpError(403, 'Only a manager can approve going over a credit limit.');
     if (body.finalize && !can(req, 'invoices.finalize')) throw new HttpError(403, 'You can save drafts, but finalizing needs a higher permission.');
     if (body.initialPayment && !can(req, 'payments.record')) throw new HttpError(403, 'You do not have permission to record payments.');
@@ -382,6 +387,7 @@ export function registerRoutes(app: AppLike, db: Db) {
   });
 
   app.post('/invoices/:id/finalize', need('invoices.finalize'), (req: Req, res: Res) => {
+    assertLimit(db, T(req), 'invoice');
     const { overrideCreditLimit } = z.object({ overrideCreditLimit: z.boolean().default(false) }).parse(req.body ?? {});
     if (overrideCreditLimit && !can(req, 'invoices.approve')) throw new HttpError(403, 'Only a manager can approve going over a credit limit.');
     res.json(d.finalizeInvoice(db, req.auth, String(req.params.id), overrideCreditLimit));

@@ -179,6 +179,8 @@ export interface User {
   permissions: Permission[];
   tenantName: string;
   tenantId: string;
+  /** runs the Kaarobarly service itself (sees every account) */
+  isPlatformAdmin?: boolean;
 }
 
 export interface BusinessProfile {

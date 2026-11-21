@@ -95,6 +95,8 @@ function Navigation() {
           <Stack.Screen name="ai-settings" options={{ title: 'AI settings' }} />
           <Stack.Screen name="automation" options={{ title: 'Automation' }} />
           <Stack.Screen name="alerts" options={{ title: 'Alerts' }} />
+          <Stack.Screen name="plan" options={{ title: 'Plan & usage' }} />
+          <Stack.Screen name="platform" options={{ title: 'Kaarobarly admin' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="login" options={{ headerShown: false }} />

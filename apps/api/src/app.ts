@@ -23,6 +23,7 @@ import { reportFileName, reportWorkbook } from './excel';
 import { MiniApp } from './mini';
 import { portalInvoice, portalPage } from './portal';
 import * as ai from './ai';
+import * as saas from './saas';
 import { errorResponse } from './perm';
 import { type ReportFilter } from './reports';
 import { registerRoutes, upsert } from './routes';
@@ -40,6 +41,14 @@ export function createApp(db: Db) {
   app.get('/health', (_req, res) => {
     db.get('select 1');
     res.json({ ok: true, service: 'kaarobarly-api', time: now() });
+  });
+  // basic hardening for a public service
+  app.disable('x-powered-by');
+  app.use((_req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('Referrer-Policy', 'no-referrer');
+    res.setHeader('X-Frame-Options', 'DENY');
+    next();
   });
   app.use(express.json({ limit: '6mb' }));
 
@@ -65,7 +74,7 @@ export function createApp(db: Db) {
 
   function userDto(u: Row): User {
     const tenant = db.get('select name from tenant where id = ?', u.tenant_id)!;
-    return { id: u.id, name: u.name, email: u.email, role: u.role, permissions: permissionsFor(u.role), tenantName: tenant.name, tenantId: u.tenant_id };
+    return { id: u.id, name: u.name, email: u.email, role: u.role, permissions: permissionsFor(u.role), tenantName: tenant.name, tenantId: u.tenant_id, isPlatformAdmin: saas.isPlatformAdmin(u.email) };
   }
 
   function openSession(u: Row, deviceName: string) {
@@ -86,6 +95,7 @@ export function createApp(db: Db) {
   app.get('/health', (_req, res) => res.json({ ok: true }));
 
   app.post('/auth/register', (req, res) => {
+    saas.rateLimit(`register:${req.ip}`, 20, 60 * 60_000);
     const body = z
       .object({
         businessName: z.string().trim().min(2).max(200),
@@ -103,6 +113,7 @@ export function createApp(db: Db) {
       db.run('insert into app_user (id, tenant_id, email, name, password_hash, role, created_at) values (?,?,?,?,?,?,?)', userId, tenantId, body.email, body.name, hashPassword(body.password), 'owner', now());
       const bizId = upsert(db, 'business', tenantId, d.businessSchema.parse({ legalName: body.businessName, ownerName: body.name, email: body.email }));
       acc.ensureAccounts(db, { businessId: bizId });
+      saas.startTrial(db, tenantId);
       db.audit(tenantId, userId, 'tenant.register', 'tenant', tenantId);
       return openSession(db.get('select * from app_user where id = ?', userId)!, body.deviceName);
     });
@@ -110,6 +121,7 @@ export function createApp(db: Db) {
   });
 
   app.post('/auth/login', (req, res) => {
+    saas.rateLimit(`login:${req.ip}`, 30, 15 * 60_000);
     const body = z.object({ email: z.string().trim(), password: z.string(), deviceName: z.string().max(100).default('') }).parse(req.body);
     const u = db.get('select * from app_user where email = ?', body.email);
     const fail = new HttpError(401, 'Incorrect email or password.');
@@ -167,6 +179,7 @@ export function createApp(db: Db) {
 
   // Re-check the account password, e.g. to unlock the app when the PIN is forgotten.
   app.post('/auth/verify-password', (req, res) => {
+    saas.rateLimit(`verify:${req.ip}`, 20, 15 * 60_000);
     const { password } = z.object({ password: z.string().max(200) }).parse(req.body);
     const u = db.get('select * from app_user where id = ? and tenant_id = ?', req.auth.userId, T(req))!;
     if (u.locked_until && u.locked_until > now()) throw new HttpError(429, 'Too many attempts. Try again in a few minutes.');
@@ -187,6 +200,7 @@ export function createApp(db: Db) {
   });
 
   app.post('/users', need('users.manage'), (req, res) => {
+    saas.assertLimit(db, T(req), 'user');
     const body = z.object({ name: z.string().trim().min(2), email: z.string().trim().email(), password: z.string().min(8), role: z.enum(ROLES) }).parse(req.body);
     if (db.get('select 1 from app_user where email = ?', body.email)) throw new HttpError(409, 'An account with this email already exists.');
     const id = uid();
@@ -213,7 +227,18 @@ export function createApp(db: Db) {
 
   app.get('/ai/config', (req, res) => res.json(ai.publicConfig(db, T(req))));
   app.put('/ai/config', need('businesses.manage'), (req, res) => res.json(ai.saveConfig(db, req.auth, ai.aiConfigSchema.parse(req.body))));
-  const aiRoute = (fn: (req: Request) => Promise<unknown>) => (req: Request, res: Response, next: NextFunction) => fn(req).then((out) => res.json(out), next);
+  // every AI request counts towards the plan's monthly allowance (only when it succeeds)
+  const aiRoute = (fn: (req: Request) => Promise<unknown>) => (req: Request, res: Response, next: NextFunction) => {
+    try {
+      saas.assertLimit(db, T(req), 'ai');
+    } catch (e) {
+      return next(e);
+    }
+    fn(req).then((out) => {
+      saas.countAi(db, T(req));
+      res.json(out);
+    }, next);
+  };
   app.post('/ai/test', need('businesses.manage'), aiRoute(async (req) => ({ reply: await ai.testConnection(db, T(req)) })));
   app.post('/ai/ask', need('reports.view'), aiRoute(async (req) => ({ answer: await ai.ask(db, T(req), z.object({ question: z.string().trim().min(2).max(1000) }).parse(req.body).question) })));
   app.post('/ai/scan-bill', aiRoute(async (req) => {
@@ -221,6 +246,24 @@ export function createApp(db: Db) {
     return ai.scanBill(db, T(req), z.object({ image: z.string().min(20).max(1_500_000) }).parse(req.body).image);
   }));
   app.post('/ai/parse-entry', aiRoute(async (req) => ai.parseEntry(db, T(req), z.object({ text: z.string().trim().min(3).max(500) }).parse(req.body).text)));
+
+  // ------------------------------------------------------------ server-only: plan & usage, platform admin
+
+  app.get('/plan', (req, res) => res.json({ ...saas.planState(db, T(req)), request: saas.openRequest(db, T(req)), sales: process.env.SALES_CONTACT ?? '' }));
+  app.post('/plan/request', need('businesses.manage'), (req, res) => res.status(201).json(saas.requestUpgrade(db, req.auth, saas.requestSchema.parse(req.body))));
+  const platformOnly = (req: Request) => {
+    const u = db.get('select email from app_user where id = ?', req.auth.userId);
+    if (!u || !saas.isPlatformAdmin(u.email)) throw new HttpError(403, 'Only Kaarobarly administrators can do this.');
+    return u.email as string;
+  };
+  app.get('/platform/tenants', (req, res) => {
+    platformOnly(req);
+    res.json(saas.listTenants(db));
+  });
+  app.put('/platform/tenants/:id/plan', (req, res) => {
+    const email = platformOnly(req);
+    res.json(saas.setPlan(db, email, String(req.params.id), saas.setPlanSchema.parse(req.body)));
+  });
 
   // ------------------------------------------------------------ server-only: Excel and sync
 

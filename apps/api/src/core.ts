@@ -297,6 +297,13 @@ create table if not exists automation_rule (
   id text primary key, tenant_id text not null references tenant, kind text not null check (kind in ('categorize','alert')),
   name text not null default '', enabled integer not null default 1, config text not null, created_at text not null
 );
+create table if not exists ai_usage (
+  tenant_id text not null references tenant, month text not null, count integer not null default 0, primary key (tenant_id, month)
+);
+create table if not exists plan_request (
+  id text primary key, tenant_id text not null references tenant, plan text not null, note text not null default '', phone text not null default '',
+  by_name text not null, status text not null default 'open', created_at text not null
+);
 create table if not exists alert_dismissal (
   tenant_id text not null references tenant, key text not null, dismissed_at text not null, primary key (tenant_id, key)
 );
@@ -451,6 +458,9 @@ export const MIGRATIONS: [table: string, column: string, definition: string][] =
   ['loan', 'employee_id', 'text'],
   ['finance_entry', 'payroll_id', 'text'],
   ['finance_entry', 'claim_id', 'text'],
+  ['tenant', 'plan', "text not null default 'legacy'"],
+  ['tenant', 'trial_ends_at', 'text'],
+  ['tenant', 'paid_until', 'text'],
 ];
 
 export abstract class BaseDb {

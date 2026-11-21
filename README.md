@@ -63,3 +63,14 @@ See [DEPLOY.md](DEPLOY.md). On an Ubuntu VPS: clone this repository, then `bash 
 ## Next
 
 AI features with a choice of providers (OpenRouter, OpenAI, Claude and others): scanning, voice invoices, assistant, forecasts and alerts.
+- Any business (phase 1): business-type presets with a setup wizard, modules switched on or off, your own words (Customer, Patient, Bill…), custom fields on clients, items, invoices, suppliers and purchases, item types.
+- Buying and stock (phase 2): suppliers, purchase requests with approval, purchase orders, goods received (partial or full), bills from receipts, a stock ledger (sales take stock out, cancelling puts it back, counts and adjustments), reorder levels, barcode scanning.
+- Advanced finance (phase 3): cheque register (post-dated, cleared, bounced), loans borrowed or lent with repayments and interest, monthly budgets, bills calendar, cash forecast, balance sheet, day close that locks the day.
+- Collections and documents (phase 4): collections list with WhatsApp/SMS reminders, a client portal page, QR codes on invoices, credit notes and debit notes, documents in English, Urdu or both, and an Urdu app language.
+- People (phase 5): team roles, employees, salary advances, monthly payroll with approval and payslips, expense claims, an approvals inbox.
+- AI and automation (phase 6): Ask Kaarobarly (questions about your own figures), bill and receipt scanning, quick entry from a typed or dictated sentence, with Claude, OpenAI or OpenRouter chosen in AI settings; filing rules and alert rules.
+- SaaS (phase 7): Free, Starter, Pro and Business plans with limits and usage, a 30-day Pro trial for new accounts, upgrade requests, a Kaarobarly admin screen to manage every account's plan, sign-in rate limiting and security headers.
+
+## Server settings for the SaaS and AI features
+
+In `apps/api/.env` (see `.env.example`): `PLATFORM_ADMINS` (emails of the people who run Kaarobarly), `SALES_CONTACT` (shown for upgrades), and optionally `ANTHROPIC_API_KEY` / `AI_MODEL` as a server-wide AI key for accounts without their own.
