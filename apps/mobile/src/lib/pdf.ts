@@ -19,6 +19,8 @@ import {
   type Invoice,
   type InvoiceTemplate,
   type Payment,
+  type PayrollRun,
+  type Payslip,
   type Purchase,
   type Quotation,
   type ReportData,
@@ -629,6 +631,24 @@ export function buyingDocHtml(
   } as unknown as Invoice;
   const client = { name: supplier.name, contactPerson: supplier.contactPerson ?? '', phone: supplier.phone ?? '', email: supplier.email ?? '', address: supplier.address ?? '', ntn: supplier.ntn ?? '', city: '', province: '', country: '', custom: {} } as unknown as Client;
   return invoiceHtml({ docType: kind, invoice, business: b, client, payments: [] }, paper, template);
+}
+
+/** One employee's payslip for a month. */
+export function payslipHtml(s: Payslip, run: PayrollRun, b: BusinessProfile, paper: Paper = 'A5'): string {
+  const m = (v: number) => formatMoney(v, run.currency, run.currencyPrecision);
+  const row = (k: string, v: string, cls = '') => `<tr class="${cls}"><td>${k}</td><td class="r">${v}</td></tr>`;
+  const month = new Date(`${run.month}-01T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
+  const css = '.page{padding:28px}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid var(--a);padding-bottom:12px;margin-bottom:14px}h1{font-size:1.6em;margin:0;color:var(--d)}table{width:100%;border-collapse:collapse}td{padding:7px 4px;border-bottom:1px solid #e3e3e6}.r{text-align:right}.net td{font-weight:800;font-size:1.15em;border-top:2px solid #111}.minus td:last-child{color:#B42318}';
+  const body = `<div class="page"><div class="head"><div>${b.logo ? `<img class="logo" src="${esc(b.logo)}" alt=""/>` : ''}<b>${esc(b.tradingName || b.legalName)}</b><div class="muted">${nl(b.address)}</div></div>
+    <div class="r"><h1>PAYSLIP</h1><div class="muted">${month}</div></div></div>
+    <table>${row('Employee', `<b>${esc(s.employeeName)}</b>`)}${s.designation ? row('Designation', esc(s.designation)) : ''}
+    ${row(s.payType === 'monthly' ? 'Monthly salary' : 'Daily wage', m(s.rate))}${row(s.payType === 'monthly' ? 'Days worked' : 'Days', s.payType === 'monthly' ? `${s.days} of ${s.daysInMonth}` : String(s.days))}</table>
+    <div class="label" style="margin-top:14px">Earnings</div><table>${row('Pay for days worked', m(s.earned))}${s.overtime ? row('Overtime', m(s.overtime)) : ''}${s.allowances ? row('Allowances', m(s.allowances)) : ''}${s.bonus ? row('Bonus', m(s.bonus)) : ''}</table>
+    ${s.deductions || s.tax || s.advanceRecovery ? `<div class="label" style="margin-top:14px">Deductions</div><table>${s.deductions ? row('Deductions', `− ${m(s.deductions)}`, 'minus') : ''}${s.tax ? row('Income tax', `− ${m(s.tax)}`, 'minus') : ''}${s.advanceRecovery ? row('Advance recovered', `− ${m(s.advanceRecovery)}`, 'minus') : ''}</table>` : ''}
+    <table style="margin-top:10px">${row('Net pay', m(s.net), 'net')}</table>
+    ${s.notes ? `<div class="muted" style="margin-top:10px">${nl(s.notes)}</div>` : ''}
+    <div class="two" style="margin-top:40px"><div class="muted">Employee signature<div style="border-bottom:1px solid #999;height:36px"></div></div><div class="muted">${run.status === 'paid' && run.paidDate ? `Paid on ${fd(run.paidDate)}` : 'Authorized signature'}<div style="border-bottom:1px solid #999;height:36px"></div></div></div></div>`;
+  return localize(shell(`Payslip ${s.employeeName} ${run.month}`, paper, css, body, colorVars('classic', b.accentColor)), b.docLanguage ?? 'en');
 }
 
 /** Every purchase bill in a period on one sheet, with a grand total. */

@@ -194,6 +194,20 @@ export function createApp(db: Db) {
     res.status(201).json({ id, name: body.name, email: body.email, role: body.role, status: 'active' });
   });
 
+  app.put('/users/:id', need('users.manage'), (req, res) => {
+    const body = z.object({ name: z.string().trim().min(2).optional(), role: z.enum(ROLES).optional(), status: z.enum(['active', 'disabled']).optional() }).parse(req.body);
+    const u = db.get('select * from app_user where id = ? and tenant_id = ?', req.params.id, T(req));
+    if (!u) throw new HttpError(404, 'User not found.');
+    if (u.id === req.auth.userId && (body.role && body.role !== u.role || body.status === 'disabled')) throw new HttpError(409, 'You cannot change your own role or turn off your own access.');
+    const owners = db.get("select count(*) as n from app_user where tenant_id = ? and role = 'owner' and status = 'active'", T(req))!.n;
+    if (u.role === 'owner' && owners <= 1 && ((body.role && body.role !== 'owner') || body.status === 'disabled')) throw new HttpError(409, 'The account needs at least one active owner.');
+    db.run('update app_user set name = coalesce(?, name), role = coalesce(?, role), status = coalesce(?, status) where id = ?', body.name ?? null, body.role ?? null, body.status ?? null, u.id);
+    // turning someone off signs them out everywhere
+    if (body.status === 'disabled') db.run('update auth_session set revoked_at = ? where user_id = ? and revoked_at is null', now(), u.id);
+    db.audit(T(req), req.auth.userId, 'user.update', 'user', u.id, body);
+    res.json(db.get('select id, name, email, role, status from app_user where id = ?', u.id));
+  });
+
   // ------------------------------------------------------------ server-only: Excel and sync
 
   const reportFilter = (req: Request): ReportFilter => {

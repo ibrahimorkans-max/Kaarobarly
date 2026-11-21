@@ -20,6 +20,8 @@ export const MODULES = [
   'loans',
   'budgets',
   'dayClose',
+  'payroll',
+  'expenseClaims',
   'multiCurrency',
   'reports',
 ] as const;
@@ -39,6 +41,8 @@ export const MODULE_INFO: Record<ModuleKey, { name: string; hint: string; icon: 
   loans: { name: 'Loans', hint: 'Money borrowed or lent, repayments and interest', icon: 'git-compare-outline' },
   budgets: { name: 'Budgets', hint: 'Monthly spending limits by category', icon: 'pie-chart-outline' },
   dayClose: { name: 'Day close', hint: 'Count the cash each evening and lock the day', icon: 'lock-closed-outline' },
+  payroll: { name: 'Payroll', hint: 'Employees, salaries, advances and payslips', icon: 'people-outline' },
+  expenseClaims: { name: 'Expense claims', hint: 'Staff claim money they spent; a manager approves', icon: 'receipt-outline' },
   multiCurrency: { name: 'Multiple currencies', hint: 'Invoices and accounts in other currencies', icon: 'globe-outline' },
   reports: { name: 'Reports', hint: 'Profit & loss, cash flow, PDF and Excel', icon: 'bar-chart-outline' },
 };
@@ -160,7 +164,7 @@ export interface Preset {
 }
 
 const ALL: ModuleKey[] = [...MODULES];
-const BASIC: ModuleKey[] = ['invoices', 'payments', 'quotations', 'finance', 'accounts', 'reports', 'budgets'];
+const BASIC: ModuleKey[] = ['invoices', 'payments', 'quotations', 'finance', 'accounts', 'reports', 'budgets', 'payroll', 'expenseClaims'];
 const field = (entity: FieldEntity, label: string, type: FieldType = 'text', options: string[] = [], showOnPdf = false): Omit<CustomField, 'id'> => ({ entity, label, type, options, required: false, showOnPdf });
 
 export const PRESETS: Record<BusinessType, Preset> = {

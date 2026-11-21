@@ -34,12 +34,16 @@ export const SYNC_TABLES = [
   'day_close',
   'reminder',
   'credit_note',
+  'employee',
+  'payroll_run',
+  'payslip',
+  'expense_claim',
   'counter',
 ] as const;
 type SyncTable = (typeof SYNC_TABLES)[number];
 
 /** Large columns left out of the snapshot; phones fetch them when online. */
-const HEAVY: Partial<Record<SyncTable, string[]>> = { payment: ['proof'], finance_entry: ['attachment'], purchase: ['attachment'] };
+const HEAVY: Partial<Record<SyncTable, string[]>> = { payment: ['proof'], finance_entry: ['attachment'], purchase: ['attachment'], expense_claim: ['receipt'] };
 
 export interface Snapshot {
   seq: number;

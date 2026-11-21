@@ -84,6 +84,12 @@ function Navigation() {
           <Stack.Screen name="forecast" options={{ title: 'Cash forecast · Balance sheet' }} />
           <Stack.Screen name="day-close" options={{ title: 'Day close' }} />
           <Stack.Screen name="collections" options={{ title: 'Collections' }} />
+          <Stack.Screen name="team" options={{ title: 'Team' }} />
+          <Stack.Screen name="employees" options={{ title: 'Employees' }} />
+          <Stack.Screen name="payroll/index" options={{ title: 'Payroll' }} />
+          <Stack.Screen name="payroll/[id]" options={{ title: 'Payroll' }} />
+          <Stack.Screen name="claims" options={{ title: 'Expense claims' }} />
+          <Stack.Screen name="approvals" options={{ title: 'Approvals' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="login" options={{ headerShown: false }} />

@@ -262,6 +262,34 @@ create table if not exists credit_note (
   status text not null check (status in ('final','cancelled')), created_by text not null, created_at text not null
 );
 create index if not exists credit_note_invoice on credit_note (invoice_id);
+create table if not exists employee (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business,
+  name text not null, phone text not null default '', cnic text not null default '', designation text not null default '',
+  join_date text not null default '', pay_type text not null default 'monthly' check (pay_type in ('monthly','daily')),
+  rate integer not null default 0, bank_account text not null default '', status text not null default 'active',
+  notes text not null default '', created_at text not null
+);
+create table if not exists payroll_run (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business, month text not null,
+  status text not null check (status in ('draft','submitted','approved','paid')), created_by_name text not null,
+  approved_by_name text not null default '', paid_date text, account_id text, created_at text not null,
+  unique (tenant_id, business_id, month)
+);
+create table if not exists payslip (
+  id text primary key, tenant_id text not null references tenant, run_id text not null references payroll_run, employee_id text not null references employee,
+  employee_name text not null, designation text not null default '', pay_type text not null, rate integer not null,
+  days real not null, days_in_month integer not null, earned integer not null, overtime integer not null default 0,
+  allowances integer not null default 0, bonus integer not null default 0, deductions integer not null default 0,
+  tax integer not null default 0, advance_recovery integer not null default 0, net integer not null, notes text not null default ''
+);
+create index if not exists payslip_run on payslip (run_id);
+create table if not exists expense_claim (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business, number text not null,
+  date text not null, category text not null, amount integer not null check (amount > 0), description text not null default '',
+  receipt text not null default '', status text not null check (status in ('pending','approved','rejected','paid')),
+  claimed_by text not null, claimed_by_name text not null, decided_by_name text not null default '', decision_note text not null default '',
+  finance_entry_id text, created_at text not null
+);
 `;
 
 /** Columns added after the first release, applied to older databases on start. */
@@ -410,6 +438,9 @@ export const MIGRATIONS: [table: string, column: string, definition: string][] =
   ['business', 'qr_mode', "text not null default 'none'"],
   ['business', 'reminder_template', "text not null default ''"],
   ['business', 'doc_language', "text not null default 'en'"],
+  ['loan', 'employee_id', 'text'],
+  ['finance_entry', 'payroll_id', 'text'],
+  ['finance_entry', 'claim_id', 'text'],
 ];
 
 export abstract class BaseDb {

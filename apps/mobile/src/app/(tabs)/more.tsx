@@ -7,7 +7,7 @@ import { useAuth } from '@/lib/app-context';
 import { lower, useWorkspace } from '@/lib/workspace';
 
 export default function More() {
-  const { user } = useAuth();
+  const { user, can } = useAuth();
   const { t, on } = useWorkspace();
   const lang = useLang();
   return (
@@ -18,6 +18,13 @@ export default function More() {
           {user?.name} · {user?.role}
         </Txt>
       </View>
+      <Section title="People">
+        {(can('approvals.decide') || can('purchases.approve') || can('invoices.finalize')) && <MenuRow icon="checkmark-done-circle-outline" title="Approvals" sub="Requests, claims and payroll waiting for you" onPress={() => router.push('/approvals')} />}
+        {on('payroll') && can('payroll.manage') && <MenuRow icon="calculator-outline" title="Payroll" sub="Salaries, advances and payslips" onPress={() => router.push('/payroll')} />}
+        {on('payroll') && can('payroll.manage') && <MenuRow icon="people-outline" title="Employees" sub="Staff, pay rates and advances" onPress={() => router.push('/employees')} />}
+        {on('expenseClaims') && <MenuRow icon="receipt-outline" title="Expense claims" sub="Claim money you spent; approve others' claims" onPress={() => router.push('/claims')} />}
+        {can('users.manage') && <MenuRow icon="people-circle-outline" title="Team" sub="Who can sign in, and what each person may do" onPress={() => router.push('/team')} />}
+      </Section>
       <Section title="Accounts">
         <MenuRow icon="people-outline" title={t('clients')} sub="Profiles, ledgers and statements" onPress={() => router.push('/clients')} />
         {on('finance') && <MenuRow icon="stats-chart-outline" title="Finance" sub="Money in, money out and expenses" onPress={() => router.push('/finance')} />}

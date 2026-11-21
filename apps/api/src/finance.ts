@@ -118,6 +118,9 @@ export function summary(db: Db, tenantId: string, f: FinanceFilter): FinanceSumm
 function notFromPurchase(db: Db, tenantId: string, id: string) {
   const r = db.get('select p.number from finance_entry e join purchase p on p.id = e.purchase_id where e.id = ? and e.tenant_id = ?', id, tenantId);
   if (r) throw new HttpError(422, `This money out comes from purchase ${r.number}. Edit or delete it in Purchases.`);
+  const linked = db.get('select payroll_id, claim_id from finance_entry where id = ? and tenant_id = ?', id, tenantId);
+  if (linked?.payroll_id) throw new HttpError(422, 'This money out is a paid payroll. It cannot be changed from Finance.');
+  if (linked?.claim_id) throw new HttpError(422, 'This money out pays an expense claim. It cannot be changed from Finance.');
 }
 
 export function saveEntry(db: Db, auth: AuthContext, body: FinanceBody, id?: string): FinanceEntry {

@@ -7,3 +7,4 @@ export * from './workspace';
 export * from './procurement';
 export * from './advanced';
 export * from './collections';
+export * from './people';

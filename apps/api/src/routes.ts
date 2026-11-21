@@ -13,6 +13,7 @@ import * as proc from './procurement';
 import * as stock from './stock';
 import * as adv from './advanced';
 import * as col from './collections';
+import * as ppl from './people';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -265,6 +266,46 @@ export function registerRoutes(app: AppLike, db: Db) {
   });
   app.post('/credit-notes', need('invoices.cancel'), (req: Req, res: Res) => res.status(201).json(col.createCreditNote(db, req.auth, col.creditNoteSchema.parse(req.body))));
   app.post('/credit-notes/:id/cancel', need('invoices.cancel'), (req: Req, res: Res) => res.json(col.cancelCreditNote(db, req.auth, String(req.params.id))));
+
+  // ------------------------------------------------------------ people: employees, payroll, expense claims, approvals
+
+  app.get('/employees', need('payroll.manage'), (req: Req, res: Res) => res.json(ppl.listEmployees(db, T(req))));
+  app.get('/employees/:id', need('payroll.manage'), (req: Req, res: Res) => res.json(ppl.getEmployee(db, T(req), String(req.params.id))));
+  app.post('/employees', need('payroll.manage'), (req: Req, res: Res) => res.status(201).json(ppl.saveEmployee(db, req.auth, ppl.employeeSchema.parse(req.body))));
+  app.put('/employees/:id', need('payroll.manage'), (req: Req, res: Res) => res.json(ppl.saveEmployee(db, req.auth, ppl.employeeSchema.parse(req.body), String(req.params.id))));
+  app.post('/employees/:id/advance', need('payroll.manage'), (req: Req, res: Res) => res.status(201).json(ppl.giveAdvance(db, req.auth, String(req.params.id), ppl.advanceSchema.parse(req.body))));
+
+  app.get('/payroll', need('payroll.manage'), (req: Req, res: Res) => res.json(ppl.listRuns(db, T(req))));
+  app.get('/payroll/:id', need('payroll.manage'), (req: Req, res: Res) => res.json(ppl.getRun(db, T(req), String(req.params.id))));
+  app.post('/payroll', need('payroll.manage'), (req: Req, res: Res) => {
+    const b = z.object({ businessId: z.string().min(1), month: z.string().regex(/^\d{4}-\d{2}$/) }).parse(req.body);
+    res.status(201).json(ppl.createRun(db, req.auth, b.businessId, b.month));
+  });
+  app.put('/payroll/:id/slips/:slipId', need('payroll.manage'), (req: Req, res: Res) => res.json(ppl.updateSlip(db, req.auth, String(req.params.id), String(req.params.slipId), ppl.slipSchema.parse(req.body))));
+  app.post('/payroll/:id/status', (req: Req, res: Res) => {
+    const { status } = z.object({ status: z.enum(['submitted', 'approved', 'draft']) }).parse(req.body);
+    res.json(ppl.moveRun(db, req.auth, String(req.params.id), status));
+  });
+  app.post('/payroll/:id/pay', need('payroll.manage'), (req: Req, res: Res) => res.json(ppl.payRun(db, req.auth, String(req.params.id), ppl.payRunSchema.parse(req.body))));
+  app.delete('/payroll/:id', need('payroll.manage'), (req: Req, res: Res) => {
+    ppl.deleteRun(db, req.auth, String(req.params.id));
+    res.json({ ok: true });
+  });
+
+  app.get('/expense-claims', (req: Req, res: Res) => res.json(ppl.listClaims(db, req.auth)));
+  app.get('/expense-claims/:id', (req: Req, res: Res) => {
+    const c = ppl.getClaim(db, T(req), String(req.params.id));
+    if (c.claimedBy !== req.auth.userId && !can(req, 'approvals.decide') && !can(req, 'finance.manage')) throw new HttpError(403, 'You can only see your own claims.');
+    res.json(c);
+  });
+  app.post('/expense-claims', need('expenses.claim'), (req: Req, res: Res) => res.status(201).json(ppl.createClaim(db, req.auth, ppl.claimSchema.parse(req.body))));
+  app.post('/expense-claims/:id/decide', need('approvals.decide'), (req: Req, res: Res) => res.json(ppl.decideClaim(db, req.auth, String(req.params.id), ppl.decideClaimSchema.parse(req.body))));
+  app.post('/expense-claims/:id/pay', need('finance.manage'), (req: Req, res: Res) => {
+    const b = z.object({ accountId: z.string().nullable().default(null), date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/).optional() }).parse(req.body ?? {});
+    res.json(ppl.payClaim(db, req.auth, String(req.params.id), b));
+  });
+
+  app.get('/approvals', (req: Req, res: Res) => res.json(ppl.approvals(db, req.auth)));
 
   // ------------------------------------------------------------ invoices
 
