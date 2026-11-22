@@ -5,6 +5,7 @@ import { Badge, Btn, Card, Chips, DateField, Empty, Field, KV, Loader, Row, Scre
 import { api, useApi } from '@/lib/api';
 import { useAuth, useToast } from '@/lib/app-context';
 import { pickImage } from '@/lib/image';
+import { useAiStatus } from '@/lib/ai-status';
 import { EXPENSE_CATEGORIES, parseMoney, type BusinessProfile, type ExpenseClaim, type MoneyAccount } from '@/lib/shared';
 
 const TONE: Record<string, string> = { pending: 'draft', approved: 'unpaid', rejected: 'cancelled', paid: 'paid' };
@@ -21,6 +22,7 @@ export default function Claims() {
   const [decide, setDecide] = useState<{ claim: ExpenseClaim; note: string; accountId: string } | null>(null);
   const [busy, setBusy] = useState('');
   const [show, setShow] = useState<'open' | 'all'>('open');
+  const aiOn = !!useAiStatus()?.available;
   const shown = (list.data ?? []).filter((c) => show === 'all' || c.status === 'pending' || c.status === 'approved');
 
   async function submit() {
@@ -113,11 +115,11 @@ export default function Claims() {
             if (img) setForm((f) => f && { ...f, receipt: img });
           }}
         />
-        {!!form?.receipt && (
+        {!!form?.receipt && aiOn && (
           <Btn
             kind="ghost"
             icon="sparkles-outline"
-            title="Read the receipt (AI)"
+            title="Read the receipt"
             loading={busy === 'read'}
             onPress={async () => {
               if (!form) return;

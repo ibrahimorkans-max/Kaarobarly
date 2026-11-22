@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { ScrollView, View } from 'react-native';
 import { Btn, Card, Field, Row, Screen, Txt } from '@/components/ui';
@@ -55,7 +54,6 @@ export default function Assistant() {
           </View>
           <Card style={{ maxWidth: '95%' }}>
             {m.a ? <Txt color={m.error ? th.danger : undefined}>{m.a}</Txt> : <Txt v="sub">Thinking…</Txt>}
-            {m.error && /not set up/.test(m.a) && <Btn small kind="ghost" title="Open AI settings" onPress={() => router.push('/ai-settings')} />}
           </Card>
         </View>
       ))}

@@ -92,11 +92,12 @@ function Navigation() {
           <Stack.Screen name="approvals" options={{ title: 'Approvals' }} />
           <Stack.Screen name="assistant" options={{ title: 'Ask Kaarobarly' }} />
           <Stack.Screen name="quick-entry" options={{ title: 'Quick entry' }} />
-          <Stack.Screen name="ai-settings" options={{ title: 'AI settings' }} />
           <Stack.Screen name="automation" options={{ title: 'Automation' }} />
           <Stack.Screen name="alerts" options={{ title: 'Alerts' }} />
           <Stack.Screen name="plan" options={{ title: 'Plan & usage' }} />
-          <Stack.Screen name="platform" options={{ title: 'Kaarobarly admin' }} />
+          <Stack.Screen name="admin/index" options={{ title: 'Kaarobarly SaaS' }} />
+          <Stack.Screen name="admin/accounts" options={{ title: 'Accounts & plans' }} />
+          <Stack.Screen name="admin/ai" options={{ title: 'AI service' }} />
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="login" options={{ headerShown: false }} />

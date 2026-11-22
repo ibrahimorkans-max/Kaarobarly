@@ -39,31 +39,39 @@ async function setup(email: string) {
   return { token, businessId, tenantId: r.body.user.tenantId as string };
 }
 
-test('AI settings keep the key on the server and say clearly when AI is not set up', async () => {
+test('AI is set up once by the SaaS owner; customers cannot see or change it', async () => {
+  process.env.PLATFORM_ADMINS = 'owner-of-saas@test.dev';
   const { token } = await setup('ai1@test.dev');
-  const cfg = (await call(token, 'GET', '/ai/config')).body;
-  assert.equal(cfg.ready, false);
-  assert.equal(cfg.hasKey, false);
+  // a customer only learns whether AI can be used
+  const status = (await call(token, 'GET', '/ai/status')).body;
+  assert.equal(status.available, false);
+  assert.equal(JSON.stringify(status).includes('provider'), false);
   const notReady = await call(token, 'POST', '/ai/ask', { question: 'How is business?' });
-  assert.equal(notReady.status, 409);
-  assert.match(notReady.body.error, /not set up/);
-  // OpenAI and OpenRouter need a model name
-  assert.equal((await call(token, 'PUT', '/ai/config', { provider: 'openrouter', apiKey: 'sk-or-test-12345678' })).status, 422);
-  const saved = (await call(token, 'PUT', '/ai/config', { provider: 'anthropic', apiKey: 'sk-ant-test-abcd1234' })).body;
+  assert.equal(notReady.status, 503);
+  assert.match(notReady.body.error, /not available right now/);
+  assert.doesNotMatch(notReady.body.error, /settings|key/i);
+  // the old per-account settings are gone, and the platform ones are refused
+  assert.equal((await call(token, 'PUT', '/ai/config', { provider: 'anthropic', apiKey: 'x' })).status, 404);
+  assert.equal((await call(token, 'GET', '/platform/ai')).status, 403);
+  assert.equal((await call(token, 'PUT', '/platform/ai', { provider: 'anthropic', apiKey: 'sk-ant-x' })).status, 403);
+  assert.equal((await call(token, 'GET', '/platform/overview')).status, 403);
+
+  const admin = await setup('owner-of-saas@test.dev');
+  assert.equal((await call(admin.token, 'PUT', '/platform/ai', { provider: 'openrouter', apiKey: 'sk-or-test-12345678' })).status, 422);
+  const saved = (await call(admin.token, 'PUT', '/platform/ai', { provider: 'anthropic', apiKey: 'sk-ant-test-abcd1234' })).body;
   assert.equal(saved.hasKey, true);
   assert.equal(saved.keyHint, '…1234');
   assert.equal(saved.model, 'claude-opus-5-5');
-  assert.equal(saved.ready, true);
+  assert.equal(saved.updatedBy, 'owner-of-saas@test.dev');
   assert.equal(JSON.stringify(saved).includes('sk-ant-test'), false);
-  // the key is not part of what phones download
-  const snap = (await call(token, 'GET', '/sync/pull')).body;
-  assert.equal(JSON.stringify(snap).includes('sk-ant-test'), false);
   // saving again without a key keeps it
-  assert.equal((await call(token, 'PUT', '/ai/config', { provider: 'anthropic', model: 'claude-sonnet-5-5' })).body.keyHint, '…1234');
-  // staff cannot change AI settings
-  await call(token, 'POST', '/users', { name: 'Staff', email: 'aistaff@test.dev', password: 'test-pass-123', role: 'staff' });
-  const staff = (await call('', 'POST', '/auth/login', { email: 'aistaff@test.dev', password: 'test-pass-123' })).body.accessToken;
-  assert.equal((await call(staff, 'PUT', '/ai/config', { provider: 'anthropic', apiKey: 'x' })).status, 403);
+  assert.equal((await call(admin.token, 'PUT', '/platform/ai', { provider: 'anthropic', model: 'claude-sonnet-5-5' })).body.keyHint, '…1234');
+  // one setup serves every account; the key never reaches phones
+  assert.equal((await call(token, 'GET', '/ai/status')).body.available, true);
+  assert.equal(JSON.stringify((await call(token, 'GET', '/sync/pull')).body).includes('sk-ant-test'), false);
+  const overview = (await call(admin.token, 'GET', '/platform/overview')).body;
+  assert.ok(overview.accounts >= 2);
+  assert.equal(overview.ai.ready, true);
 });
 
 test('the assistant works from a plain summary of the real figures', async () => {

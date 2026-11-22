@@ -225,8 +225,11 @@ export function createApp(db: Db) {
 
   // ------------------------------------------------------------ server-only: AI (keys never leave the server)
 
-  app.get('/ai/config', (req, res) => res.json(ai.publicConfig(db, T(req))));
-  app.put('/ai/config', need('businesses.manage'), (req, res) => res.json(ai.saveConfig(db, req.auth, ai.aiConfigSchema.parse(req.body))));
+  // what a customer's app needs to know: whether AI can be used, and how much is left this month
+  app.get('/ai/status', (req, res) => {
+    const p = saas.planState(db, T(req));
+    res.json({ available: ai.aiAvailable(db) && p.limits.aiPerMonth > 0, allowance: p.limits.aiPerMonth, used: p.usage.aiThisMonth });
+  });
   // every AI request counts towards the plan's monthly allowance (only when it succeeds)
   const aiRoute = (fn: (req: Request) => Promise<unknown>) => (req: Request, res: Response, next: NextFunction) => {
     try {
@@ -239,7 +242,6 @@ export function createApp(db: Db) {
       res.json(out);
     }, next);
   };
-  app.post('/ai/test', need('businesses.manage'), aiRoute(async (req) => ({ reply: await ai.testConnection(db, T(req)) })));
   app.post('/ai/ask', need('reports.view'), aiRoute(async (req) => ({ answer: await ai.ask(db, T(req), z.object({ question: z.string().trim().min(2).max(1000) }).parse(req.body).question) })));
   app.post('/ai/scan-bill', aiRoute(async (req) => {
     if (!can(req, 'finance.manage') && !can(req, 'expenses.claim')) throw new HttpError(403, 'You do not have permission to do this.');
@@ -259,6 +261,26 @@ export function createApp(db: Db) {
   app.get('/platform/tenants', (req, res) => {
     platformOnly(req);
     res.json(saas.listTenants(db));
+  });
+  app.get('/platform/overview', (req, res) => {
+    platformOnly(req);
+    res.json({ ...saas.platformOverview(db), ai: ai.publicConfig(db) });
+  });
+  app.get('/platform/ai', (req, res) => {
+    platformOnly(req);
+    res.json(ai.publicConfig(db));
+  });
+  app.put('/platform/ai', (req, res) => {
+    const email = platformOnly(req);
+    res.json(ai.saveConfig(db, email, ai.aiConfigSchema.parse(req.body)));
+  });
+  app.post('/platform/ai/test', (req, res, next) => {
+    try {
+      platformOnly(req);
+    } catch (e) {
+      return next(e);
+    }
+    ai.testConnection(db, T(req)).then((reply) => res.json({ reply }), next);
   });
   app.put('/platform/tenants/:id/plan', (req, res) => {
     const email = platformOnly(req);

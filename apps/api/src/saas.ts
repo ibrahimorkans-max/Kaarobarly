@@ -134,6 +134,38 @@ export function setPlan(db: Db, adminEmail: string, tenantId: string, body: z.in
   return planState(db, tenantId);
 }
 
+/** Figures for the SaaS owner's dashboard. */
+export function platformOverview(db: Db) {
+  const m = month();
+  const tenants = db.all('select id, created_at from tenant');
+  const byPlan: Record<string, number> = { free: 0, starter: 0, pro: 0, business: 0 };
+  let trials = 0;
+  let paying = 0;
+  let mrr = 0;
+  for (const t of tenants) {
+    const c = currentPlan(db, t.id);
+    byPlan[c.plan] = (byPlan[c.plan] ?? 0) + 1;
+    if (c.chosen === 'trial' && c.plan !== 'free') trials++;
+    if (c.chosen !== 'trial' && c.chosen !== 'legacy' && c.plan !== 'free') {
+      paying++;
+      mrr += PLANS[c.plan].price;
+    }
+  }
+  return {
+    accounts: tenants.length,
+    newThisMonth: tenants.filter((t) => String(t.created_at).slice(0, 7) === m).length,
+    byPlan,
+    trials,
+    paying,
+    /** monthly revenue from paid plans, PKR minor units */
+    mrr,
+    openRequests: db.get("select count(*) as n from plan_request where status = 'open'")!.n,
+    invoicesThisMonth: db.get("select count(*) as n from invoice where status <> 'draft' and substr(coalesce(finalized_at, created_at), 1, 7) = ?", m)!.n,
+    aiThisMonth: db.get('select coalesce(sum(count), 0) as n from ai_usage where month = ?', m)!.n,
+    users: db.get("select count(*) as n from app_user where status = 'active'")!.n,
+  };
+}
+
 // ---------------------------------------------------------------- simple rate limiting
 
 const hits = new Map<string, number[]>();

@@ -7,6 +7,7 @@ import { Btn, Card, Chips, DateField, Field, IconBtn, InstallmentBadge, KV, Load
 import { api, useApi } from '@/lib/api';
 import { useTheme, useToast } from '@/lib/app-context';
 import { pickImage } from '@/lib/image';
+import { useAiStatus } from '@/lib/ai-status';
 import { newKey } from '@/lib/invoice-draft';
 import {
   PAYMENT_METHODS,
@@ -113,6 +114,7 @@ export default function NewPurchase() {
   const known = (supplierList.data ?? []).filter((s) => s.toLowerCase().includes(supplier.trim().toLowerCase()) && s !== supplier).slice(0, 6);
 
   const [scanning, setScanning] = useState(false);
+  const aiOn = !!useAiStatus()?.available;
   /** Read a photo of the supplier's bill with AI and fill the form; everything stays editable. */
   async function scanBill() {
     try {
@@ -200,7 +202,7 @@ export default function NewPurchase() {
       <Loader loading={!!id && editing.loading && !editing.data} error={id && !editing.data ? editing.error : ''} onRetry={editing.reload}>
         <Notice kind="info">The amount you pay is recorded as Money out and taken from the account you pay with. On installments, only paid ones count.</Notice>
 
-        {!id && <Btn kind="secondary" icon="scan-outline" title="Scan the bill (AI)" onPress={scanBill} loading={scanning} />}
+        {!id && aiOn && <Btn kind="secondary" icon="scan-outline" title="Scan the bill" onPress={scanBill} loading={scanning} />}
         <Section title="Supplier">
           <Field label="Bought from" value={supplier} onChangeText={setSupplier} placeholder="Shop or supplier name" error={errors.supplier} />
           {known.length > 0 && (

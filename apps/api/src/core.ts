@@ -304,6 +304,9 @@ create table if not exists plan_request (
   id text primary key, tenant_id text not null references tenant, plan text not null, note text not null default '', phone text not null default '',
   by_name text not null, status text not null default 'open', created_at text not null
 );
+create table if not exists platform_setting (
+  key text primary key, value text not null, updated_at text not null
+);
 create table if not exists alert_dismissal (
   tenant_id text not null references tenant, key text not null, dismissed_at text not null, primary key (tenant_id, key)
 );

@@ -96,8 +96,6 @@ function jumps(t: (k: TermKey) => string, on: (m: ModuleKey) => boolean): Jump[]
     { icon: 'book-outline', title: 'Cashbook', href: '/cashbook', mod: 'accounts' },
     { icon: 'trending-up-outline', title: 'Profit & Loss', href: '/statements', mod: 'reports' },
     { icon: 'notifications-outline', title: 'Alerts', href: '/alerts' },
-    { icon: 'chatbubbles-outline', title: 'Ask AI', href: '/assistant' },
-    { icon: 'mic-outline', title: 'Quick entry', href: '/quick-entry' },
     { icon: 'alarm-outline', title: 'Collections', href: '/collections' },
     { icon: 'checkmark-done-circle-outline', title: 'Approvals', href: '/approvals' },
     { icon: 'calculator-outline', title: 'Payroll', href: '/payroll', mod: 'payroll' },

@@ -6,13 +6,13 @@ import { profitLoss } from './accounts';
 import { collections } from './collections';
 import { now, type Db } from './core';
 import { dashboard } from './domain';
-import { HttpError, type AuthContext } from './perm';
+import { HttpError } from './perm';
 import { stockSummary } from './stock';
 
 /**
  * AI features (server only): the assistant, bill scanning and quick entry from a sentence.
- * The owner picks the provider in settings: Claude (Anthropic), OpenAI or OpenRouter, each with
- * its own API key. Keys stay on the server and are never synced to phones.
+ * The SaaS owner sets one provider for the whole service in the admin area: Claude (Anthropic),
+ * OpenAI or OpenRouter. Customers never see or set keys; their plan decides how much AI they get.
  */
 
 export const AI_PROVIDERS = ['anthropic', 'openai', 'openrouter'] as const;
@@ -34,38 +34,54 @@ export const aiConfigSchema = z.object({
   model: z.string().trim().max(120).default(''),
 });
 
-function storedConfig(db: Db, tenantId: string): AiConfig | null {
-  const r = db.get('select * from ai_config where tenant_id = ?', tenantId);
-  if (r?.api_key) return { provider: r.provider, apiKey: r.api_key, model: r.model || DEFAULT_MODEL[r.provider as AiProvider] };
-  // a server-wide Claude key, when the host set one, serves accounts without their own
+/** The one AI setup for the whole service, kept in platform_setting (never synced to phones). */
+function platformRow(db: Db): { provider: AiProvider; apiKey: string; model: string; updatedBy: string; updatedAt: string } | null {
+  const r = db.get("select value from platform_setting where key = 'ai'");
+  if (!r) return null;
+  try {
+    return JSON.parse(r.value);
+  } catch {
+    return null;
+  }
+}
+
+function storedConfig(db: Db): AiConfig | null {
+  const r = platformRow(db);
+  if (r?.apiKey) return { provider: r.provider, apiKey: r.apiKey, model: r.model || DEFAULT_MODEL[r.provider] };
+  // a key in the server's .env works until the SaaS owner saves one in the admin area
   if (process.env.ANTHROPIC_API_KEY) return { provider: 'anthropic', apiKey: process.env.ANTHROPIC_API_KEY, model: process.env.AI_MODEL || DEFAULT_MODEL.anthropic };
   return null;
 }
 
-/** What settings show: never the key itself. */
-export function publicConfig(db: Db, tenantId: string) {
-  const r = db.get('select * from ai_config where tenant_id = ?', tenantId);
-  const effective = storedConfig(db, tenantId);
+/** Whether customers can use AI at all (no details about the service). */
+export const aiAvailable = (db: Db) => {
+  const c = storedConfig(db);
+  return !!c && !!c.model;
+};
+
+/** What the SaaS owner's AI screen shows: never the key itself. */
+export function publicConfig(db: Db) {
+  const r = platformRow(db);
+  const effective = storedConfig(db);
   return {
     provider: (r?.provider ?? effective?.provider ?? 'anthropic') as AiProvider,
-    model: r?.model || (r ? DEFAULT_MODEL[r.provider as AiProvider] : (effective?.model ?? DEFAULT_MODEL.anthropic)),
-    hasKey: !!r?.api_key,
-    keyHint: r?.api_key ? `…${String(r.api_key).slice(-4)}` : '',
-    serverKey: !r?.api_key && !!process.env.ANTHROPIC_API_KEY,
+    model: r?.model || (r ? DEFAULT_MODEL[r.provider] : (effective?.model ?? DEFAULT_MODEL.anthropic)),
+    hasKey: !!r?.apiKey,
+    keyHint: r?.apiKey ? `…${String(r.apiKey).slice(-4)}` : '',
+    serverKey: !r?.apiKey && !!process.env.ANTHROPIC_API_KEY,
     ready: !!effective && !!effective.model,
+    updatedBy: r?.updatedBy ?? '',
+    updatedAt: r?.updatedAt ?? '',
   };
 }
 
-export function saveConfig(db: Db, auth: AuthContext, body: z.infer<typeof aiConfigSchema>) {
-  const old = db.get('select * from ai_config where tenant_id = ?', auth.tenantId);
-  const key = body.apiKey || (old && old.provider === body.provider ? old.api_key : '');
+export function saveConfig(db: Db, adminEmail: string, body: z.infer<typeof aiConfigSchema>) {
+  const old = platformRow(db);
+  const apiKey = body.apiKey || (old && old.provider === body.provider ? old.apiKey : '');
   if (body.provider !== 'anthropic' && !body.model) throw new HttpError(422, 'Enter the model name for this provider.');
-  db.run(
-    'insert into ai_config (tenant_id, provider, api_key, model, updated_at) values (?,?,?,?,?) on conflict (tenant_id) do update set provider = excluded.provider, api_key = excluded.api_key, model = excluded.model, updated_at = excluded.updated_at',
-    auth.tenantId, body.provider, key, body.model, now(),
-  );
-  db.audit(auth.tenantId, auth.userId, 'ai.config', 'tenant', auth.tenantId, { provider: body.provider, model: body.model });
-  return publicConfig(db, auth.tenantId);
+  const value = JSON.stringify({ provider: body.provider, apiKey, model: body.model, updatedBy: adminEmail, updatedAt: now() });
+  db.run("insert into platform_setting (key, value, updated_at) values ('ai', ?, ?) on conflict (key) do update set value = excluded.value, updated_at = excluded.updated_at", value, now());
+  return publicConfig(db);
 }
 
 // ---------------------------------------------------------------- one call, any provider
@@ -148,9 +164,9 @@ async function callChatCompletions(cfg: AiConfig, a: Ask): Promise<string> {
   return String(json?.choices?.[0]?.message?.content ?? '').trim();
 }
 
-async function complete(db: Db, tenantId: string, a: Ask): Promise<string> {
-  const cfg = storedConfig(db, tenantId);
-  if (!cfg || !cfg.model) throw new HttpError(409, 'AI is not set up. The owner can add an API key in More › AI settings.');
+async function complete(db: Db, _tenantId: string, a: Ask): Promise<string> {
+  const cfg = storedConfig(db);
+  if (!cfg || !cfg.model) throw new HttpError(503, 'AI is not available right now. Please try again later.');
   return cfg.provider === 'anthropic' ? callClaude(cfg, a) : callChatCompletions(cfg, a);
 }
 

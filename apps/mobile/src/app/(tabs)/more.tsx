@@ -3,6 +3,7 @@ import { View } from 'react-native';
 import { MenuRow } from '@/components/rows';
 import { Chips, Screen, Section, Txt } from '@/components/ui';
 import { useApi } from '@/lib/api';
+import { useAiStatus } from '@/lib/ai-status';
 import { setLang, tr, useLang } from '@/lib/i18n';
 import { useAuth } from '@/lib/app-context';
 import { lower, useWorkspace } from '@/lib/workspace';
@@ -12,6 +13,7 @@ export default function More() {
   const { t, on } = useWorkspace();
   const lang = useLang();
   const alerts = useApi<unknown[]>('/alerts');
+  const aiOn = !!useAiStatus()?.available;
   return (
     <Screen>
       <View style={{ paddingTop: 0 }}>
@@ -20,12 +22,16 @@ export default function More() {
           {user?.name} · {user?.role}
         </Txt>
       </View>
+      {user?.isPlatformAdmin && (
+        <Section title="Kaarobarly SaaS (owner only)">
+          <MenuRow icon="shield-checkmark-outline" title="SaaS dashboard" sub="Accounts, plans, revenue and the AI service" onPress={() => router.push('/admin')} />
+        </Section>
+      )}
       <Section title="Smart tools">
         <MenuRow icon="notifications-outline" title="Alerts" sub={alerts.data?.length ? `${alerts.data.length} need attention` : 'Nothing needs attention'} onPress={() => router.push('/alerts')} />
-        <MenuRow icon="chatbubbles-outline" title="Ask Kaarobarly" sub="Questions about your business, in English or Urdu (AI)" onPress={() => router.push('/assistant')} />
-        <MenuRow icon="mic-outline" title="Quick entry" sub="Say or type it: “Paid 3,500 for petrol” (AI)" onPress={() => router.push('/quick-entry')} />
+        {aiOn && <MenuRow icon="chatbubbles-outline" title="Ask Kaarobarly" sub="Questions about your business, in English or Urdu" onPress={() => router.push('/assistant')} />}
+        {aiOn && <MenuRow icon="mic-outline" title="Quick entry" sub="Say or type it: “Paid 3,500 for petrol”" onPress={() => router.push('/quick-entry')} />}
         <MenuRow icon="flash-outline" title="Automation" sub="Alert rules and filing rules" onPress={() => router.push('/automation')} />
-        {can('businesses.manage') && <MenuRow icon="key-outline" title="AI settings" sub="Claude, OpenAI or OpenRouter, with your key" onPress={() => router.push('/ai-settings')} />}
       </Section>
       <Section title="People">
         {(can('approvals.decide') || can('purchases.approve') || can('invoices.finalize')) && <MenuRow icon="checkmark-done-circle-outline" title="Approvals" sub="Requests, claims and payroll waiting for you" onPress={() => router.push('/approvals')} />}
@@ -75,7 +81,6 @@ export default function More() {
         <MenuRow icon="options-outline" title="Business setup" sub="Business type, modules, your words, custom fields" onPress={() => router.push('/workspace')} />
         <MenuRow icon="business-outline" title="Business Profiles" sub={`${t('invoice')} design, signature and issuer details`} onPress={() => router.push('/businesses')} />
         <MenuRow icon="diamond-outline" title="Plan & usage" sub="Your subscription, limits and upgrades" onPress={() => router.push('/plan')} />
-        {user?.isPlatformAdmin && <MenuRow icon="shield-checkmark-outline" title="Kaarobarly admin" sub="All accounts, plans and upgrade requests" onPress={() => router.push('/platform')} />}
         <MenuRow icon="settings-outline" title="Settings & Security" sub="App lock, fingerprint, theme and devices" onPress={() => router.push('/settings')} />
       </Section>
     </Screen>

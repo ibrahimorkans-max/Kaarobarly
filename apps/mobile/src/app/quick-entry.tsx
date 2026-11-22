@@ -1,4 +1,3 @@
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { AccountSelect } from '@/components/money';
 import { Btn, Card, Chips, DateField, Field, KV, Notice, Screen, Select, Txt, fd } from '@/components/ui';
@@ -19,7 +18,7 @@ const EXAMPLES = ['Received 25,000 from Rehman Rice Mills by bank', 'Paid 3,500 
 
 /**
  * Say it or type it: one sentence becomes a payment, expense or income for you to check and save.
- * Speak with the microphone on your phone keyboard. Needs a connection and AI set up.
+ * Speak with the microphone on your phone keyboard. Needs a connection and a plan with AI.
  */
 export default function QuickEntry() {
   const toast = useToast();
@@ -124,7 +123,6 @@ export default function QuickEntry() {
           <Btn kind="ghost" title="Start again" onPress={() => setP(null)} />
         </Card>
       )}
-      <Btn kind="ghost" title="AI settings" onPress={() => router.push('/ai-settings')} />
     </Screen>
   );
 }
