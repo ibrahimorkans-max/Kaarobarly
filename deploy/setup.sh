@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # First-time setup on a fresh Ubuntu 22.04/24.04 VPS. Run as a sudo user:
-#   git clone <your-kaarobarly-repo-url> /var/www/kaarobarly
-#   cd /var/www/kaarobarly && bash deploy/setup.sh api.yourdomain.com
+#   (code in /var/www/kaarobarly: git clone, or unpack kaarobarly.tar.gz there)
+#   cd /var/www/kaarobarly && bash deploy/setup.sh kaarobarly.zhtrader.com
 set -euo pipefail
 
 DOMAIN="${1:-}"
@@ -31,21 +31,24 @@ if [ ! -f "$API_DIR/.env" ]; then
   chmod 600 .env
 fi
 
-echo "==> Starting the API with PM2"
+PORT="$(grep -E '^PORT=' "$API_DIR/.env" | cut -d= -f2)"
+PORT="${PORT:-4100}"
+
+echo "==> Starting the API with PM2 (port $PORT)"
 pm2 startOrReload ecosystem.config.cjs
 pm2 save
 sudo env PATH="$PATH" pm2 startup systemd -u "$USER" --hp "$HOME" >/dev/null
 
 echo "==> Waiting for the API to answer"
 for i in $(seq 1 30); do
-  if curl -fsS http://127.0.0.1:4000/health; then echo; break; fi
+  if curl -fsS "http://127.0.0.1:$PORT/health"; then echo; break; fi
   if [ "$i" = 30 ]; then echo "The API did not start. Check: pm2 logs kaarobarly-api --lines 40"; fi
   sleep 1
 done
 
 if [ -n "$DOMAIN" ]; then
   echo "==> Configuring Nginx for $DOMAIN"
-  sed "s/api.example.com/$DOMAIN/g" "$APP_DIR/deploy/nginx-kaarobarly.conf" | sudo tee /etc/nginx/sites-available/kaarobarly >/dev/null
+  sed -e "s/api.example.com/$DOMAIN/g" -e "s/127.0.0.1:4100/127.0.0.1:$PORT/" "$APP_DIR/deploy/nginx-kaarobarly.conf" | sudo tee /etc/nginx/sites-available/kaarobarly >/dev/null
   sudo ln -sf /etc/nginx/sites-available/kaarobarly /etc/nginx/sites-enabled/kaarobarly
   sudo nginx -t && sudo systemctl reload nginx
   echo "==> Next: point $DOMAIN's DNS A record at this server, then run:"

@@ -5,7 +5,7 @@ import { local, secure } from './storage';
 import type { User } from './shared';
 
 /** Live server used by release builds. */
-export const PRODUCTION_API_URL = 'https://api.kaarobarly.com';
+export const PRODUCTION_API_URL = 'https://kaarobarly.zhtrader.com';
 /**
  * Development uses this computer (set EXPO_PUBLIC_API_URL to its LAN address when testing on a phone);
  * release builds use the live server. EXPO_PUBLIC_API_URL always wins when set.
