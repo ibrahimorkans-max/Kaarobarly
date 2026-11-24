@@ -321,6 +321,40 @@ create table if not exists pos_held (
   id text primary key, tenant_id text not null references tenant, name text not null, client_id text, lines text not null,
   bill_discount integer not null default 0, by_name text not null, created_at text not null
 );
+create table if not exists tenant_setting (
+  tenant_id text not null references tenant, key text not null, value text not null, updated_at text not null, primary key (tenant_id, key)
+);
+create table if not exists promotion (
+  id text primary key, tenant_id text not null references tenant, name text not null, active integer not null default 1, config text not null, created_at text not null
+);
+create table if not exists loyalty_txn (
+  id text primary key, tenant_id text not null references tenant, client_id text not null, points integer not null, reason text not null default '', invoice_id text, created_at text not null
+);
+create index if not exists loyalty_client on loyalty_txn (tenant_id, client_id);
+create table if not exists gift_card (
+  id text primary key, tenant_id text not null references tenant, code text not null, initial integer not null, balance integer not null,
+  client_name text not null default '', status text not null default 'active', created_at text not null, unique (tenant_id, code)
+);
+create table if not exists table_order (
+  id text primary key, tenant_id text not null references tenant, number text not null, kind text not null, table_name text not null default '',
+  guests integer not null default 0, customer text not null default '', phone text not null default '', address text not null default '',
+  waiter text not null default '', lines text not null default '[]', status text not null default 'open', source text not null default 'pos',
+  rider text not null default '', delivery_status text not null default '', invoice_ids text not null default '[]', created_at text not null, updated_at text not null
+);
+create index if not exists order_open on table_order (tenant_id, status);
+create table if not exists kot (
+  id text primary key, tenant_id text not null references tenant, number integer not null, order_id text not null, section text not null,
+  items text not null, status text not null default 'new', created_at text not null
+);
+create table if not exists appointment (
+  id text primary key, tenant_id text not null references tenant, client_id text, client_name text not null, phone text not null default '',
+  service_id text, staff_id text, date text not null, time text not null default '', minutes integer not null default 30,
+  status text not null default 'booked', notes text not null default '', walk_in integer not null default 0, held_id text, created_at text not null
+);
+create index if not exists appointment_day on appointment (tenant_id, date);
+create table if not exists shop_link (
+  token text primary key, tenant_id text not null
+);
 create table if not exists stock_alert_config (
   tenant_id text primary key references tenant, config text not null, updated_at text not null
 );
@@ -480,6 +514,9 @@ export const MIGRATIONS: [table: string, column: string, definition: string][] =
   ['service', 'expiry_warn_days', 'integer not null default 0'],
   ['stock_move', 'batch_no', "text not null default ''"],
   ['stock_move', 'expiry', "text not null default ''"],
+  ['service', 'modifiers', "text not null default '[]'"],
+  ['service', 'kitchen_section', "text not null default ''"],
+  ['service', 'recipe', "text not null default '[]'"],
   ['purchase', 'supplier_id', 'text'],
   ['purchase', 'receipt_id', 'text'],
   ['purchase', 'custom', "text not null default '{}'"],

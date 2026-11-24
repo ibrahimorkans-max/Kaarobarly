@@ -45,6 +45,13 @@ export const SYNC_TABLES = [
   'pos_held',
   'label_template',
   'stock_alert_config',
+  'tenant_setting',
+  'promotion',
+  'loyalty_txn',
+  'gift_card',
+  'table_order',
+  'kot',
+  'appointment',
   'counter',
 ] as const;
 type SyncTable = (typeof SYNC_TABLES)[number];

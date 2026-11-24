@@ -47,6 +47,12 @@ export default function More() {
         {on('purchases') && <MenuRow icon="cart-outline" title="Buying" sub="Requests, purchase orders and goods received" onPress={() => router.push('/buying')} />}
         {on('purchases') && <MenuRow icon="storefront-outline" title={t('suppliers')} sub="Who you buy from and what you owe them" onPress={() => router.push('/suppliers')} />}
         {on('inventory') && <MenuRow icon="cube-outline" title="Stock" sub="In hand, value, low stock and counts" onPress={() => router.push('/stock')} />}
+        {on('restaurant') && <MenuRow icon="restaurant-outline" title="Restaurant" sub="Tables, takeaway, delivery and online orders" onPress={() => router.push('/restaurant')} />}
+        {on('restaurant') && <MenuRow icon="flame-outline" title="Kitchen screen" sub="Tickets to cook, oldest first" onPress={() => router.push('/restaurant/kitchen')} />}
+        {on('appointments') && <MenuRow icon="calendar-outline" title="Appointments" sub="Bookings by staff and the walk-in queue" onPress={() => router.push('/appointments')} />}
+        {on('loyalty') && <MenuRow icon="gift-outline" title="Loyalty & gift cards" sub="Points, member tiers and gift cards" onPress={() => router.push('/loyalty')} />}
+        {on('loyalty') && <MenuRow icon="pricetags-outline" title="Promotions" sub="Happy hours, buy X get Y, bundles, coupons" onPress={() => router.push('/promotions')} />}
+        {on('onlineShop') && <MenuRow icon="storefront-outline" title="Online shop" sub="Your catalogue link and online orders" onPress={() => router.push('/shop')} />}
         {on('inventory') && <MenuRow icon="pricetag-outline" title="Labels & barcodes" sub="Design and print product and shelf labels" onPress={() => router.push('/labels')} />}
         {on('accounts') && <MenuRow icon="wallet-outline" title="Cash & Bank Accounts" sub="Balances, transfers between accounts" onPress={() => router.push('/accounts')} />}
         {on('accounts') && <MenuRow icon="book-outline" title="Daily Cashbook" sub="Opening, in, out and closing for each day" onPress={() => router.push('/cashbook')} />}

@@ -13,3 +13,4 @@ export * from './pos';
 export * from './barcode';
 export * from './labels';
 export * from './stockplus';
+export * from './growth';

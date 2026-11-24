@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { now, uid, type Db } from './core';
+import { now, today, uid, type Db } from './core';
 import * as acc from './accounts';
 import * as d from './domain';
 import * as fin from './finance';
@@ -19,6 +19,7 @@ import { assertLimit } from './saas';
 import * as pos from './pos';
 import * as labels from './labels';
 import * as stockplus from './stockplus';
+import * as growth from './growth';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -371,6 +372,61 @@ export function registerRoutes(app: AppLike, db: Db) {
   app.post('/pos/sales', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(pos.sell(db, req.auth, pos.saleSchema.parse(req.body))));
   app.get('/pos/sales/find', need('pos.sell'), (req: Req, res: Res) => res.json(pos.findSale(db, T(req), String(req.query.number ?? ''))));
   app.post('/pos/returns', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(pos.returnSale(db, req.auth, pos.returnSchema.parse(req.body))));
+  app.post('/pos/preview', need('pos.sell'), (req: Req, res: Res) => {
+    const b = z.object({ lines: z.array(pos.posLineSchema).max(300), clientId: z.string().nullable().default(null), coupon: z.string().trim().max(30).default('') }).parse(req.body);
+    const r = pos.priceBill(db, req.auth, { ...b, applyPromotions: true });
+    res.json({ lineDiscounts: r.promo.lineDiscounts, billDiscount: r.promo.billDiscount, applied: r.promo.applied, memberDiscount: r.memberDiscount, member: r.member, pointValue: r.loyalty.pointValue, minRedeem: r.loyalty.minRedeem });
+  });
+
+  // ------------------------------------------------------------ promotions, loyalty, gift cards
+
+  app.get('/promotions', (req: Req, res: Res) => res.json(growth.listPromotions(db, T(req))));
+  app.post('/promotions', need('pos.manage'), (req: Req, res: Res) => res.status(201).json(growth.savePromotion(db, req.auth, growth.promotionSchema.parse(req.body))));
+  app.put('/promotions/:id', need('pos.manage'), (req: Req, res: Res) => res.json(growth.savePromotion(db, req.auth, growth.promotionSchema.parse(req.body), String(req.params.id))));
+  app.delete('/promotions/:id', need('pos.manage'), (req: Req, res: Res) => res.json(growth.deletePromotion(db, req.auth, String(req.params.id))));
+  app.get('/loyalty/settings', (req: Req, res: Res) => res.json(growth.getLoyalty(db, T(req))));
+  app.put('/loyalty/settings', need('pos.manage'), (req: Req, res: Res) => res.json(growth.saveLoyalty(db, req.auth, growth.loyaltySchema.parse(req.body))));
+  app.get('/loyalty/find', (req: Req, res: Res) => res.json(growth.findMember(db, T(req), String(req.query.phone ?? ''))));
+  app.get('/loyalty/clients/:id', (req: Req, res: Res) => res.json(growth.loyaltyAccount(db, T(req), String(req.params.id))));
+  app.post('/loyalty/clients/:id/adjust', need('pos.manage'), (req: Req, res: Res) => {
+    const b = growth.adjustPointsSchema.parse(req.body);
+    growth.loyaltyAccount(db, T(req), String(req.params.id));
+    growth.addPoints(db, req.auth, String(req.params.id), b.points, b.reason);
+    db.audit(T(req), req.auth.userId, 'loyalty.adjust', 'client', String(req.params.id), b);
+    res.json(growth.loyaltyAccount(db, T(req), String(req.params.id)));
+  });
+  app.get('/gift-cards', (req: Req, res: Res) => res.json(growth.listGiftCards(db, T(req))));
+  app.get('/gift-cards/:code', (req: Req, res: Res) => res.json(growth.giftCardByCode(db, T(req), String(req.params.code))));
+  app.post('/gift-cards', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(growth.issueGiftCard(db, req.auth, growth.giftCardSchema.parse(req.body))));
+
+  // ------------------------------------------------------------ restaurant
+
+  app.get('/restaurant/tables', (req: Req, res: Res) => res.json(growth.getTables(db, T(req))));
+  app.put('/restaurant/tables', need('pos.manage'), (req: Req, res: Res) => {
+    growth.setSetting(db, T(req), 'tables', growth.tablesSchema.parse(req.body));
+    res.json(growth.getTables(db, T(req)));
+  });
+  app.get('/orders', need('pos.sell'), (req: Req, res: Res) => res.json(growth.listOrders(db, T(req), String(req.query.status ?? 'open'))));
+  app.post('/orders', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(growth.openOrder(db, req.auth, growth.orderSchema.parse(req.body))));
+  app.get('/orders/:id', need('pos.sell'), (req: Req, res: Res) => res.json(growth.getOrder(db, T(req), String(req.params.id))));
+  app.put('/orders/:id', need('pos.sell'), (req: Req, res: Res) => res.json(growth.updateOrder(db, req.auth, String(req.params.id), growth.orderUpdateSchema.parse(req.body))));
+  app.post('/orders/:id/kot', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(growth.sendToKitchen(db, req.auth, String(req.params.id))));
+  app.post('/orders/:id/cancel', need('pos.manage'), (req: Req, res: Res) => res.json(growth.cancelOrder(db, req.auth, String(req.params.id), z.object({ reason: z.string().trim().max(200).default('') }).parse(req.body ?? {}).reason)));
+  app.get('/kots', need('pos.sell'), (req: Req, res: Res) => res.json(growth.listKots(db, T(req), String(req.query.section ?? ''))));
+  app.post('/kots/:id/status', need('pos.sell'), (req: Req, res: Res) => res.json(growth.setKotStatus(db, req.auth, String(req.params.id), z.object({ status: z.enum(['new', 'ready', 'served']) }).parse(req.body).status)));
+
+  // ------------------------------------------------------------ appointments
+
+  app.get('/appointments', (req: Req, res: Res) => res.json(growth.listAppointments(db, T(req), String(req.query.date ?? '') || today())));
+  app.post('/appointments', need('invoices.create'), (req: Req, res: Res) => res.status(201).json(growth.saveAppointment(db, req.auth, growth.appointmentSchema.parse(req.body))));
+  app.put('/appointments/:id', need('invoices.create'), (req: Req, res: Res) => res.json(growth.saveAppointment(db, req.auth, growth.appointmentSchema.parse(req.body), String(req.params.id))));
+  app.post('/appointments/:id/status', need('invoices.create'), (req: Req, res: Res) => res.json(growth.setAppointmentStatus(db, req.auth, String(req.params.id), z.object({ status: z.enum(['booked', 'waiting', 'in_service', 'done', 'no_show', 'cancelled']) }).parse(req.body).status)));
+
+  // ------------------------------------------------------------ online shop (settings; the public page is in app.ts)
+
+  app.get('/shop/settings', (req: Req, res: Res) => res.json(growth.getShop(db, T(req))));
+  app.put('/shop/settings', need('pos.manage'), (req: Req, res: Res) => res.json(growth.saveShop(db, req.auth, growth.shopSchema.parse(req.body))));
+
   app.get('/pos/held', need('pos.sell'), (req: Req, res: Res) => res.json(pos.listHeld(db, T(req))));
   app.post('/pos/held', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(pos.holdBill(db, req.auth, pos.holdSchema.parse(req.body))));
   app.delete('/pos/held/:id', need('pos.sell'), (req: Req, res: Res) => {

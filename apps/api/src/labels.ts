@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { LABEL_SIZE_KEYS, isEan13, newStoreEan13, type LabelSize, type LabelTemplate } from '../../../packages/shared/src/index';
+import { LABEL_SIZE_KEYS, ean13CheckDigit, isEan13, type LabelSize, type LabelTemplate } from '../../../packages/shared/src/index';
 import { now, uid, type Db, type Row } from './core';
 import { HttpError, type AuthContext } from './perm';
 
@@ -19,7 +19,9 @@ export function assertBarcodeFree(db: Db, tenantId: string, barcode: string, exc
 /** A new in-store EAN-13 that no item in this business uses. */
 export function freeStoreBarcode(db: Db, tenantId: string): string {
   for (let i = 0; i < 50; i++) {
-    const code = newStoreEan13();
+    // digits from uid(), so an offline sale replayed on the server gets the same code
+    const digits = [...uid()].map((c) => c.charCodeAt(0) % 10).join('').slice(-10).padStart(10, '0');
+    const code = `20${digits}${ean13CheckDigit(`20${digits}`)}`;
     if (!db.get('select 1 from service where tenant_id = ? and barcode = ?', tenantId, code)) return code;
   }
   throw new HttpError(500, 'Could not make a free barcode. Try again.');

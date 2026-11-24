@@ -33,8 +33,12 @@ interface Form {
   supplierId: string | null;
   batches: boolean;
   warnDays: string;
+  /** "Extra cheese: 50" per line */
+  mods: string;
+  section: string;
+  recipe: { itemId: string; name: string; qty: string }[];
 }
-const blank: Form = { name: '', category: '', description: '', price: '', unit: '', tax: '', discount: '', status: 'active', itemType: '', custom: {}, trackStock: false, sku: '', barcode: '', cost: '', reorder: '', nameUr: '', mrp: '', max: '', pack: '', supplierId: null, batches: false, warnDays: '' };
+const blank: Form = { name: '', category: '', description: '', price: '', unit: '', tax: '', discount: '', status: 'active', itemType: '', custom: {}, trackStock: false, sku: '', barcode: '', cost: '', reorder: '', nameUr: '', mrp: '', max: '', pack: '', supplierId: null, batches: false, warnDays: '', mods: '', section: '', recipe: [] };
 const EXAMPLES = ['Software Development', 'Consultancy', 'Laboratory Testing', 'Weighbridge Services', 'Transportation', 'Installation', 'Maintenance', 'Technical Support'];
 
 export default function Services() {
@@ -85,6 +89,9 @@ export default function Services() {
       supplierId: s.preferredSupplierId ?? null,
       batches: !!s.trackBatches,
       warnDays: s.expiryWarnDays ? String(s.expiryWarnDays) : '',
+      mods: (s.modifiers ?? []).map((m) => (m.price ? `${m.name}: ${moneyToInput(m.price)}` : m.name)).join('\n'),
+      section: s.kitchenSection ?? '',
+      recipe: (s.recipe ?? []).map((r) => ({ itemId: r.itemId, name: r.name, qty: qtyToString(r.qty) })),
     });
 
   async function save() {
@@ -107,7 +114,16 @@ export default function Services() {
       const packSize = form.pack.trim() ? parseQty(form.pack) : 0;
       if (maxLevel === null || maxLevel < 0 || packSize === null || packSize < 0) throw new Error('Maximum and pack size must be quantities');
       const expiryWarnDays = Math.max(0, Math.min(730, Math.floor(Number(form.warnDays) || 0)));
-      const body = { maxLevel, packSize, preferredSupplierId: form.supplierId, trackBatches: form.batches, expiryWarnDays, nameUr: form.nameUr.trim(), mrp, trackStock: form.trackStock, sku: form.sku.trim(), barcode: form.barcode.trim(), costPrice, reorderLevel, name: form.name.trim(), category: form.category.trim(), description: form.description.trim(), defaultPrice: price, unit: form.unit.trim(), taxRateBp: tax, defaultDiscountBp: discount, status: form.status, itemType: form.itemType, custom: form.custom };
+      const modifiers = form.mods
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean)
+        .map((l) => {
+          const [n, p] = l.split(':');
+          return { name: n.trim().slice(0, 60), price: p ? (parseMoney(p.trim()) ?? 0) : 0 };
+        });
+      const recipe = form.recipe.filter((r) => r.itemId && parseQty(r.qty)).map((r) => ({ itemId: r.itemId, name: r.name, qty: parseQty(r.qty)! }));
+      const body = { modifiers, kitchenSection: form.section.trim(), recipe, maxLevel, packSize, preferredSupplierId: form.supplierId, trackBatches: form.batches, expiryWarnDays, nameUr: form.nameUr.trim(), mrp, trackStock: form.trackStock, sku: form.sku.trim(), barcode: form.barcode.trim(), costPrice, reorderLevel, name: form.name.trim(), category: form.category.trim(), description: form.description.trim(), defaultPrice: price, unit: form.unit.trim(), taxRateBp: tax, defaultDiscountBp: discount, status: form.status, itemType: form.itemType, custom: form.custom };
       await api(form.id ? `/services/${form.id}` : '/services', { method: form.id ? 'PUT' : 'POST', body });
       toast(form.id ? `${t('item')} updated` : `${t('item')} added`);
       setForm(null);
@@ -207,6 +223,25 @@ export default function Services() {
                 {form?.batches && <Field label="Warn this many days before expiry" keyboardType="number-pad" placeholder="Shop default (30)" value={form?.warnDays ?? ''} onChangeText={(v) => set({ warnDays: v })} />}
               </>
             )}
+          </>
+        )}
+        {on('restaurant') && (
+          <>
+            <Field label="Kitchen section" value={form?.section ?? ''} onChangeText={(v) => set({ section: v })} placeholder="Kitchen, Bar, Tandoor (empty = not cooked)" />
+            <Field label="Extras to choose (one per line, name: price)" value={form?.mods ?? ''} onChangeText={(v) => set({ mods: v })} multiline placeholder={'Extra cheese: 50\nLess spicy'} />
+          </>
+        )}
+        {on('inventory') && (on('restaurant') || (form?.recipe.length ?? 0) > 0) && (
+          <>
+            <Txt v="label">Recipe: stock used for 1 sold</Txt>
+            {form?.recipe.map((r, i) => (
+              <Row key={i} gap={6} style={{ alignItems: 'flex-end' }}>
+                <Txt style={{ flex: 1.4 }}>{r.name}</Txt>
+                <Field style={{ flex: 1 }} label="Qty" money value={r.qty} onChangeText={(v) => set({ recipe: form.recipe.map((x, k) => (k === i ? { ...x, qty: v } : x)) })} />
+                <IconBtn icon="close" label={`Remove ${r.name}`} onPress={() => set({ recipe: form.recipe.filter((_, k) => k !== i) })} />
+              </Row>
+            ))}
+            <Select<Service> label="Add an ingredient" placeholder="Choose a stock item" value="" items={(data ?? []).filter((x) => x.trackStock && x.id !== form?.id && !form?.recipe.some((r) => r.itemId === x.id))} getKey={(x) => x.id} getLabel={(x) => x.name} getSub={(x) => x.unit} onSelect={(x) => set({ recipe: [...(form?.recipe ?? []), { itemId: x.id, name: x.name, qty: '1' }] })} />
           </>
         )}
         <CustomFieldInputs entity="item" values={form?.custom ?? {}} onChange={(custom) => set({ custom })} />

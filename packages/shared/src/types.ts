@@ -293,6 +293,12 @@ export interface Service {
   trackBatches: boolean;
   /** warn this many days before expiry (0 = the shop default) */
   expiryWarnDays: number;
+  /** restaurant: extras to choose at the counter (extra cheese +50) */
+  modifiers: { name: string; price: number }[];
+  /** restaurant: which kitchen printer/screen gets it ('' = not cooked) */
+  kitchenSection: string;
+  /** ingredients used per 1 unit sold; they leave stock with the sale */
+  recipe: { itemId: string; name: string; qty: number }[];
   /** last purchase price, minor units per 1 */
   costPrice: number;
   /** thousandths; warn when stock falls to this */

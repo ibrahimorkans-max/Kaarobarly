@@ -7,6 +7,8 @@ import { assertDayOpen } from './daylock';
 import { INVOICE_SELECT, createInvoice, getInvoice, invoiceSchema, ownedRow, recordPayment } from './domain';
 import { HttpError, can, type AuthContext } from './perm';
 import { assertLimit } from './saas';
+import { addPoints, getLoyalty, listPromotions, loyaltyAccount, moment, promotionsFor, settleOrderLines, spendGiftCards } from './growth';
+import { promotionLive, type AppliedPromo, type LoyaltyAccount } from '../../../packages/shared/src/index';
 
 /**
  * Point of sale. A counter sale is stored as a final invoice with its payments, so stock,
@@ -184,7 +186,42 @@ export const saleSchema = z.object({
   cashGiven: minor.optional(),
   heldId: z.string().nullable().default(null),
   clientRequestId: z.string().min(8).max(64).optional(),
+  /** promotions run automatically; a coupon unlocks coupon promotions */
+  applyPromotions: z.boolean().default(true),
+  coupon: z.string().trim().max(30).default(''),
+  /** loyalty points to spend on this bill */
+  redeemPoints: z.number().int().min(0).max(1e9).default(0),
+  giftCards: z.array(z.object({ code: z.string().trim().min(1).max(30), amount: z.number().int().min(1).max(1e13) })).max(5).default([]),
+  /** restaurant: service charge on the food, and a tip */
+  serviceChargeBp: z.number().int().min(0).max(3000).default(0),
+  tip: minor.default(0),
+  /** restaurant: the table order being paid, and (to split the bill) which of its lines */
+  tableOrderId: z.string().nullable().default(null),
+  settleLines: z.array(z.number().int().min(0)).max(300).optional(),
 });
+
+const gross = (l: { qty: number; unitPrice: number }) => Math.round((l.qty * l.unitPrice) / 1000);
+const lineDisc = (l: { qty: number; unitPrice: number; discountType: 'percent' | 'fixed'; discountValue: number }) =>
+  Math.min(gross(l), l.discountType === 'percent' ? Math.round((gross(l) * l.discountValue) / 10_000) : l.discountValue);
+
+/** What a bill comes to before payment: promotions, member discount and points. The phone shows this while ringing up. */
+export function priceBill(db: Db, auth: AuthContext, body: { lines: z.infer<typeof lineSchema>[]; clientId: string | null; coupon: string; applyPromotions: boolean }) {
+  const loyalty = getLoyalty(db, auth.tenantId);
+  const walkIn = walkInClient(db, auth);
+  const member: LoyaltyAccount | null = loyalty.enabled && body.clientId && body.clientId !== walkIn ? loyaltyAccount(db, auth.tenantId, body.clientId) : null;
+  if (body.coupon) {
+    const at = moment();
+    if (!listPromotions(db, auth.tenantId).some((p) => p.coupon && p.coupon.toUpperCase() === body.coupon.toUpperCase() && promotionLive(p, at, body.coupon, !!member?.tier))) throw new HttpError(422, 'This coupon is not valid now.');
+  }
+  const promo = body.applyPromotions ? promotionsFor(db, auth.tenantId, body.lines, body.coupon, !!member?.tier) : { lineDiscounts: body.lines.map(() => 0), billDiscount: 0, applied: [] as AppliedPromo[] };
+  const lines = body.lines.map((l, i) => {
+    const extra = promo.lineDiscounts[i] ?? 0;
+    return extra ? { ...l, discountType: 'fixed' as const, discountValue: Math.min(gross(l), lineDisc(l) + extra) } : l;
+  });
+  const afterLines = lines.reduce((s, l) => s + gross(l) - lineDisc(l), 0);
+  const memberDiscount = member?.tier ? Math.round((Math.max(afterLines - promo.billDiscount, 0) * member.tier.discountBp) / 10_000) : 0;
+  return { lines, promo, member, memberDiscount, afterLines, loyalty };
+}
 
 export function sell(db: Db, auth: AuthContext, body: z.infer<typeof saleSchema>) {
   return db.tx(() => {
@@ -198,6 +235,32 @@ export function sell(db: Db, auth: AuthContext, body: z.infer<typeof saleSchema>
     const clientId = body.clientId ?? walkIn;
     if (body.tenders.some((t) => t.tender === 'credit') && clientId === walkIn) throw new HttpError(422, 'Choose the customer to sell on udhaar.');
     const t = today();
+    const priced = priceBill(db, auth, { lines: body.lines, clientId: body.clientId, coupon: body.coupon, applyPromotions: body.applyPromotions });
+    const { member, loyalty } = priced;
+    let pointsValue = 0;
+    if (body.redeemPoints) {
+      if (!member) throw new HttpError(422, 'Choose a loyalty member to spend points.');
+      if (body.redeemPoints > member.points) throw new HttpError(422, `${member.name} has only ${member.points} points.`);
+      if (body.redeemPoints < loyalty.minRedeem) throw new HttpError(422, `Spend at least ${loyalty.minRedeem} points at a time.`);
+      pointsValue = body.redeemPoints * loyalty.pointValue;
+    }
+    const giftTotal = body.giftCards.reduce((s, g) => s + g.amount, 0);
+    const cashierDiscount = body.billDiscountType === 'percent' ? Math.round((priced.afterLines * Math.min(body.billDiscountValue, 10_000)) / 10_000) : body.billDiscountValue;
+    // a service charge is on the food after discounts; a tip is on top
+    const lines: z.infer<typeof lineSchema>[] = [...priced.lines];
+    const chargeBase = Math.max(priced.afterLines - cashierDiscount - priced.promo.billDiscount - priced.memberDiscount, 0);
+    const serviceCharge = Math.round((chargeBase * body.serviceChargeBp) / 10_000);
+    const extraLine = (name: string, amount: number) => ({ serviceId: null, name, qty: 1000, unit: '', unitPrice: amount, discountType: 'fixed' as const, discountValue: 0, taxRateBp: 0 });
+    if (serviceCharge) lines.push(extraLine(`Service charge ${body.serviceChargeBp / 100}%`, serviceCharge));
+    if (body.tip) lines.push(extraLine('Tip', body.tip));
+    const exempt = priced.promo.billDiscount + priced.memberDiscount + pointsValue + giftTotal;
+    const billDiscount = Math.min(cashierDiscount + exempt, priced.afterLines + serviceCharge + body.tip);
+    const notes = [
+      ...priced.promo.applied.map((p) => `${p.name}`),
+      priced.memberDiscount && member?.tier ? `${member.tier.name} member discount` : '',
+      pointsValue ? `${body.redeemPoints} points redeemed` : '',
+      ...body.giftCards.map((g) => `Gift card ${g.code.toUpperCase()}`),
+    ].filter(Boolean);
     const inv = createInvoice(
       db,
       auth,
@@ -206,9 +269,10 @@ export function sell(db: Db, auth: AuthContext, body: z.infer<typeof saleSchema>
         clientId,
         issueDate: t,
         dueDate: t,
-        lines: body.lines.map((l) => ({ ...l, description: '' })),
-        overallDiscountType: body.billDiscountType,
-        overallDiscountValue: body.billDiscountValue,
+        lines: lines.map((l) => ({ ...l, description: '' })),
+        overallDiscountType: 'fixed',
+        overallDiscountValue: billDiscount,
+        notes: notes.join(' · '),
         reference: 'POS',
         finalize: true,
         clientRequestId: body.clientRequestId,
@@ -216,8 +280,9 @@ export function sell(db: Db, auth: AuthContext, body: z.infer<typeof saleSchema>
       }),
       true,
     );
-    // cashiers may give a limited discount; more needs a manager
-    const discount = inv.itemDiscounts + inv.overallDiscount;
+    // cashiers may give a limited discount; more needs a manager (promotions, members, points and gift cards do not count)
+    const promoLines = priced.promo.lineDiscounts.reduce((s, x) => s + x, 0);
+    const discount = inv.itemDiscounts + inv.overallDiscount - promoLines - Math.min(exempt, inv.overallDiscount);
     if (inv.subtotal > 0 && discount * 10_000 > inv.subtotal * CASHIER_DISCOUNT_LIMIT_BP && !can({ auth }, 'pos.manage')) {
       throw new HttpError(403, `Discounts above ${CASHIER_DISCOUNT_LIMIT_BP / 100}% need a manager.`);
     }
@@ -231,11 +296,20 @@ export function sell(db: Db, auth: AuthContext, body: z.infer<typeof saleSchema>
       db.run('update payment set pos_shift_id = ? where id = ?', shift.id, p.id);
     }
     db.run('update invoice set pos_shift_id = ? where id = ?', shift.id, inv.id);
+    if (body.giftCards.length) spendGiftCards(db, auth, body.giftCards, inv.id);
+    let pointsEarned = 0;
+    if (member) {
+      if (body.redeemPoints) addPoints(db, auth, clientId, -body.redeemPoints, `Spent on ${inv.number}`, inv.id);
+      const credit = body.tenders.filter((x) => x.tender === 'credit').reduce((s, x) => s + x.amount, 0);
+      pointsEarned = Math.floor(Math.max(inv.total - credit, 0) / Math.max(loyalty.spendPerPoint, 1));
+      if (pointsEarned) addPoints(db, auth, clientId, pointsEarned, `Earned on ${inv.number}`, inv.id);
+    }
+    if (body.tableOrderId) settleOrderLines(db, auth.tenantId, body.tableOrderId, body.settleLines);
     if (body.heldId) db.run('delete from pos_held where id = ? and tenant_id = ?', body.heldId, auth.tenantId);
     const cash = body.tenders.find((x) => x.tender === 'cash')?.amount ?? 0;
     const change = body.cashGiven !== undefined && body.cashGiven > cash ? body.cashGiven - cash : 0;
     db.audit(auth.tenantId, auth.userId, 'pos.sale', 'invoice', inv.id, { total: inv.total, shift: shift.id });
-    return { invoice: getInvoice(db, auth.tenantId, inv.id), change };
+    return { invoice: getInvoice(db, auth.tenantId, inv.id), change, promotions: priced.promo.applied, memberDiscount: priced.memberDiscount, pointsEarned, pointsBalance: member ? member.points - body.redeemPoints + pointsEarned : null };
   });
 }
 

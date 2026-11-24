@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { DocumentViewer } from '@/components/doc-viewer';
 import { BarcodeScanner } from '@/components/scanner';
@@ -9,10 +9,23 @@ import { api, useApi } from '@/lib/api';
 import { useAuth, useTheme, useToast } from '@/lib/app-context';
 import { newKey } from '@/lib/invoice-draft';
 import { posReceiptHtml, type Paper } from '@/lib/pdf';
-import { POS_TENDERS, POS_TENDER_LABELS, moneyToInput, parseMoney, qtyToString, type BusinessProfile, type Client, type HeldBill, type Invoice, type Payment, type PosLine, type PosShift, type PosTender, type Service, type ZReport } from '@/lib/shared';
+import { POS_TENDERS, POS_TENDER_LABELS, computeInvoice, moneyToInput, parseMoney, qtyToString, type AppliedPromo, type BusinessProfile, type Client, type HeldBill, type Invoice, type LoyaltyAccount, type Payment, type PosLine, type PosShift, type PosTender, type Service, type TableOrder, type ZReport } from '@/lib/shared';
+import { useWorkspace } from '@/lib/workspace';
 
 interface CartLine extends PosLine {
   key: string;
+  /** a line of a table order: its index there, and whether it is left for a later bill (split) */
+  orderIdx?: number;
+  later?: boolean;
+}
+interface Preview {
+  lineDiscounts: number[];
+  billDiscount: number;
+  applied: AppliedPromo[];
+  memberDiscount: number;
+  member: LoyaltyAccount | null;
+  pointValue: number;
+  minRedeem: number;
 }
 interface Tender {
   key: string;
@@ -27,7 +40,7 @@ function scaleLabel(code: string): { itemCode: string; grams: number } | null {
 }
 
 /** The counter: pick or scan items, take payment in any mix, print the receipt. Works offline. */
-export function PosTerminal() {
+export function PosTerminal({ orderId }: { orderId?: string } = {}) {
   const th = useTheme();
   const toast = useToast();
   const { user, can } = useAuth();
@@ -52,6 +65,30 @@ export function PosTerminal() {
   const [unknown, setUnknown] = useState('');
   const [done, setDone] = useState<{ invoice: Invoice; payments: Payment[]; change: number } | null>(null);
   const requestId = useRef(`pos-${newKey()}`);
+  const { on } = useWorkspace();
+  const [coupon, setCoupon] = useState('');
+  const [couponInput, setCouponInput] = useState('');
+  const [phone, setPhone] = useState('');
+  const [redeem, setRedeem] = useState('');
+  const [gifts, setGifts] = useState<{ code: string; amount: number }[]>([]);
+  const [giftCode, setGiftCode] = useState('');
+  const [serviceBp, setServiceBp] = useState(0);
+  const [tip, setTip] = useState('');
+  const [preview, setPreview] = useState<Preview | null>(null);
+  const [order, setOrder] = useState<TableOrder | null>(null);
+
+  // paying a table / takeaway / online order: load its lines into the bill
+  useEffect(() => {
+    if (!orderId) return;
+    api<TableOrder>(`/orders/${orderId}`)
+      .then((o) => {
+        setOrder(o);
+        setCart(o.lines.map((l, i) => ({ key: newKey(), serviceId: l.serviceId, name: l.name, qty: l.qty, unit: l.unit, unitPrice: l.unitPrice, discountType: 'percent', discountValue: 0, taxRateBp: l.taxRateBp, orderIdx: i })));
+        if (o.kind === 'dine_in') setServiceBp((b) => b);
+        setSheet('cart');
+      })
+      .catch((e) => toast(e.message, 'error'));
+  }, [orderId, toast]);
 
   const shift = shiftQ.data?.shift ?? null;
   const business = businesses.data?.find((b) => b.id === shift?.businessId) ?? businesses.data?.[0];
@@ -63,11 +100,51 @@ export function PosTerminal() {
   const shown = active.filter((s) => (!cat || s.category === cat) && (!needle || `${s.name} ${s.sku} ${s.barcode}`.toLowerCase().includes(needle)));
   const cols = width >= 900 ? 4 : width >= 600 ? 3 : 2;
 
-  // totals the same way the server will: line amounts, minus a fixed bill discount
+  // totals the same way the server will: item offers, then bill discounts, service charge and tip, then tax
   const lineTotal = (l: PosLine) => Math.round((l.qty * l.unitPrice) / 1000);
-  const subtotal = cart.reduce((s, l) => s + lineTotal(l), 0);
-  const billDiscount = Math.min(discount.trim() ? (parseMoney(discount, precision) ?? 0) : 0, subtotal);
-  const total = subtotal - billDiscount;
+  const lineDisc = (l: PosLine) => Math.min(lineTotal(l), l.discountType === 'percent' ? Math.round((lineTotal(l) * l.discountValue) / 10_000) : l.discountValue);
+  const paying = cart.filter((l) => !l.later);
+  const priced = paying.map((l, i) => {
+    const extra = preview?.lineDiscounts[i] ?? 0;
+    return extra ? { ...l, discountType: 'fixed' as const, discountValue: Math.min(lineTotal(l), lineDisc(l) + extra) } : l;
+  });
+  const subtotal = paying.reduce((s, l) => s + lineTotal(l), 0);
+  const itemOffers = priced.reduce((s, l, i) => s + lineDisc(l) - lineDisc(paying[i]), 0);
+  const afterLines = priced.reduce((s, l) => s + lineTotal(l) - lineDisc(l), 0);
+  const billDiscount = Math.min(discount.trim() ? (parseMoney(discount, precision) ?? 0) : 0, afterLines);
+  const promoBill = preview?.billDiscount ?? 0;
+  const memberOff = preview?.memberDiscount ?? 0;
+  const member = preview?.member ?? null;
+  const redeemPts = Math.max(0, Math.floor(Number(redeem) || 0));
+  const pointsOff = redeemPts * (preview?.pointValue ?? 0);
+  const giftOff = gifts.reduce((s, g) => s + g.amount, 0);
+  const serviceCharge = Math.round((Math.max(afterLines - billDiscount - promoBill - memberOff, 0) * serviceBp) / 10_000);
+  const tipAmt = tip.trim() ? (parseMoney(tip, precision) ?? 0) : 0;
+  const allBillOff = Math.min(billDiscount + promoBill + memberOff + pointsOff + giftOff, afterLines + serviceCharge + tipAmt);
+  const extraLines: PosLine[] = [
+    ...(serviceCharge ? [{ serviceId: null, name: 'Service charge', qty: 1000, unit: '', unitPrice: serviceCharge, discountType: 'fixed' as const, discountValue: 0, taxRateBp: 0 }] : []),
+    ...(tipAmt ? [{ serviceId: null, name: 'Tip', qty: 1000, unit: '', unitPrice: tipAmt, discountType: 'fixed' as const, discountValue: 0, taxRateBp: 0 }] : []),
+  ];
+  const totals = computeInvoice({ lines: [...priced, ...extraLines], overallDiscountType: 'fixed', overallDiscountValue: allBillOff, charges: [], taxInclusive: !!business?.taxInclusive, rounding: business?.rounding ?? 'none', precision });
+  const total = totals.total;
+
+  // live promotions, member discount and points value from the server rules (works offline too)
+  const previewKey = JSON.stringify([paying.map((l) => [l.serviceId, l.qty, l.unitPrice]), clientId, coupon]);
+  useEffect(() => {
+    if (!paying.length || !shift) return setPreview(null);
+    const t = setTimeout(() => {
+      api<Preview>('/pos/preview', { body: { lines: paying.map(({ key: _k, orderIdx: _o, later: _l, ...l }) => l), clientId, coupon } })
+        .then(setPreview)
+        .catch((e) => {
+          if (coupon) {
+            toast(e.message, 'error');
+            setCoupon('');
+          }
+        });
+    }, 250);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [previewKey, !!shift]);
   const count = cart.reduce((s, l) => s + l.qty, 0);
   const tendered = tenders.reduce((s, x) => s + (parseMoney(x.amount || '0', precision) ?? 0), 0);
   const remaining = total - tendered;
@@ -103,8 +180,38 @@ export function PosTerminal() {
     setHeldId(null);
     setTenders([]);
     setCashGiven('');
+    setCoupon('');
+    setCouponInput('');
+    setRedeem('');
+    setGifts([]);
+    setTip('');
+    setServiceBp(0);
+    setPreview(null);
+    setOrder(null);
     requestId.current = `pos-${newKey()}`;
+    if (orderId) router.setParams({ orderId: '' });
   };
+
+  async function findMember() {
+    try {
+      const a = await api<LoyaltyAccount>(`/loyalty/find?phone=${encodeURIComponent(phone)}`);
+      setClientId(a.clientId);
+      toast(`${a.name}: ${a.points} points${a.tier ? ` · ${a.tier.name}` : ''}`);
+    } catch (e: any) {
+      toast(e.message, 'error');
+    }
+  }
+  async function addGift() {
+    try {
+      const g = await api<{ code: string; balance: number; status: string }>(`/gift-cards/${encodeURIComponent(giftCode.trim().toUpperCase())}`);
+      if (g.status !== 'active' || g.balance <= 0) return toast(`Gift card ${g.code} is ${g.status}`, 'error');
+      const due = Math.max(total, 0);
+      setGifts((x) => [...x.filter((y) => y.code !== g.code), { code: g.code, amount: Math.min(g.balance, due) }]);
+      setGiftCode('');
+    } catch (e: any) {
+      toast(e.message, 'error');
+    }
+  }
 
   async function openShift() {
     if (!business) return;
@@ -122,8 +229,13 @@ export function PosTerminal() {
     }
   }
 
+  useEffect(() => {
+    if (sheet === 'pay' && tenders.length === 1 && tenders[0].tender === 'cash') setTenders([{ ...tenders[0], amount: moneyToInput(Math.max(total, 0), precision) }]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [total]);
+
   function startPay() {
-    if (!cart.length) return toast('Add items first', 'error');
+    if (!paying.length) return toast('Add items first', 'error');
     setTenders([{ key: newKey(), tender: 'cash', amount: moneyToInput(total, precision) }]);
     setCashGiven('');
     setSheet('pay');
@@ -135,14 +247,21 @@ export function PosTerminal() {
     if (given && given < cashAmount) return toast('Cash given is less than the cash part', 'error');
     setBusy('pay');
     try {
-      const r = await api<{ invoice: Invoice; change: number }>('/pos/sales', {
+      const r = await api<{ invoice: Invoice; change: number; pointsEarned?: number }>('/pos/sales', {
         body: {
           shiftId: shift.id,
           clientId,
           heldId,
-          lines: cart.map(({ key: _k, ...l }) => l),
+          lines: paying.map(({ key: _k, orderIdx: _o, later: _l, ...l }) => l),
           billDiscountType: 'fixed',
           billDiscountValue: billDiscount,
+          coupon,
+          redeemPoints: redeemPts,
+          giftCards: gifts,
+          serviceChargeBp: serviceBp,
+          tip: tipAmt,
+          tableOrderId: order?.id ?? null,
+          settleLines: order ? paying.map((l) => l.orderIdx).filter((x): x is number => x !== undefined) : undefined,
           tenders: tenders.map((x) => ({ tender: x.tender, amount: parseMoney(x.amount || '0', precision) ?? 0 })).filter((x) => x.amount > 0),
           cashGiven: given || undefined,
           clientRequestId: requestId.current,
@@ -150,6 +269,7 @@ export function PosTerminal() {
       });
       const detail = await api<{ payments: Payment[] }>(`/invoices/${r.invoice.id}`).catch(() => ({ payments: [] as Payment[] }));
       setDone({ invoice: r.invoice, payments: detail.payments, change: r.change });
+      if (r.pointsEarned) toast(`${r.pointsEarned} loyalty points earned`);
       setSheet('');
       reset();
       shiftQ.reload();
@@ -301,10 +421,12 @@ export function PosTerminal() {
 
       <BarcodeScanner visible={scan} continuous onClose={() => setScan(false)} onCode={onCode} title="Scan items" status={cart.length ? `${cart.length} items · ${m(total)}` : 'Point at a barcode'} />
 
-      <Sheet visible={sheet === 'cart'} title="Current bill" onClose={() => setSheet('')}>
+      <Sheet visible={sheet === 'cart'} title={order ? `${order.kind === 'dine_in' ? `Table ${order.table}` : order.customer || order.number} · ${order.number}` : 'Current bill'} onClose={() => setSheet('')}>
         {cart.length === 0 && <Txt v="sub">No items yet.</Txt>}
+        {order && cart.length > 1 && <Txt v="small">Split the bill: tap a line's clock to leave it for a later payment.</Txt>}
         {cart.map((l) => (
-          <Row key={l.key} style={{ alignItems: 'center' }}>
+          <Row key={l.key} style={{ alignItems: 'center', opacity: l.later ? 0.45 : 1 }}>
+            {l.orderIdx !== undefined && <IconBtn icon={l.later ? 'time' : 'time-outline'} label={l.later ? `Pay ${l.name} now` : `Pay ${l.name} later`} onPress={() => setCart((c) => c.map((x) => (x.key === l.key ? { ...x, later: !x.later } : x)))} />}
             <View style={{ flex: 1 }}>
               <Txt style={{ fontWeight: '700' }}>{l.name}</Txt>
               <Txt v="small">
@@ -319,9 +441,55 @@ export function PosTerminal() {
         ))}
         <Select<Client> label="Customer (optional)" value={client?.name ?? ''} placeholder="Walk-in customer" items={(clients.data ?? []).filter((c) => c.category !== 'Walk-in')} getKey={(c) => c.id} getLabel={(c) => c.name} getSub={(c) => c.phone} onSelect={(c) => setClientId(c.id)} />
         {!!clientId && <Btn small kind="ghost" title="Back to walk-in" onPress={() => setClientId(null)} />}
+        {on('loyalty') && (
+          <>
+            <Row style={{ alignItems: 'flex-end' }}>
+              <Field style={{ flex: 1 }} label="Member phone" value={phone} onChangeText={setPhone} keyboardType="phone-pad" placeholder="03xx xxxxxxx" />
+              <Btn small kind="secondary" title="Find" onPress={findMember} disabled={phone.replace(/\D/g, '').length < 7} />
+            </Row>
+            {member && (
+              <Card style={{ gap: 6, backgroundColor: th.primarySoft }}>
+                <Txt style={{ fontWeight: '700' }}>
+                  {member.name} · {member.points} points{member.tier ? ` · ${member.tier.name}` : ''}
+                </Txt>
+                {member.points >= (preview?.minRedeem ?? 0) && member.points > 0 && (
+                  <Field label={`Spend points (1 point = ${m(preview?.pointValue ?? 0)})`} keyboardType="number-pad" value={redeem} onChangeText={setRedeem} placeholder="0" />
+                )}
+              </Card>
+            )}
+            <Row style={{ alignItems: 'flex-end' }}>
+              <Field style={{ flex: 1 }} label="Coupon code" value={couponInput} onChangeText={setCouponInput} autoCapitalize="characters" />
+              <Btn small kind="secondary" title={coupon ? 'Remove' : 'Apply'} onPress={() => (coupon ? (setCoupon(''), setCouponInput('')) : setCoupon(couponInput.trim()))} disabled={!coupon && !couponInput.trim()} />
+            </Row>
+          </>
+        )}
+        {(on('restaurant') || order) && (
+          <>
+            <Txt v="label">Service charge</Txt>
+            <Chips value={String(serviceBp)} onChange={(v) => setServiceBp(Number(v))} options={[0, 500, 1000, 1500].map((b) => ({ value: String(b), label: b ? `${b / 100}%` : 'None' }))} />
+            <Field label="Tip (optional)" money value={tip} onChangeText={setTip} placeholder="0" />
+          </>
+        )}
         <Field label="Bill discount (amount)" money value={discount} onChangeText={setDiscount} placeholder="0" hint={can('pos.manage') ? undefined : 'Up to 10% without a manager'} />
         <KV k="Sub total" v={m(subtotal)} />
+        {(preview?.applied ?? []).map((p) => (
+          <KV key={p.promotionId} k={p.name} v={`− ${m(p.amount)}`} color={th.success} />
+        ))}
+        {itemOffers > 0 && !(preview?.applied ?? []).length && <KV k="Offers" v={`− ${m(itemOffers)}`} />}
+        {memberOff > 0 && <KV k={`${member?.tier?.name ?? 'Member'} discount`} v={`− ${m(memberOff)}`} color={th.success} />}
+        {pointsOff > 0 && <KV k={`${redeemPts} points`} v={`− ${m(pointsOff)}`} />}
+        {gifts.map((g) => (
+          <Row key={g.code} style={{ alignItems: 'center' }}>
+            <View style={{ flex: 1 }}>
+              <KV k={`Gift card ${g.code}`} v={`− ${m(g.amount)}`} />
+            </View>
+            <IconBtn icon="close" label={`Remove gift card ${g.code}`} onPress={() => setGifts((x) => x.filter((y) => y.code !== g.code))} />
+          </Row>
+        ))}
         {billDiscount > 0 && <KV k="Discount" v={`− ${m(billDiscount)}`} />}
+        {serviceCharge > 0 && <KV k={`Service charge ${serviceBp / 100}%`} v={m(serviceCharge)} />}
+        {tipAmt > 0 && <KV k="Tip" v={m(tipAmt)} />}
+        {totals.taxAmount > 0 && <KV k="Tax" v={m(totals.taxAmount)} />}
         <KV k="Total" v={m(total)} bold />
         <Row gap={10}>
           <Btn style={{ flex: 1 }} kind="secondary" icon="pause-outline" title="Park" onPress={hold} disabled={!cart.length} />
@@ -345,6 +513,12 @@ export function PosTerminal() {
           ))}
         </Row>
         {!clientId && <Txt v="small">For udhaar, choose the customer in the bill first.</Txt>}
+        {on('loyalty') && (
+          <Row style={{ alignItems: 'flex-end' }}>
+            <Field style={{ flex: 1 }} label="Gift card code" value={giftCode} onChangeText={setGiftCode} autoCapitalize="characters" />
+            <Btn small kind="secondary" title="Use" onPress={addGift} disabled={!giftCode.trim()} />
+          </Row>
+        )}
         {cashTender && (
           <>
             <Field label="Cash given by the customer" money value={cashGiven} onChangeText={setCashGiven} placeholder={moneyToInput(cashAmount, precision)} />

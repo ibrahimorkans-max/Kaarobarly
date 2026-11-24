@@ -8,6 +8,10 @@
 
 export const MODULES = [
   'pos',
+  'restaurant',
+  'appointments',
+  'loyalty',
+  'onlineShop',
   'invoices',
   'quotations',
   'recurring',
@@ -30,6 +34,10 @@ export type ModuleKey = (typeof MODULES)[number];
 
 export const MODULE_INFO: Record<ModuleKey, { name: string; hint: string; icon: string; core?: boolean }> = {
   pos: { name: 'Point of sale (POS)', hint: 'Fast counter sales with scanning, shifts, receipts and returns', icon: 'calculator-outline' },
+  restaurant: { name: 'Restaurant', hint: 'Tables, dine-in, takeaway and delivery orders, kitchen tickets and screen', icon: 'restaurant-outline' },
+  appointments: { name: 'Appointments', hint: 'Bookings by staff, walk-in queue, and billing when done', icon: 'calendar-outline' },
+  loyalty: { name: 'Loyalty, promotions and gift cards', hint: 'Points, member tiers, coupons, happy hours and gift cards', icon: 'gift-outline' },
+  onlineShop: { name: 'Online shop', hint: 'A shareable catalogue; customers order and it arrives at your counter', icon: 'storefront-outline' },
   invoices: { name: 'Invoices', hint: 'Bills you send to customers', icon: 'document-text-outline', core: true },
   quotations: { name: 'Quotations', hint: 'Price quotes you can turn into invoices', icon: 'document-outline' },
   recurring: { name: 'Recurring invoices', hint: 'Bill the same customer every week, month or year', icon: 'repeat-outline' },
@@ -165,7 +173,7 @@ export interface Preset {
   fields: Omit<CustomField, 'id'>[];
 }
 
-const ALL: ModuleKey[] = [...MODULES];
+const ALL: ModuleKey[] = MODULES.filter((m) => m !== 'restaurant' && m !== 'appointments');
 const BASIC: ModuleKey[] = ['invoices', 'payments', 'quotations', 'finance', 'accounts', 'reports', 'budgets', 'payroll', 'expenseClaims'];
 const field = (entity: FieldEntity, label: string, type: FieldType = 'text', options: string[] = [], showOnPdf = false): Omit<CustomField, 'id'> => ({ entity, label, type, options, required: false, showOnPdf });
 
@@ -174,7 +182,7 @@ export const PRESETS: Record<BusinessType, Preset> = {
     name: 'Services company',
     hint: 'Consultancy, IT, labs, repairs, agencies',
     icon: 'briefcase-outline',
-    modules: [...BASIC, 'recurring', 'installments', 'purchases'],
+    modules: [...BASIC, 'appointments', 'recurring', 'installments', 'purchases'],
     terms: {},
     itemTypes: ['Service', 'Product'],
     fields: [field('invoice', 'Work order no.', 'text', [], true)],
@@ -183,7 +191,7 @@ export const PRESETS: Record<BusinessType, Preset> = {
     name: 'Shop / retail',
     hint: 'General store, pharmacy, electronics, clothing',
     icon: 'storefront-outline',
-    modules: ['pos', 'invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports', 'dayClose', 'budgets'],
+    modules: ['pos', 'loyalty', 'onlineShop', 'invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports', 'dayClose', 'budgets'],
     terms: { client: 'Customer', clients: 'Customers', item: 'Product', items: 'Products', invoice: 'Sale', invoices: 'Sales' },
     itemTypes: ['Product', 'Service'],
     fields: [field('item', 'Barcode'), field('item', 'Brand')],
@@ -210,7 +218,7 @@ export const PRESETS: Record<BusinessType, Preset> = {
     name: 'Restaurant / food',
     hint: 'Restaurants, cafés, bakeries, caterers',
     icon: 'restaurant-outline',
-    modules: ['pos', 'invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports', 'dayClose', 'budgets'],
+    modules: ['pos', 'restaurant', 'loyalty', 'onlineShop', 'invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports', 'dayClose', 'budgets'],
     terms: { client: 'Customer', clients: 'Customers', item: 'Dish', items: 'Menu', invoice: 'Bill', invoices: 'Bills' },
     itemTypes: ['Dish', 'Drink', 'Deal'],
     fields: [field('invoice', 'Table no.', 'text', [], true), field('invoice', 'Order type', 'select', ['Dine-in', 'Takeaway', 'Delivery'], true)],
@@ -219,7 +227,7 @@ export const PRESETS: Record<BusinessType, Preset> = {
     name: 'Clinic / healthcare',
     hint: 'Clinics, doctors, dentists, labs',
     icon: 'medkit-outline',
-    modules: ['invoices', 'payments', 'installments', 'purchases', 'finance', 'accounts', 'reports'],
+    modules: ['appointments', 'pos', 'invoices', 'payments', 'installments', 'purchases', 'finance', 'accounts', 'reports'],
     terms: { client: 'Patient', clients: 'Patients', item: 'Treatment', items: 'Treatments', invoice: 'Bill', invoices: 'Bills' },
     itemTypes: ['Consultation', 'Procedure', 'Test', 'Medicine'],
     fields: [field('client', 'MR number'), field('client', 'Date of birth', 'date'), field('client', 'Gender', 'select', ['Male', 'Female', 'Other']), field('invoice', 'Doctor', 'text', [], true)],

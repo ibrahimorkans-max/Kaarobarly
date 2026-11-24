@@ -64,6 +64,20 @@ export function postInvoice(db: Db, auth: AuthContext, invoiceId: string) {
   if (!inv) return;
   clearMoves(db, auth.tenantId, 'invoice', invoiceId);
   if (inv.status !== 'final') return;
+  // dishes and bundles: their ingredients leave stock
+  for (const l of JSON.parse(inv.lines) as { serviceId?: string | null; qty: number }[]) {
+    if (!l.serviceId) continue;
+    const r = db.get('select recipe from service where id = ? and tenant_id = ?', l.serviceId, auth.tenantId);
+    let recipe: { itemId: string; qty: number }[] = [];
+    try {
+      recipe = JSON.parse(r?.recipe ?? '[]');
+    } catch {}
+    for (const ing of recipe) {
+      if (!isTracked(db, auth.tenantId, ing.itemId)) continue;
+      const cost = db.get('select cost_price from service where id = ?', ing.itemId)!.cost_price;
+      addMove(db, auth, { itemId: ing.itemId, qty: -Math.round((ing.qty * l.qty) / 1000), unitCost: cost, date: inv.issue_date, kind: 'sale', refType: 'invoice', refId: invoiceId, refNumber: inv.number ?? '', note: 'Recipe' });
+    }
+  }
   for (const [itemId, l] of trackedLines(db, auth.tenantId, JSON.parse(inv.lines))) {
     const item = db.get('select * from service where id = ?', itemId)!;
     const cost = item.cost_price;

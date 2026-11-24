@@ -20,6 +20,7 @@ import * as d from './domain';
 import * as acc from './accounts';
 import { deleteAccount, exportAllData } from './account';
 import { reportFileName, reportWorkbook } from './excel';
+import { shopOrder, shopOrderSchema, shopPage } from './growth';
 import { MiniApp } from './mini';
 import { portalInvoice, portalPage } from './portal';
 import * as ai from './ai';
@@ -53,6 +54,19 @@ export function createApp(db: Db) {
   app.use(express.json({ limit: '6mb' }));
 
   // Public client portal pages (the token in the link is the key); never cached by proxies.
+  // Public online shop: the catalogue page and its order form
+  app.get('/s/:token', (req, res) => {
+    const html = shopPage(db, String(req.params.token));
+    res.setHeader('Cache-Control', 'no-store');
+    res.status(html ? 200 : 404).type('html').send(html ?? '<p style="font-family:sans-serif">This shop is closed right now.</p>');
+  });
+  app.post('/s/:token/order', (req, res, next) => {
+    try {
+      res.status(201).json(shopOrder(db, String(req.params.token), shopOrderSchema.parse(req.body)));
+    } catch (e) {
+      next(e);
+    }
+  });
   app.get('/p/:token', (req, res) => {
     const html = portalPage(db, String(req.params.token));
     res.setHeader('Cache-Control', 'no-store');

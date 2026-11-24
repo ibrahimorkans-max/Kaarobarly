@@ -117,6 +117,9 @@ export const serviceSchema = z.object({
   preferredSupplierId: z.string().nullable().default(null),
   trackBatches: z.boolean().default(false),
   expiryWarnDays: z.number().int().min(0).max(730).default(0),
+  modifiers: z.array(z.object({ name: z.string().trim().min(1).max(60), price: z.number().int().min(0).max(1e12).default(0) })).max(30).default([]),
+  kitchenSection: z.string().trim().max(30).default(''),
+  recipe: z.array(z.object({ itemId: z.string().min(1), name: z.string().max(200).default(''), qty: z.number().int().min(1).max(1e12) })).max(50).default([]),
   costPrice: money.default(0),
   reorderLevel: z.number().int().min(0).max(1e12).default(0),
 });
@@ -280,6 +283,21 @@ export function mapService(r: Row): Service {
     preferredSupplierId: r.preferred_supplier_id ?? null,
     trackBatches: !!r.track_batches,
     expiryWarnDays: r.expiry_warn_days ?? 0,
+    modifiers: (() => {
+      try {
+        return JSON.parse(r.modifiers ?? '[]');
+      } catch {
+        return [];
+      }
+    })(),
+    kitchenSection: r.kitchen_section ?? '',
+    recipe: (() => {
+      try {
+        return JSON.parse(r.recipe ?? '[]');
+      } catch {
+        return [];
+      }
+    })(),
     costPrice: r.cost_price ?? 0,
     reorderLevel: r.reorder_level ?? 0,
     ...(r.on_hand !== undefined ? { onHand: r.on_hand } : {}),
