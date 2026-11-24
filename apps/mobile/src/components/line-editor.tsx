@@ -18,6 +18,9 @@ export interface EditLine {
   /** receipts against an order: which order line, and how much is still to receive */
   orderLine?: number;
   maxQty?: number;
+  /** batch-tracked items: batch number and expiry (YYYY-MM-DD) */
+  batch?: string;
+  expiry?: string;
 }
 
 interface Form {

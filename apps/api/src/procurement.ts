@@ -21,6 +21,8 @@ const lineSchema = z.object({
   unit: text(20),
   unitPrice: z.number().int().min(0).max(1e13).default(0),
   note: text(300),
+  batch: z.string().trim().max(60).default(''),
+  expiry: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expiry must be YYYY-MM-DD'), z.literal('')]).default(''),
 });
 type LineIn = z.infer<typeof lineSchema>;
 
@@ -448,7 +450,7 @@ export function billReceipt(db: Db, auth: AuthContext, id: string, body: z.infer
       supplierId: g.supplierId,
       receiptId: g.id,
       date: body.date ?? g.date,
-      lines: g.lines.map((l) => ({ itemId: l.itemId, name: l.name, qty: l.qty, unit: l.unit, unitPrice: l.unitPrice })),
+      lines: g.lines.map((l) => ({ itemId: l.itemId, name: l.name, qty: l.qty, unit: l.unit, unitPrice: l.unitPrice, batch: '', expiry: '' })),
       custom: {},
     });
     db.run('update goods_receipt set purchase_id = ? where id = ?', p.id, g.id);

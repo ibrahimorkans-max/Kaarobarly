@@ -3,10 +3,10 @@ import { useEffect, useState } from 'react';
 import { Switch, View } from 'react-native';
 import { CustomFieldInputs } from '@/components/custom-fields';
 import { BarcodeScanner } from '@/components/scanner';
-import { Badge, Btn, Card, Chips, Empty, Field, IconBtn, Loader, Row, Screen, SearchBar, Sheet, Txt, fm } from '@/components/ui';
+import { Badge, Btn, Card, Chips, Empty, Field, IconBtn, Loader, Row, Screen, SearchBar, Select, Sheet, Txt, fm } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import { useAuth, useToast } from '@/lib/app-context';
-import { moneyToInput, parseMoney, parsePercent, parseQty, percentToString, qtyToString, type CustomValues, type Service } from '@/lib/shared';
+import { moneyToInput, parseMoney, parsePercent, parseQty, percentToString, qtyToString, type CustomValues, type Service, type Supplier } from '@/lib/shared';
 import { lower, useWorkspace } from '@/lib/workspace';
 
 interface Form {
@@ -28,8 +28,13 @@ interface Form {
   reorder: string;
   nameUr: string;
   mrp: string;
+  max: string;
+  pack: string;
+  supplierId: string | null;
+  batches: boolean;
+  warnDays: string;
 }
-const blank: Form = { name: '', category: '', description: '', price: '', unit: '', tax: '', discount: '', status: 'active', itemType: '', custom: {}, trackStock: false, sku: '', barcode: '', cost: '', reorder: '', nameUr: '', mrp: '' };
+const blank: Form = { name: '', category: '', description: '', price: '', unit: '', tax: '', discount: '', status: 'active', itemType: '', custom: {}, trackStock: false, sku: '', barcode: '', cost: '', reorder: '', nameUr: '', mrp: '', max: '', pack: '', supplierId: null, batches: false, warnDays: '' };
 const EXAMPLES = ['Software Development', 'Consultancy', 'Laboratory Testing', 'Weighbridge Services', 'Transportation', 'Installation', 'Maintenance', 'Technical Support'];
 
 export default function Services() {
@@ -44,6 +49,7 @@ export default function Services() {
   const { t, ws, on } = useWorkspace();
   const [scan, setScan] = useState(false);
   const [kind, setKind] = useState('');
+  const suppliers = useApi<Supplier[]>(on('purchases') ? '/suppliers' : null);
   // opened from a scan of an unknown barcode: start a new stock item with that code
   const params = useLocalSearchParams<{ barcode?: string }>();
   useEffect(() => {
@@ -74,6 +80,11 @@ export default function Services() {
       reorder: s.reorderLevel ? qtyToString(s.reorderLevel) : '',
       nameUr: s.nameUr ?? '',
       mrp: s.mrp ? moneyToInput(s.mrp) : '',
+      max: s.maxLevel ? qtyToString(s.maxLevel) : '',
+      pack: s.packSize ? qtyToString(s.packSize) : '',
+      supplierId: s.preferredSupplierId ?? null,
+      batches: !!s.trackBatches,
+      warnDays: s.expiryWarnDays ? String(s.expiryWarnDays) : '',
     });
 
   async function save() {
@@ -92,7 +103,11 @@ export default function Services() {
       if (reorderLevel === null || reorderLevel < 0) throw new Error('Reorder level is not a valid quantity');
       const mrp = form.mrp.trim() ? parseMoney(form.mrp) : 0;
       if (mrp === null || mrp < 0) throw new Error('MRP is not a valid amount');
-      const body = { nameUr: form.nameUr.trim(), mrp, trackStock: form.trackStock, sku: form.sku.trim(), barcode: form.barcode.trim(), costPrice, reorderLevel, name: form.name.trim(), category: form.category.trim(), description: form.description.trim(), defaultPrice: price, unit: form.unit.trim(), taxRateBp: tax, defaultDiscountBp: discount, status: form.status, itemType: form.itemType, custom: form.custom };
+      const maxLevel = form.max.trim() ? parseQty(form.max) : 0;
+      const packSize = form.pack.trim() ? parseQty(form.pack) : 0;
+      if (maxLevel === null || maxLevel < 0 || packSize === null || packSize < 0) throw new Error('Maximum and pack size must be quantities');
+      const expiryWarnDays = Math.max(0, Math.min(730, Math.floor(Number(form.warnDays) || 0)));
+      const body = { maxLevel, packSize, preferredSupplierId: form.supplierId, trackBatches: form.batches, expiryWarnDays, nameUr: form.nameUr.trim(), mrp, trackStock: form.trackStock, sku: form.sku.trim(), barcode: form.barcode.trim(), costPrice, reorderLevel, name: form.name.trim(), category: form.category.trim(), description: form.description.trim(), defaultPrice: price, unit: form.unit.trim(), taxRateBp: tax, defaultDiscountBp: discount, status: form.status, itemType: form.itemType, custom: form.custom };
       await api(form.id ? `/services/${form.id}` : '/services', { method: form.id ? 'PUT' : 'POST', body });
       toast(form.id ? `${t('item')} updated` : `${t('item')} added`);
       setForm(null);
@@ -174,6 +189,23 @@ export default function Services() {
                 <Field style={{ flex: 1 }} label="Cost price" money placeholder="0" value={form?.cost ?? ''} onChangeText={(v) => set({ cost: v })} />
                 <Field style={{ flex: 1 }} label="Reorder at (qty)" money placeholder="0" value={form?.reorder ?? ''} onChangeText={(v) => set({ reorder: v })} />
               </Row>
+            )}
+            {form?.trackStock && (
+              <>
+                <Row gap={10} style={{ alignItems: 'flex-start' }}>
+                  <Field style={{ flex: 1 }} label="Refill up to (max)" money placeholder="0" value={form?.max ?? ''} onChangeText={(v) => set({ max: v })} />
+                  <Field style={{ flex: 1 }} label="Order in packs of" money placeholder="1" value={form?.pack ?? ''} onChangeText={(v) => set({ pack: v })} />
+                </Row>
+                <Select<Supplier> label="Preferred supplier" value={(suppliers.data ?? []).find((x) => x.id === form?.supplierId)?.name ?? ''} placeholder="Last supplier it came from" items={(suppliers.data ?? []).filter((x) => x.status === 'active')} getKey={(x) => x.id} getLabel={(x) => x.name} onSelect={(x) => set({ supplierId: x.id })} />
+                <Row style={{ justifyContent: 'space-between' }}>
+                  <View style={{ flex: 1 }}>
+                    <Txt style={{ fontWeight: '600' }}>Batches and expiry</Txt>
+                    <Txt v="small">Record batch and expiry when goods arrive; sell the oldest first and block expired stock</Txt>
+                  </View>
+                  <Switch accessibilityLabel="Batches and expiry" value={!!form?.batches} onValueChange={(v) => set({ batches: v })} />
+                </Row>
+                {form?.batches && <Field label="Warn this many days before expiry" keyboardType="number-pad" placeholder="Shop default (30)" value={form?.warnDays ?? ''} onChangeText={(v) => set({ warnDays: v })} />}
+              </>
             )}
           </>
         )}

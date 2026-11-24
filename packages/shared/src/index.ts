@@ -12,3 +12,4 @@ export * from './plans';
 export * from './pos';
 export * from './barcode';
 export * from './labels';
+export * from './stockplus';

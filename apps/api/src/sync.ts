@@ -44,6 +44,7 @@ export const SYNC_TABLES = [
   'pos_cash_move',
   'pos_held',
   'label_template',
+  'stock_alert_config',
   'counter',
 ] as const;
 type SyncTable = (typeof SYNC_TABLES)[number];

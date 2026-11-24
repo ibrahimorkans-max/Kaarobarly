@@ -7,7 +7,7 @@ import { Badge, Btn, Card, Chips, DateField, Field, KV, Loading, Row, Screen, Se
 import { api, useApi } from '@/lib/api';
 import { useAuth, useToast } from '@/lib/app-context';
 import { buyingDocHtml, type Paper } from '@/lib/pdf';
-import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, qtyToString, type BusinessProfile, type GoodsReceipt, type InvoiceTemplate, type PaymentMethod, type Purchase, type PurchaseOrder, type Supplier } from '@/lib/shared';
+import { PAYMENT_METHODS, PAYMENT_METHOD_LABELS, qtyToString, type BusinessProfile, type GoodsReceipt, type InvoiceTemplate, type PaymentMethod, type Purchase, type PurchaseOrder, type Service, type Supplier } from '@/lib/shared';
 
 /** Goods received: what actually arrived. Stock goes up; the bill can be made from it. */
 export default function ReceiptScreen() {
@@ -26,6 +26,9 @@ export default function ReceiptScreen() {
   const [busy, setBusy] = useState('');
   const [bill, setBill] = useState<{ billNo: string; method: PaymentMethod; credit: boolean; dueDate: string } | null>(null);
   const [viewer, setViewer] = useState(false);
+  const items = useApi<Service[]>(isNew ? '/services?limit=100' : null);
+  const batchItems = new Set((items.data ?? []).filter((s) => s.trackBatches).map((s) => s.id));
+  const setLine = (i: number, p: Partial<EditLine>) => setLines((ls) => ls.map((l, k) => (k === i ? { ...l, ...p } : l)));
   const g = existing.data;
   const business = order.data?.business ?? (businesses.data ?? []).find((b) => b.id === g?.businessId) ?? businesses.data?.[0];
   const precision = business?.currencyPrecision ?? 2;
@@ -46,6 +49,8 @@ export default function ReceiptScreen() {
     if (!supplierId) return toast('Choose the supplier', 'error');
     if (!lines.length) return toast('Add at least one item', 'error');
     if (!business) return toast('Add a business profile first', 'error');
+    const noExpiry = lines.find((l) => l.itemId && batchItems.has(l.itemId) && !l.expiry);
+    if (noExpiry && !(await confirm('No expiry date', `${noExpiry.name} tracks batches but has no expiry date. Save anyway?`, 'Save'))) return;
     setBusy('save');
     try {
       const saved = await api<GoodsReceipt>('/goods-receipts', {
@@ -192,6 +197,22 @@ export default function ReceiptScreen() {
         <LineEditor lines={lines} onChange={setLines} precision={precision} currency={business?.currency} fixedItems={fromOrder} />
         {fromOrder && lines.length === 0 && <Txt v="sub">Everything on this order has been received.</Txt>}
       </Section>
+      {lines.some((l) => l.itemId && batchItems.has(l.itemId)) && (
+        <Section title="Batch and expiry">
+          {lines.map((l, i) =>
+            l.itemId && batchItems.has(l.itemId) ? (
+              <Card key={i} style={{ gap: 8 }}>
+                <Txt style={{ fontWeight: '700' }}>
+                  {l.name} · {qtyToString(l.qty)} {l.unit}
+                </Txt>
+                <Field label="Batch / lot no." value={l.batch ?? ''} onChangeText={(v) => setLine(i, { batch: v })} autoCapitalize="characters" />
+                <DateField label="Expiry date" value={l.expiry ?? ''} onChange={(v) => setLine(i, { expiry: v })} />
+              </Card>
+            ) : null,
+          )}
+          <Txt v="small">Sales take the batch that expires first. Expired batches cannot be sold.</Txt>
+        </Section>
+      )}
       <Field label="Notes (optional)" value={notes} onChangeText={setNotes} multiline placeholder="e.g. 2 bags damaged, vehicle no." />
       <Btn icon="checkmark" title="Save · add to stock" onPress={save} loading={busy === 'save'} disabled={!!busy} />
       <View style={{ height: 20 }} />

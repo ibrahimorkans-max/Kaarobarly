@@ -5,7 +5,7 @@ import { BarcodeScanner } from '@/components/scanner';
 import { Badge, Btn, Card, Chips, Empty, IconBtn, Loader, Row, Screen, SearchBar, Txt, fm } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import { useToast } from '@/lib/app-context';
-import { qtyToString, type Service, type StockSummary } from '@/lib/shared';
+import { qtyToString, type Service, type StockAlert, type StockSummary } from '@/lib/shared';
 
 type Filter = 'all' | 'low' | 'out';
 
@@ -16,6 +16,8 @@ export default function Stock() {
   const [q, setQ] = useState('');
   const [filter, setFilter] = useState<Filter>('all');
   const [scan, setScan] = useState(false);
+  const alerts = useApi<StockAlert[]>('/stock/alerts');
+  const urgent = (alerts.data ?? []).filter((a) => a.level !== 'info').length;
   const needle = q.trim().toLowerCase();
   const shown = (data?.items ?? []).filter(
     (i) => (filter === 'all' || (filter === 'out' ? i.onHand <= 0 : i.low && i.onHand > 0)) && (!needle || `${i.name} ${i.sku} ${i.barcode} ${i.category}`.toLowerCase().includes(needle)),
@@ -49,6 +51,12 @@ export default function Stock() {
             </Row>
           </Card>
         )}
+        <Row gap={8}>
+          <Btn style={{ flex: 1 }} small kind="secondary" icon="notifications-outline" title={`Alerts${alerts.data?.length ? ` (${alerts.data.length})` : ''}`} onPress={() => router.push('/stock/alerts')} />
+          <Btn style={{ flex: 1 }} small kind="secondary" icon="document-text-outline" title="Reorder slip" onPress={() => router.push('/stock/reorder')} />
+          <Btn style={{ flex: 1 }} small kind="secondary" icon="hourglass-outline" title="Expiry" onPress={() => router.push('/stock/expiry')} />
+        </Row>
+        {urgent > 0 && <Badge status="overdue" label={`${urgent} need attention`} />}
         <Row>
           <View style={{ flex: 1 }}>
             <SearchBar value={q} onChange={setQ} placeholder="Search name, SKU or barcode" />

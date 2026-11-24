@@ -76,6 +76,9 @@ function Navigation() {
           <Stack.Screen name="pos/shift" options={{ title: 'Shift report' }} />
           <Stack.Screen name="pos/shifts" options={{ title: 'Shifts' }} />
           <Stack.Screen name="pos/returns" options={{ title: 'Returns' }} />
+          <Stack.Screen name="stock/reorder" options={{ title: 'Reorder slip' }} />
+          <Stack.Screen name="stock/expiry" options={{ title: 'Expiry' }} />
+          <Stack.Screen name="stock/alerts" options={{ title: 'Stock alerts' }} />
           <Stack.Screen name="stock/index" options={{ title: 'Stock' }} />
           <Stack.Screen name="stock/[id]" options={{ title: 'Stock' }} />
           <Stack.Screen name="request/[id]" options={{ title: 'Purchase request' }} />

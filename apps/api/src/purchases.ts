@@ -30,6 +30,8 @@ export const purchaseSchema = z.object({
         qty: z.number().int().min(1, 'Quantity must be above zero').max(1e12),
         unit: z.string().trim().max(20).default(''),
         unitPrice: z.number().int().min(0).max(1e13),
+        batch: z.string().trim().max(60).default(''),
+        expiry: z.union([z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Expiry must be YYYY-MM-DD'), z.literal('')]).default(''),
       }),
     )
     .min(1, 'Add at least one item')

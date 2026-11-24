@@ -4,7 +4,7 @@ import { View } from 'react-native';
 import { Btn, Card, Chips, Field, KV, Loader, Row, Screen, Section, Sheet, Txt, fd, fm } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import { useAuth, useTheme, useToast } from '@/lib/app-context';
-import { STOCK_MOVE_LABELS, parseMoney, parseQty, qtyToString, type StockItem, type StockMove } from '@/lib/shared';
+import { STOCK_MOVE_LABELS, parseMoney, parseQty, qtyToString, type StockBatch, type StockItem, type StockMove } from '@/lib/shared';
 
 type Mode = 'adjust' | 'count' | 'opening';
 
@@ -14,7 +14,24 @@ export default function StockItemScreen() {
   const th = useTheme();
   const toast = useToast();
   const { can } = useAuth();
-  const { data, loading, error, reload, refreshing } = useApi<{ item: StockItem; moves: StockMove[] }>(`/stock/${id}`);
+  const { data, loading, error, reload, refreshing } = useApi<{ item: StockItem; moves: StockMove[]; batches?: StockBatch[] }>(`/stock/${id}`);
+  const [off, setOff] = useState<{ batch: StockBatch | null; qty: string; reason: string } | null>(null);
+  async function writeOff() {
+    if (!off || !i) return;
+    const qty = parseQty(off.qty);
+    if (!qty || qty <= 0) return toast('Enter a quantity', 'error');
+    setBusy(true);
+    try {
+      const r = await api<{ loss: number }>('/stock/write-off', { body: { itemId: i.id, batchNo: off.batch?.batchNo ?? '', expiry: off.batch?.expiry ?? '', qty, reason: off.reason } });
+      toast(`Written off · loss ${fm(r.loss)}`);
+      setOff(null);
+      reload();
+    } catch (e: any) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
   const [form, setForm] = useState<{ mode: Mode; qty: string; cost: string; note: string; direction: 'in' | 'out' } | null>(null);
   const [busy, setBusy] = useState(false);
   const i = data?.item;
@@ -70,6 +87,30 @@ export default function StockItemScreen() {
                 <Btn style={{ flex: 1 }} small kind="secondary" icon="create-outline" title="Item" onPress={() => router.push('/services')} />
               </Row>
             )}
+            {(data!.batches ?? []).length > 0 && (
+              <Section title="Batches">
+                {data!.batches!.map((b) => {
+                  const expired = b.daysLeft !== null && b.daysLeft < 0;
+                  return (
+                    <Card key={`${b.batchNo}|${b.expiry}`}>
+                      <Row style={{ justifyContent: 'space-between' }}>
+                        <View style={{ flex: 1 }}>
+                          <Txt style={{ fontWeight: '700' }}>{b.batchNo ? `Batch ${b.batchNo}` : 'No batch no.'}</Txt>
+                          <Txt v="small" color={expired ? th.danger : b.daysLeft !== null && b.daysLeft <= 30 ? th.warn : undefined}>
+                            {b.expiry ? (expired ? `Expired ${fd(b.expiry)}` : `Expires ${fd(b.expiry)} · ${b.daysLeft} days`) : 'No expiry'}
+                          </Txt>
+                        </View>
+                        <View style={{ alignItems: 'flex-end' }}>
+                          <Txt style={{ fontWeight: '800' }}>{qtyToString(b.qty)}</Txt>
+                          {can('stock.manage') && b.qty > 0 && <Btn small kind={expired ? 'danger' : 'ghost'} title="Write off" onPress={() => setOff({ batch: b, qty: qtyToString(b.qty), reason: expired ? 'Expired' : '' })} />}
+                        </View>
+                      </Row>
+                    </Card>
+                  );
+                })}
+              </Section>
+            )}
+            {can('stock.manage') && i.onHand > 0 && <Btn small kind="ghost" icon="trash-outline" title="Write off damaged or lost stock" onPress={() => setOff({ batch: null, qty: '', reason: '' })} />}
             <Section title="Movements">
               {data!.moves.length === 0 ? (
                 <Txt v="sub">No movements yet. Add opening stock with Adjust.</Txt>
@@ -115,6 +156,13 @@ export default function StockItemScreen() {
         {form?.mode === 'opening' && <Field label="Cost per unit (optional)" money value={form.cost} onChangeText={(v) => setForm((f) => f && { ...f, cost: v })} />}
         <Field label="Reason / note" value={form?.note ?? ''} onChangeText={(v) => setForm((f) => f && { ...f, note: v })} placeholder={form?.direction === 'out' ? 'e.g. damaged, used in-house, expired' : ''} />
         <Btn title="Save" onPress={save} loading={busy} />
+      </Sheet>
+      <Sheet visible={!!off} title={off?.batch?.batchNo ? `Write off batch ${off.batch.batchNo}` : 'Write off stock'} onClose={() => setOff(null)}>
+        <Field label="Quantity" money value={off?.qty ?? ''} onChangeText={(v) => setOff((o) => o && { ...o, qty: v })} />
+        <Chips value={off?.reason ?? ''} onChange={(v) => setOff((o) => o && { ...o, reason: v })} options={['Expired', 'Damaged', 'Lost', 'Returned to supplier'].map((r) => ({ value: r, label: r }))} />
+        <Field label="Reason" value={off?.reason ?? ''} onChangeText={(v) => setOff((o) => o && { ...o, reason: v })} />
+        <Txt v="small">The stock leaves at its cost price; the loss shows in the expiry report.</Txt>
+        <Btn kind="danger" title="Write off" onPress={writeOff} loading={busy} />
       </Sheet>
     </Screen>
   );

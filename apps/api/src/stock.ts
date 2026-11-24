@@ -2,6 +2,7 @@ import { z } from 'zod';
 import type { StockItem, StockMove, StockMoveKind, StockSummary } from '../../../packages/shared/src/index';
 import { now, today, uid, type Db, type Row } from './core';
 import { HttpError, type AuthContext } from './perm';
+import { takeFefo } from './stockplus';
 
 /**
  * The stock ledger. Every change to a quantity is a row in stock_move (positive in, negative
@@ -19,6 +20,9 @@ export interface MoveInput {
   refId: string | null;
   refNumber?: string;
   note?: string;
+  batchNo?: string;
+  /** YYYY-MM-DD */
+  expiry?: string;
 }
 
 export function onHand(db: Db, tenantId: string, itemId: string): number {
@@ -31,8 +35,8 @@ export const isTracked = (db: Db, tenantId: string, itemId: string | null | unde
 export function addMove(db: Db, auth: AuthContext, m: MoveInput) {
   if (!m.qty) return;
   db.run(
-    'insert into stock_move (id, tenant_id, item_id, date, qty, unit_cost, kind, ref_type, ref_id, ref_number, note, created_by, created_at) values (?,?,?,?,?,?,?,?,?,?,?,?,?)',
-    uid(), auth.tenantId, m.itemId, m.date, m.qty, m.unitCost ?? 0, m.kind, m.refType, m.refId, m.refNumber ?? '', (m.note ?? '').slice(0, 500), auth.userId, now(),
+    'insert into stock_move (id, tenant_id, item_id, date, qty, unit_cost, kind, ref_type, ref_id, ref_number, note, created_by, created_at, batch_no, expiry) values (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)',
+    uid(), auth.tenantId, m.itemId, m.date, m.qty, m.unitCost ?? 0, m.kind, m.refType, m.refId, m.refNumber ?? '', (m.note ?? '').slice(0, 500), auth.userId, now(), m.batchNo ?? '', m.expiry ?? '',
   );
 }
 
@@ -61,15 +65,27 @@ export function postInvoice(db: Db, auth: AuthContext, invoiceId: string) {
   clearMoves(db, auth.tenantId, 'invoice', invoiceId);
   if (inv.status !== 'final') return;
   for (const [itemId, l] of trackedLines(db, auth.tenantId, JSON.parse(inv.lines))) {
-    const cost = db.get('select cost_price from service where id = ?', itemId)!.cost_price;
+    const item = db.get('select * from service where id = ?', itemId)!;
+    const cost = item.cost_price;
+    // batch-tracked items leave first-expiry-first-out, and expired batches are refused
+    if (item.track_batches) {
+      takeFefo(db, auth, item, l.qty, { date: inv.issue_date, unitCost: cost, refType: 'invoice', refId: invoiceId, refNumber: inv.number ?? '' });
+      continue;
+    }
     addMove(db, auth, { itemId, qty: -l.qty, unitCost: cost, date: inv.issue_date, kind: 'sale', refType: 'invoice', refId: invoiceId, refNumber: inv.number ?? '' });
   }
 }
 
 /** Stock arrives with goods received, or with a purchase bill that was not made from a receipt. */
-export function postIncoming(db: Db, auth: AuthContext, refType: 'receipt' | 'purchase', refId: string, refNumber: string, date: string, lines: { itemId?: string | null; qty: number; unitPrice: number }[]) {
+export function postIncoming(db: Db, auth: AuthContext, refType: 'receipt' | 'purchase', refId: string, refNumber: string, date: string, lines: { itemId?: string | null; qty: number; unitPrice: number; batch?: string; expiry?: string }[]) {
   clearMoves(db, auth.tenantId, refType, refId);
-  for (const [itemId, l] of trackedLines(db, auth.tenantId, lines)) {
+  // one move per batch line, so each batch keeps its own expiry
+  const batched = lines.filter((l) => (l.batch || l.expiry) && isTracked(db, auth.tenantId, l.itemId));
+  for (const l of batched) {
+    addMove(db, auth, { itemId: l.itemId!, qty: l.qty, unitCost: l.unitPrice, date, kind: refType === 'receipt' ? 'receipt' : 'purchase', refType, refId, refNumber, batchNo: l.batch ?? '', expiry: l.expiry ?? '' });
+    if (l.unitPrice > 0) db.run('update service set cost_price = ? where id = ?', l.unitPrice, l.itemId);
+  }
+  for (const [itemId, l] of trackedLines(db, auth.tenantId, lines.filter((x) => !batched.includes(x)))) {
     addMove(db, auth, { itemId, qty: l.qty, unitCost: l.unitPrice, date, kind: refType === 'receipt' ? 'receipt' : 'purchase', refType, refId, refNumber });
     // the latest buying price becomes the item's cost
     if (l.unitPrice > 0) db.run('update service set cost_price = ? where id = ?', l.unitPrice, itemId);

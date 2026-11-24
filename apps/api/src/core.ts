@@ -321,6 +321,9 @@ create table if not exists pos_held (
   id text primary key, tenant_id text not null references tenant, name text not null, client_id text, lines text not null,
   bill_discount integer not null default 0, by_name text not null, created_at text not null
 );
+create table if not exists stock_alert_config (
+  tenant_id text primary key references tenant, config text not null, updated_at text not null
+);
 create table if not exists label_template (
   id text primary key, tenant_id text not null references tenant, name text not null, config text not null, created_at text not null, updated_at text not null
 );
@@ -470,6 +473,13 @@ export const MIGRATIONS: [table: string, column: string, definition: string][] =
   ['service', 'name_ur', "text not null default ''"],
   ['service', 'mrp', 'integer not null default 0'],
   ['service', 'label_pending', 'integer not null default 0'],
+  ['service', 'max_level', 'integer not null default 0'],
+  ['service', 'pack_size', 'integer not null default 0'],
+  ['service', 'preferred_supplier_id', 'text'],
+  ['service', 'track_batches', 'integer not null default 0'],
+  ['service', 'expiry_warn_days', 'integer not null default 0'],
+  ['stock_move', 'batch_no', "text not null default ''"],
+  ['stock_move', 'expiry', "text not null default ''"],
   ['purchase', 'supplier_id', 'text'],
   ['purchase', 'receipt_id', 'text'],
   ['purchase', 'custom', "text not null default '{}'"],

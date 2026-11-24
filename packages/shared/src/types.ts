@@ -284,6 +284,15 @@ export interface Service {
   mrp: number;
   /** the price changed since the labels were printed */
   labelPending: boolean;
+  /** thousandths: refill up to this (0 = not set) */
+  maxLevel: number;
+  /** thousandths: order in multiples of this, e.g. a carton of 24 (0 = singles) */
+  packSize: number;
+  preferredSupplierId: string | null;
+  /** receive with batch numbers and expiry dates; sell first-expiry-first-out */
+  trackBatches: boolean;
+  /** warn this many days before expiry (0 = the shop default) */
+  expiryWarnDays: number;
   /** last purchase price, minor units per 1 */
   costPrice: number;
   /** thousandths; warn when stock falls to this */

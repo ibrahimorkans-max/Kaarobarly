@@ -18,6 +18,7 @@ import * as rules from './rules';
 import { assertLimit } from './saas';
 import * as pos from './pos';
 import * as labels from './labels';
+import * as stockplus from './stockplus';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -163,7 +164,14 @@ export function registerRoutes(app: AppLike, db: Db) {
 
   app.get('/stock', (req: Req, res: Res) => res.json(stock.stockSummary(db, T(req), String(req.query.q ?? '').trim())));
   app.get('/stock/reorder', (req: Req, res: Res) => res.json(proc.reorderList(db, T(req))));
-  app.get('/stock/:id', (req: Req, res: Res) => res.json({ item: stock.stockItem(db, T(req), String(req.params.id)), moves: stock.moves(db, T(req), String(req.params.id)) }));
+  app.get('/stock/reorder-slip', (req: Req, res: Res) => res.json(stockplus.reorderSlip(db, T(req))));
+  app.post('/stock/reorder-slip/orders', need('purchases.manage'), (req: Req, res: Res) => res.status(201).json(stockplus.ordersFromSlip(db, req.auth, stockplus.slipOrdersSchema.parse(req.body))));
+  app.get('/stock/expiry', (req: Req, res: Res) => res.json(stockplus.expiryReport(db, T(req))));
+  app.get('/stock/alerts', (req: Req, res: Res) => res.json(stockplus.stockAlerts(db, T(req))));
+  app.get('/stock/alert-settings', (req: Req, res: Res) => res.json(stockplus.getAlertSettings(db, T(req))));
+  app.put('/stock/alert-settings', need('stock.manage'), (req: Req, res: Res) => res.json(stockplus.saveAlertSettings(db, req.auth, stockplus.settingsSchema.parse(req.body))));
+  app.post('/stock/write-off', need('stock.manage'), (req: Req, res: Res) => res.status(201).json(stockplus.writeOff(db, req.auth, stockplus.writeOffSchema.parse(req.body))));
+  app.get('/stock/:id', (req: Req, res: Res) => res.json({ item: stock.stockItem(db, T(req), String(req.params.id)), moves: stock.moves(db, T(req), String(req.params.id)), batches: stockplus.batchesOf(db, T(req), String(req.params.id)) }));
   app.post('/stock/adjust', need('stock.manage'), (req: Req, res: Res) => res.status(201).json(stock.adjust(db, req.auth, stock.adjustSchema.parse(req.body))));
 
   // ------------------------------------------------------------ suppliers
