@@ -7,6 +7,8 @@ import { Btn, Card, Chips, Empty, Field, IconBtn, Loader, Notice, Row, Screen, S
 import { api, useApi } from '@/lib/api';
 import { useAuth, useTheme, useToast } from '@/lib/app-context';
 import { labelCode, labelPaper, labelsHtml, type LabelJob } from '@/lib/labels';
+import { labelsTspl, labelsZpl } from '@/lib/escpos';
+import { getPrinters, sendBytes, type PrinterSettings } from '@/lib/printer';
 import { BUILT_IN_LABELS, LABEL_SIZES, type BusinessProfile, type GoodsReceipt, type LabelTemplate, type Purchase, type Service } from '@/lib/shared';
 
 type Source = 'items' | 'pending' | 'bill';
@@ -33,6 +35,23 @@ export default function LabelsScreen() {
   const [skip, setSkip] = useState('');
   const [view, setView] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [printers, setPrinters] = useState<PrinterSettings>({});
+  useEffect(() => {
+    void getPrinters().then(setPrinters);
+  }, []);
+  async function btLabels() {
+    const p = printers.label;
+    if (!p || !business) return;
+    setBusy(true);
+    try {
+      await sendBytes(p.address, (p.language === 'zpl' ? labelsZpl : labelsTspl)(design, jobs, business));
+      toast(`${total} label${total === 1 ? '' : 's'} sent to ${p.name}`);
+    } catch (e: any) {
+      toast(e.message, 'error');
+    } finally {
+      setBusy(false);
+    }
+  }
 
   // a bill or receipt: one label per unit received (rounded up for loose goods)
   useEffect(() => {
@@ -115,7 +134,14 @@ export default function LabelsScreen() {
               {total} label{total === 1 ? '' : 's'}
             </Txt>
           </View>
-          <Btn style={{ flex: 1.4 }} icon="print-outline" title="Preview & print" onPress={() => setView(true)} disabled={!total || !business} />
+          {printers.label ? (
+            <>
+              <Btn style={{ flex: 1 }} kind="secondary" icon="eye-outline" title="Preview" onPress={() => setView(true)} disabled={!total || !business} />
+              <Btn style={{ flex: 1.2 }} icon="bluetooth-outline" title="Print" onPress={btLabels} loading={busy} disabled={!total || !business} />
+            </>
+          ) : (
+            <Btn style={{ flex: 1.4 }} icon="print-outline" title="Preview & print" onPress={() => setView(true)} disabled={!total || !business} />
+          )}
         </Row>
       }>
       <Stack.Screen options={{ title: 'Print labels' }} />

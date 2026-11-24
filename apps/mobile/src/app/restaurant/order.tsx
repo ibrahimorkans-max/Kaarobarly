@@ -8,6 +8,8 @@ import { api, useApi } from '@/lib/api';
 import { useAuth, useTheme, useToast } from '@/lib/app-context';
 import type { Paper } from '@/lib/pdf';
 import { kotHtml } from '@/lib/restaurant-docs';
+import { kotEscPos } from '@/lib/escpos';
+import { getPrinters, sendBytes } from '@/lib/printer';
 import { ORDER_KIND_LABELS, qtyToString, type Kot, type OrderLine, type Service, type TableOrder } from '@/lib/shared';
 
 /** One order: add dishes with extras, send new items to the kitchen, then bill it at the counter. */
@@ -67,7 +69,13 @@ export default function OrderScreen() {
     try {
       if (!(await save())) return;
       const k = await api<Kot[]>(`/orders/${id}/kot`, { method: 'POST' });
-      setKots(k);
+      const pr = (await getPrinters()).kitchen;
+      if (pr?.autoPrint) {
+        await sendBytes(pr.address, kotEscPos(k, pr.widthMm)).then(
+          () => toast(`${k.length} ticket${k.length === 1 ? '' : 's'} sent to the kitchen`),
+          (e: any) => (toast(`Kitchen printer: ${e.message}`, 'error'), setKots(k)),
+        );
+      } else setKots(k);
       reload();
     } catch (e: any) {
       toast(e.message, 'error');

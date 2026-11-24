@@ -22,6 +22,7 @@ import { deleteAccount, exportAllData } from './account';
 import { reportFileName, reportWorkbook } from './excel';
 import { shopOrder, shopOrderSchema, shopPage } from './growth';
 import * as saas2 from './saas2';
+import * as push from './push';
 import { MiniApp } from './mini';
 import { portalInvoice, portalPage } from './portal';
 import * as ai from './ai';
@@ -171,7 +172,13 @@ export function createApp(db: Db) {
     });
   });
 
-  db.onAudit = saas2.webhookDispatcher(db);
+  // after each recorded action: webhooks for other software, and push notifications to owners
+  const hooks = saas2.webhookDispatcher(db);
+  const pushes = push.pushDispatcher(db);
+  db.onAudit = (...a) => {
+    hooks(...a);
+    pushes(...a);
+  };
   app.use(saas2.withApiKeys(db, requireAuth));
   const T = (req: Request) => req.auth.tenantId;
 
@@ -322,6 +329,30 @@ export function createApp(db: Db) {
     } catch (e) {
       next(e);
     }
+  });
+  // push notifications: this phone's token, what the business is told about, and the platform's Firebase key
+  app.post('/push/register', (req, res) => res.json(push.registerDevice(db, req.auth, push.registerSchema.parse(req.body))));
+  app.post('/push/unregister', (req, res) => res.json(push.unregisterDevice(db, req.auth, z.object({ token: z.string().min(1) }).parse(req.body).token)));
+  app.get('/push/settings', (req, res) => res.json({ ...push.getPushSettings(db, T(req)), ready: push.fcmStatus(db).ready, devices: db.get('select count(*) as n from push_device where user_id = ?', req.auth.userId)!.n }));
+  app.put('/push/settings', (req, res) => {
+    devOwnerOnly(req);
+    res.json(push.savePushSettings(db, req.auth, push.pushSettingsSchema.parse(req.body)));
+  });
+  app.post('/push/test', async (req, res, next) => {
+    try {
+      const n = await push.notify(db, T(req), { title: 'Kaarobarly notifications work', body: 'You will be told about payments, orders and alerts here.', url: '/' }, [req.auth.userId]);
+      res.json({ sent: n });
+    } catch (e) {
+      next(e);
+    }
+  });
+  app.get('/platform/push', (req, res) => {
+    platformOnly(req);
+    res.json(push.fcmStatus(db));
+  });
+  app.put('/platform/push', (req, res) => {
+    platformOnly(req);
+    res.json(push.saveFcm(db, push.fcmSchema.parse(req.body)));
   });
   app.get('/platform/partners', (req, res) => {
     platformOnly(req);

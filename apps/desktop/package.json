@@ -1,0 +1,52 @@
+{
+  "name": "kaarobarly-desktop",
+  "productName": "Kaarobarly",
+  "version": "2.0.0",
+  "description": "Kaarobarly for Windows: counter, invoices and reports with silent printing",
+  "author": "ZH Trader",
+  "private": true,
+  "main": "main.js",
+  "scripts": {
+    "web": "cd ../mobile && npx expo export -p web --output-dir ../desktop/web --clear",
+    "start": "electron .",
+    "dist": "npm run web && electron-builder --win nsis --x64"
+  },
+  "build": {
+    "appId": "com.zhtrader.kaarobarly.desktop",
+    "productName": "Kaarobarly",
+    "copyright": "ZH Trader",
+    "directories": {
+      "output": "dist",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "web/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        }
+      ],
+      "icon": "build/icon.png",
+      "artifactName": "Kaarobarly-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "shortcutName": "Kaarobarly",
+      "perMachine": false
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.4.1",
+    "electron-builder": "^26.18.0"
+  }
+}

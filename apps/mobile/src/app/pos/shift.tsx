@@ -5,6 +5,8 @@ import { Badge, Btn, Card, Chips, Field, KV, Loader, Row, Screen, Section, Sheet
 import { api, useApi } from '@/lib/api';
 import { useAuth, useToast } from '@/lib/app-context';
 import { zReportHtml, type Paper } from '@/lib/pdf';
+import { zReportEscPos } from '@/lib/escpos';
+import { getPrinters, sendBytes } from '@/lib/printer';
 import { POS_TENDER_LABELS, formatMoney, parseMoney, type BusinessProfile, type PosShift, type ZReport } from '@/lib/shared';
 
 /** A shift's running Z-report: cash in/out, and closing with a blind count of the drawer. */
@@ -139,7 +141,29 @@ export default function ShiftScreen() {
         <Btn icon="lock-closed-outline" title="Close shift" onPress={close} loading={busy} />
         <Txt v="small">A shortage or excess is booked as Cash over/short.</Txt>
       </Sheet>
-      {print && business && <DocumentViewer visible={print} onClose={() => setPrint(false)} title="Z-report" fileName={`z-report-${z?.shift.openedAt.slice(0, 10)}`} build={build} defaultPaper="thermal" />}
+      {print && business && (
+        <DocumentViewer
+          visible={print}
+          onClose={() => setPrint(false)}
+          title="Z-report"
+          fileName={`z-report-${z?.shift.openedAt.slice(0, 10)}`}
+          build={build}
+          defaultPaper="thermal"
+          actions={
+            <Btn
+              small
+              kind="secondary"
+              icon="bluetooth-outline"
+              title="Print on the receipt printer"
+              onPress={async () => {
+                const p = (await getPrinters()).receipt;
+                if (!p || !z) return toast('Choose a receipt printer in Printers first', 'error');
+                await sendBytes(p.address, zReportEscPos(z, business, p.widthMm)).then(() => toast('Sent to the printer'), (e: any) => toast(e.message, 'error'));
+              }}
+            />
+          }
+        />
+      )}
     </Screen>
   );
 }

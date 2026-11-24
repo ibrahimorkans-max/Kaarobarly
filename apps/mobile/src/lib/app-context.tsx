@@ -3,6 +3,7 @@ import { Animated, Platform, StyleSheet, Text, useColorScheme } from 'react-nati
 import { Alert, Platform as RNPlatform } from 'react-native';
 import { api, clearSession, remoteForEngine, restoreSession, setSignedOutHandler, storeSession } from './api';
 import { engine } from './engine';
+import { unregisterPush } from './push';
 import { local } from './storage';
 import { loadWorkspace, resetWorkspace } from './workspace';
 import type { Permission, User } from './shared';
@@ -169,6 +170,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
           const ok = RNPlatform.OS === 'web' ? globalThis.confirm(`Sign out anyway?\n\n${msg}`) : await new Promise<boolean>((r) => Alert.alert('Sign out anyway?', msg, [{ text: 'Cancel', style: 'cancel', onPress: () => r(false) }, { text: 'Sign out', style: 'destructive', onPress: () => r(true) }]));
           if (!ok) return;
         }
+        await unregisterPush();
         await api('/auth/logout', { method: 'POST' }).catch(() => {});
         await clearSession();
         engine.wipe();

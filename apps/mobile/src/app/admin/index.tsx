@@ -75,6 +75,7 @@ export default function AdminHome() {
       </Loader>
       <Section title="Manage">
         <MenuRow icon="business-outline" title="Accounts & plans" sub="Every customer account, usage, upgrade requests" onPress={() => router.push('/admin/accounts')} />
+        <MenuRow icon="notifications-outline" title="Push notifications" sub="Firebase key for sending notifications" onPress={() => router.push('/admin/push')} />
         <MenuRow icon="people-outline" title="Partners" sub="Resellers and the sign-ups they bring" onPress={() => router.push('/admin/partners')} />
         <MenuRow icon="sparkles-outline" title="AI service" sub={o ? (o.ai.ready ? `Ready · ${o.ai.model}` : 'Not set up: customers have no AI') : 'Provider and key for every account'} onPress={() => router.push('/admin/ai')} />
       </Section>

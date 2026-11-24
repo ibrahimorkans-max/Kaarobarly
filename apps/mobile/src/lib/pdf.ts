@@ -825,8 +825,16 @@ function printInBrowser(html: string) {
   document.body.appendChild(frame);
 }
 
-/** Send the document to a printer (AirPrint / Android print service / browser print dialog). */
+/** Send the document to a printer (AirPrint / Android print service / browser print dialog; silent on the Windows app). */
 export async function printDoc(html: string, paper: Paper) {
+  const { desktop, getPrinters } = await import('./printer');
+  if (desktop) {
+    const s = await getPrinters();
+    const printer = paper.startsWith('thermal') ? s.desktopReceipt : paper.startsWith('roll') || paper.startsWith('shelf') ? s.desktopLabel : s.desktopDocument;
+    const size = PAPER_SIZE[paper];
+    await desktop.print(html, { printer, silent: !!printer, widthMicrons: Math.round((size.width / 72) * 25400), heightMicrons: size.pxHeight ? Math.round((size.height / 72) * 25400) : undefined });
+    return;
+  }
   if (Platform.OS === 'web') return printInBrowser(html);
   await Print.printAsync({ html, width: PAPER_SIZE[paper].width, height: PAPER_SIZE[paper].height });
 }

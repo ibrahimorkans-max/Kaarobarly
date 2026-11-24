@@ -4,6 +4,8 @@ import { createApp } from './app';
 import { Db } from './db';
 import { runDue } from './recurring';
 import { ensureAccounts } from './accounts';
+import { dailyDigest } from './push';
+import { stockAlerts } from './stockplus';
 
 const port = Number(process.env.PORT || 4000);
 const host = process.env.HOST || '0.0.0.0';
@@ -21,6 +23,16 @@ const runRecurring = () => {
 ensureAccounts(db);
 runRecurring();
 setInterval(runRecurring, 60 * 60 * 1000).unref();
+
+// the morning push summary, once a day at 9 (server time zone, TZ in .env)
+let digestDay = '';
+setInterval(() => {
+  const d = new Date();
+  const day = d.toISOString().slice(0, 10);
+  if (d.getHours() !== 9 || digestDay === day) return;
+  digestDay = day;
+  void dailyDigest(db, stockAlerts).catch((e) => console.error('Push digest failed:', e));
+}, 10 * 60 * 1000).unref();
 
 const server = createApp(db).listen(port, host, () => console.log(`Kaarobarly API listening on http://${host}:${port} (database: ${dbPath})`));
 

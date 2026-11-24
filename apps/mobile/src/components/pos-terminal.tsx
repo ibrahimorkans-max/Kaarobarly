@@ -11,6 +11,8 @@ import { newKey } from '@/lib/invoice-draft';
 import { posReceiptHtml, type Paper } from '@/lib/pdf';
 import { POS_TENDERS, POS_TENDER_LABELS, computeInvoice, moneyToInput, parseMoney, qtyToString, type AppliedPromo, type BusinessProfile, type Client, type HeldBill, type Invoice, type LoyaltyAccount, type Payment, type PosLine, type PosShift, type PosTender, type Service, type TableOrder, type ZReport } from '@/lib/shared';
 import { useWorkspace } from '@/lib/workspace';
+import { receiptEscPos } from '@/lib/escpos';
+import { getPrinters, sendBytes, type PrinterSettings } from '@/lib/printer';
 
 interface CartLine extends PosLine {
   key: string;
@@ -76,6 +78,19 @@ export function PosTerminal({ orderId }: { orderId?: string } = {}) {
   const [tip, setTip] = useState('');
   const [preview, setPreview] = useState<Preview | null>(null);
   const [order, setOrder] = useState<TableOrder | null>(null);
+  const [printers, setPrinters] = useState<PrinterSettings>({});
+  useEffect(() => {
+    void getPrinters().then(setPrinters);
+  }, []);
+  async function btReceipt(d: { invoice: Invoice; payments: Payment[]; change: number }, drawer: boolean) {
+    const p = printers.receipt;
+    if (!p || !business) return;
+    try {
+      await sendBytes(p.address, receiptEscPos({ ...d, business, cashier: user?.name }, p.widthMm, drawer));
+    } catch (e: any) {
+      toast(`Receipt printer: ${e.message}`, 'error');
+    }
+  }
 
   // paying a table / takeaway / online order: load its lines into the bill
   useEffect(() => {
@@ -268,7 +283,10 @@ export function PosTerminal({ orderId }: { orderId?: string } = {}) {
         },
       });
       const detail = await api<{ payments: Payment[] }>(`/invoices/${r.invoice.id}`).catch(() => ({ payments: [] as Payment[] }));
-      setDone({ invoice: r.invoice, payments: detail.payments, change: r.change });
+      const sale = { invoice: r.invoice, payments: detail.payments, change: r.change };
+      if (printers.receipt?.autoPrint) void btReceipt(sale, printers.receipt.openDrawer && tenders.some((x) => x.tender === 'cash'));
+      else setDone(sale);
+      if (printers.receipt?.autoPrint) toast(`Sale ${r.invoice.number ?? ''} done${r.change ? ` · change ${m(r.change)}` : ''}`);
       if (r.pointsEarned) toast(`${r.pointsEarned} loyalty points earned`);
       setSheet('');
       reset();
@@ -558,7 +576,7 @@ export function PosTerminal({ orderId }: { orderId?: string } = {}) {
       </Sheet>
 
       {done && business && (
-        <DocumentViewer visible={!!done} onClose={() => setDone(null)} title={`Sale ${done.invoice.number ?? ''}${done.change ? ` · change ${m(done.change)}` : ''}`} fileName={`receipt-${done.invoice.number ?? todayStr()}`} build={buildReceipt} template={business.invoiceTemplate} defaultPaper="thermal" note="Tap Print for the receipt printer, or share it on WhatsApp as a PDF." />
+        <DocumentViewer visible={!!done} onClose={() => setDone(null)} title={`Sale ${done.invoice.number ?? ''}${done.change ? ` · change ${m(done.change)}` : ''}`} fileName={`receipt-${done.invoice.number ?? todayStr()}`} build={buildReceipt} template={business.invoiceTemplate} defaultPaper="thermal" note="Tap Print for the receipt printer, or share it on WhatsApp as a PDF." actions={printers.receipt ? <Btn small kind="secondary" icon="bluetooth-outline" title={`Print on ${printers.receipt.name}`} onPress={() => btReceipt(done, false)} /> : undefined} />
       )}
     </Screen>
   );

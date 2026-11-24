@@ -321,6 +321,10 @@ create table if not exists pos_held (
   id text primary key, tenant_id text not null references tenant, name text not null, client_id text, lines text not null,
   bill_discount integer not null default 0, by_name text not null, created_at text not null
 );
+create table if not exists push_device (
+  id text primary key, tenant_id text not null, user_id text not null, token text not null unique, platform text not null default 'android',
+  created_at text not null, last_seen text not null
+);
 create table if not exists api_key (
   id text primary key, tenant_id text not null references tenant, name text not null, prefix text not null, hash text not null unique,
   role text not null, created_by text not null, created_at text not null, last_used_at text, revoked_at text

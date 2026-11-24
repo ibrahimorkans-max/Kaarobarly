@@ -10,10 +10,12 @@ import { Loading } from '@/components/ui';
 import { AppProviders, useAuth, useTheme } from '@/lib/app-context';
 import { LockProvider } from '@/lib/lock';
 import { useLang } from '@/lib/i18n';
+import { usePush } from '@/lib/push';
 
 function Navigation() {
   const { user, ready } = useAuth();
   const t = useTheme();
+  usePush(!!user);
   if (!ready) {
     return (
       <View style={{ flex: 1, backgroundColor: t.bg, justifyContent: 'center' }}>
@@ -71,6 +73,9 @@ function Navigation() {
           <Stack.Screen name="buying" options={{ title: 'Buying' }} />
           <Stack.Screen name="suppliers" options={{ title: 'Suppliers' }} />
           <Stack.Screen name="supplier/[id]" options={{ title: 'Supplier' }} />
+          <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
+          <Stack.Screen name="printers" options={{ title: 'Printers' }} />
+          <Stack.Screen name="admin/push" options={{ title: 'Push notifications' }} />
           <Stack.Screen name="developer" options={{ title: 'Developers' }} />
           <Stack.Screen name="admin/partners" options={{ title: 'Partners' }} />
           <Stack.Screen name="insights" options={{ title: 'Insights' }} />

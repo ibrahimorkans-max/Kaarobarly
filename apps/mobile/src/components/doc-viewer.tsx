@@ -1,5 +1,5 @@
 import * as Sharing from 'expo-sharing';
-import { createElement, useEffect, useMemo, useRef, useState } from 'react';
+import { createElement, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Modal, Platform, ScrollView, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { captureRef } from 'react-native-view-shot';
@@ -69,6 +69,7 @@ export function DocumentViewer({
   defaultPaper = 'A4',
   papers = PAPERS,
   note,
+  actions,
 }: {
   visible: boolean;
   onClose: () => void;
@@ -81,6 +82,8 @@ export function DocumentViewer({
   /** the paper choices offered (receipts and documents by default; labels pass their own) */
   papers?: { value: Paper; label: string }[];
   note?: string;
+  /** extra buttons above the export bar, e.g. print on a Bluetooth printer */
+  actions?: ReactNode;
 }) {
   const t = useTheme();
   const toast = useToast();
@@ -145,6 +148,7 @@ export function DocumentViewer({
           )}
         </ScrollView>
         <View style={{ backgroundColor: t.card, borderTopWidth: 1, borderTopColor: t.border, padding: 12, paddingBottom: Math.max(insets.bottom, 12), gap: 8 }}>
+          {actions}
           <Txt v="label">Export or send as</Txt>
           <Row gap={8}>
             <Btn small style={{ flex: 1 }} icon="document-text-outline" title="PDF" onPress={() => run('pdf', () => sharePdf(html, paper, title))} loading={busy === 'pdf'} disabled={!!busy} />
