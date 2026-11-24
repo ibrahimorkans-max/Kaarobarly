@@ -20,23 +20,27 @@ import {
   type InvoiceTemplate,
   type Payment,
   type PayrollRun,
+  type ZReport,
+  POS_TENDER_LABELS,
   type Payslip,
   type Purchase,
   type Quotation,
   type ReportData,
 } from './shared';
 
-export type Paper = 'A4' | 'A5' | 'thermal';
+export type Paper = 'A4' | 'A5' | 'thermal' | 'thermal58';
 export const PAPERS: { value: Paper; label: string }[] = [
   { value: 'A4', label: 'A4' },
   { value: 'A5', label: 'A5' },
   { value: 'thermal', label: 'Thermal 80mm' },
+  { value: 'thermal58', label: 'Thermal 58mm' },
 ];
 /** Page size in PostScript points (for PDF) and CSS pixels (for on-screen preview and images). */
 export const PAPER_SIZE: Record<Paper, { width: number; height: number; css: string; px: number; pxHeight: number; mm: number }> = {
   A4: { width: 595, height: 842, css: 'A4', px: 794, pxHeight: 1123, mm: 296 },
   A5: { width: 420, height: 595, css: 'A5', px: 559, pxHeight: 794, mm: 209 },
   thermal: { width: 226, height: 800, css: '80mm auto', px: 302, pxHeight: 0, mm: 0 },
+  thermal58: { width: 164, height: 800, css: '58mm auto', px: 219, pxHeight: 0, mm: 0 },
 };
 
 /** Default accent and dark colour of each design. */
@@ -130,7 +134,7 @@ table { width: 100%; border-collapse: collapse; }
 
 function shell(title: string, paper: Paper, css: string, body: string, vars = ''): string {
   const s = PAPER_SIZE[paper];
-  const thermal = paper === 'thermal';
+  const thermal = paper === 'thermal' || paper === 'thermal58';
   return `<!doctype html><html><head><meta charset="utf-8"/><meta name="viewport" content="width=${s.px}"/><title>${esc(title)}</title>
 <style>
 @page { size: ${s.css}; margin: ${thermal ? '3mm' : '0'}; }
@@ -473,7 +477,7 @@ function colorVars(template: InvoiceTemplate, accentOverride: string): string {
 
 export function invoiceHtml(d: InvoiceDoc, paper: Paper = 'A4', template?: InvoiceTemplate): string {
   // narrow receipt rolls always use the plain layout
-  const chosen: InvoiceTemplate = paper === 'thermal' ? 'classic' : (template ?? d.business.invoiceTemplate ?? 'amber');
+  const chosen: InvoiceTemplate = paper === 'thermal' || paper === 'thermal58' ? 'classic' : (template ?? d.business.invoiceTemplate ?? 'amber');
   const [css, body] = DESIGNS[chosen](parts(d));
   const html = shell(`${d.docType === 'quotation' ? 'Quotation' : d.docType === 'purchase' ? 'Purchase' : 'Invoice'} ${d.invoice.number ?? 'Draft'}`, paper, css + QR_CSS, body, colorVars(chosen, chosen === (d.business.invoiceTemplate ?? 'amber') ? d.business.accentColor : ''));
   return localize(html, d.business.docLanguage ?? 'en');
@@ -649,6 +653,55 @@ export function payslipHtml(s: Payslip, run: PayrollRun, b: BusinessProfile, pap
     ${s.notes ? `<div class="muted" style="margin-top:10px">${nl(s.notes)}</div>` : ''}
     <div class="two" style="margin-top:40px"><div class="muted">Employee signature<div style="border-bottom:1px solid #999;height:36px"></div></div><div class="muted">${run.status === 'paid' && run.paidDate ? `Paid on ${fd(run.paidDate)}` : 'Authorized signature'}<div style="border-bottom:1px solid #999;height:36px"></div></div></div></div>`;
   return localize(shell(`Payslip ${s.employeeName} ${run.month}`, paper, css, body, colorVars('classic', b.accentColor)), b.docLanguage ?? 'en');
+}
+
+/** A compact counter receipt for thermal printers (80 or 58 mm), with a QR of the receipt number. */
+export function posReceiptHtml(d: { invoice: Invoice; payments: Payment[]; business: BusinessProfile; change?: number; cashier?: string }, paper: Paper = 'thermal'): string {
+  const { invoice: i, business: b } = d;
+  const m = (v: number) => formatMoney(v, i.currency, i.currencyPrecision);
+  const narrow = paper === 'thermal58';
+  const rows = i.lines
+    .map((l) => `<tr><td colspan="2"><b>${esc(l.name)}</b></td></tr><tr><td class="muted">${qtyToString(l.qty)} × ${m(l.unitPrice)}${l.discountValue ? ' (disc.)' : ''}</td><td class="r">${m(l.lineTotal ?? 0)}</td></tr>`)
+    .join('');
+  const t = (k: string, v: string, cls = '') => `<tr class="${cls}"><td>${k}</td><td class="r">${v}</td></tr>`;
+  const paid = d.payments.filter((p) => p.verificationStatus !== 'rejected');
+  const body = `<div class="page">
+    <div class="c">${b.logo ? `<img class="logo" src="${esc(b.logo)}" alt="" style="margin:0 auto 4px"/>` : ''}<div class="shop">${esc(b.tradingName || b.legalName)}</div>
+      <div class="muted">${[b.address, b.phone].filter(Boolean).map(esc).join('<br/>')}</div>${b.ntn ? `<div class="muted">NTN ${esc(b.ntn)}</div>` : ''}</div>
+    <div class="rule"></div>
+    <table>${t('Receipt', esc(i.number ?? ''))}${t('Date', `${fd(i.issueDate)} ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })}`)}${i.clientName && i.clientName !== 'Walk-in customer' ? t('Customer', esc(i.clientName)) : ''}${d.cashier ? t('Cashier', esc(d.cashier)) : ''}</table>
+    <div class="rule"></div><table>${rows}</table><div class="rule"></div>
+    <table>${t('Sub total', m(i.subtotal))}${i.itemDiscounts + i.overallDiscount ? t('Discount', `− ${m(i.itemDiscounts + i.overallDiscount)}`) : ''}${i.taxAmount ? t('Tax', m(i.taxAmount)) : ''}${t('TOTAL', m(i.total), 'big')}
+    ${paid.map((p) => t(PAYMENT_METHOD_LABELS[p.method], m(p.allocations.find((a) => a.invoiceId === i.id)?.amount ?? p.amount))).join('')}
+    ${d.change ? t('Change', m(d.change)) : ''}${i.balance > 0 ? t('Udhaar (due)', m(i.balance), 'big') : ''}</table>
+    <div class="rule"></div>
+    <div class="c">${qrSvg(i.number ?? i.id, narrow ? 90 : 110)}<div class="muted">Show this code for returns</div>
+    <div style="margin-top:6px">${b.invoiceFooter ? nl(b.invoiceFooter) : 'Thank you for shopping with us!'}</div></div></div>`;
+  const css = `.page{font-family:'Courier New',monospace;font-size:${narrow ? 10 : 11.5}px}.c{text-align:center}.shop{font-size:1.35em;font-weight:800}
+    .rule{border-top:1px dashed #000;margin:6px 0}table{width:100%;border-collapse:collapse}td{padding:1px 0;vertical-align:top}.r{text-align:right;white-space:nowrap}
+    .big td{font-weight:800;font-size:1.15em}.muted{color:#333;font-size:.92em}.logo{max-height:46px;display:block}svg{display:block;margin:4px auto}`;
+  return localize(shell(`Receipt ${i.number ?? ''}`, paper, css, body, ''), b.docLanguage ?? 'en');
+}
+
+const localDt = (iso: string) => {
+  const d = new Date(iso);
+  const p = (n: number) => String(n).padStart(2, '0');
+  return isNaN(d.getTime()) ? iso : `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+};
+
+/** Shift summary (Z-report) for a thermal printer. */
+export function zReportHtml(z: ZReport, b: BusinessProfile, paper: Paper = 'thermal'): string {
+  const m = (v: number) => formatMoney(v, z.currency, z.currencyPrecision);
+  const t = (k: string, v: string, cls = '') => `<tr class="${cls}"><td>${k}</td><td class="r">${v}</td></tr>`;
+  const s = z.shift;
+  const body = `<div class="page"><div class="c"><b>${esc(b.tradingName || b.legalName)}</b><div>Z-REPORT</div></div><div class="rule"></div>
+    <table>${t('Cashier', esc(s.openedByName))}${t('Opened', esc(localDt(s.openedAt)))}${s.closedAt ? t('Closed', esc(localDt(s.closedAt))) : ''}</table><div class="rule"></div>
+    <table>${t('Sales', String(z.sales))}${t('Sales total', m(z.salesTotal), 'big')}${z.byTender.map((x) => t(POS_TENDER_LABELS[x.tender], m(x.amount))).join('')}
+    ${t('Discounts', m(z.discounts))}${t('Tax', m(z.tax))}${t(`Returns (${z.returns})`, m(z.returnsTotal))}</table><div class="rule"></div>
+    <table>${t('Opening float', m(s.openingFloat))}${t('Cash in', m(z.cashIn))}${t('Cash out', m(z.cashOut))}${t('Cash refunds', m(z.cashRefunds))}${t('Expected in drawer', m(z.expectedCash), 'big')}
+    ${s.counted !== null ? t('Counted', m(s.counted)) + t('Difference', m(s.difference ?? 0), 'big') : ''}</table></div>`;
+  const css = '.page{font-family:"Courier New",monospace;font-size:11px}.c{text-align:center}.rule{border-top:1px dashed #000;margin:6px 0}table{width:100%;border-collapse:collapse}.r{text-align:right}.big td{font-weight:800}';
+  return shell(`Z-report ${s.openedAt.slice(0, 10)}`, paper, css, body, '');
 }
 
 /** Every purchase bill in a period on one sheet, with a grand total. */

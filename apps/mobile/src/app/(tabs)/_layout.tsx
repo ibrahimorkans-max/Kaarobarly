@@ -16,6 +16,7 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: th.bg },
       }}>
       <Tabs.Screen name="index" options={{ title: 'Home' }} />
+      <Tabs.Screen name="pos" options={{ title: 'POS', hidden: !on('pos') } as any} />
       <Tabs.Screen name="invoices" options={{ title: t('invoices') }} />
       <Tabs.Screen name="create" options={{ title: `Create ${t('invoice')}` }} />
       {/* `hidden` is read by StyledTabBar: a switched-off module leaves the bar */}

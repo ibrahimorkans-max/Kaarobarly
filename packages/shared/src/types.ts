@@ -38,6 +38,8 @@ export const PERMISSIONS = [
   'payroll.manage',
   'approvals.decide',
   'expenses.claim',
+  'pos.sell',
+  'pos.manage',
 ] as const;
 export type Permission = (typeof PERMISSIONS)[number];
 
@@ -47,8 +49,8 @@ export type Role = (typeof ROLES)[number];
 export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   owner: PERMISSIONS,
   manager: PERMISSIONS.filter((p) => p !== 'businesses.manage' && p !== 'users.manage'),
-  accountant: ['invoices.view', 'invoices.create', 'invoices.edit_draft', 'invoices.finalize', 'payments.record', 'payments.verify', 'reports.view', 'finance.manage', 'clients.manage', 'purchases.request', 'purchases.manage', 'stock.manage', 'payroll.manage', 'expenses.claim'],
-  staff: ['invoices.view', 'invoices.create', 'invoices.edit_draft', 'payments.record', 'clients.manage', 'purchases.request', 'expenses.claim'],
+  accountant: ['invoices.view', 'invoices.create', 'invoices.edit_draft', 'invoices.finalize', 'payments.record', 'payments.verify', 'reports.view', 'finance.manage', 'clients.manage', 'purchases.request', 'purchases.manage', 'stock.manage', 'payroll.manage', 'expenses.claim', 'pos.sell', 'pos.manage'],
+  staff: ['invoices.view', 'invoices.create', 'invoices.edit_draft', 'payments.record', 'clients.manage', 'purchases.request', 'expenses.claim', 'pos.sell'],
   viewer: ['invoices.view', 'expenses.claim'],
 };
 

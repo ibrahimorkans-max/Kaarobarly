@@ -40,6 +40,9 @@ export const SYNC_TABLES = [
   'expense_claim',
   'automation_rule',
   'alert_dismissal',
+  'pos_shift',
+  'pos_cash_move',
+  'pos_held',
   'counter',
 ] as const;
 type SyncTable = (typeof SYNC_TABLES)[number];

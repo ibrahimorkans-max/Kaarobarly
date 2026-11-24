@@ -307,6 +307,20 @@ create table if not exists plan_request (
 create table if not exists platform_setting (
   key text primary key, value text not null, updated_at text not null
 );
+create table if not exists pos_shift (
+  id text primary key, tenant_id text not null references tenant, business_id text not null references business, account_id text not null,
+  opened_by text not null, opened_by_name text not null, opened_at text not null, opening_float integer not null default 0,
+  status text not null check (status in ('open','closed')), closed_at text, closed_by_name text not null default '',
+  counted integer, expected integer, difference integer, notes text not null default ''
+);
+create table if not exists pos_cash_move (
+  id text primary key, tenant_id text not null references tenant, shift_id text not null references pos_shift,
+  kind text not null check (kind in ('in','out')), amount integer not null, reason text not null, by_name text not null, at text not null
+);
+create table if not exists pos_held (
+  id text primary key, tenant_id text not null references tenant, name text not null, client_id text, lines text not null,
+  bill_discount integer not null default 0, by_name text not null, created_at text not null
+);
 create table if not exists alert_dismissal (
   tenant_id text not null references tenant, key text not null, dismissed_at text not null, primary key (tenant_id, key)
 );
@@ -464,6 +478,10 @@ export const MIGRATIONS: [table: string, column: string, definition: string][] =
   ['tenant', 'plan', "text not null default 'legacy'"],
   ['tenant', 'trial_ends_at', 'text'],
   ['tenant', 'paid_until', 'text'],
+  ['invoice', 'pos_shift_id', 'text'],
+  ['payment', 'pos_shift_id', 'text'],
+  ['credit_note', 'pos_shift_id', 'text'],
+  ['client_refund', 'pos_shift_id', 'text'],
 ];
 
 export abstract class BaseDb {

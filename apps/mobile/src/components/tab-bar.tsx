@@ -11,6 +11,7 @@ import { GRADIENT, usePressScale, type IconName } from './ui';
 /** Icons for each tab: [outline, filled]. */
 const ICONS: Record<string, [IconName, IconName]> = {
   index: ['grid-outline', 'grid'],
+  pos: ['calculator-outline', 'calculator'],
   invoices: ['document-text-outline', 'document-text'],
   purchases: ['bag-handle-outline', 'bag-handle'],
   finance: ['stats-chart-outline', 'stats-chart'],

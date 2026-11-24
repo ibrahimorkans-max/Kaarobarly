@@ -7,6 +7,7 @@
 // ---------------------------------------------------------------- modules
 
 export const MODULES = [
+  'pos',
   'invoices',
   'quotations',
   'recurring',
@@ -28,6 +29,7 @@ export const MODULES = [
 export type ModuleKey = (typeof MODULES)[number];
 
 export const MODULE_INFO: Record<ModuleKey, { name: string; hint: string; icon: string; core?: boolean }> = {
+  pos: { name: 'Point of sale (POS)', hint: 'Fast counter sales with scanning, shifts, receipts and returns', icon: 'calculator-outline' },
   invoices: { name: 'Invoices', hint: 'Bills you send to customers', icon: 'document-text-outline', core: true },
   quotations: { name: 'Quotations', hint: 'Price quotes you can turn into invoices', icon: 'document-outline' },
   recurring: { name: 'Recurring invoices', hint: 'Bill the same customer every week, month or year', icon: 'repeat-outline' },
@@ -181,7 +183,7 @@ export const PRESETS: Record<BusinessType, Preset> = {
     name: 'Shop / retail',
     hint: 'General store, pharmacy, electronics, clothing',
     icon: 'storefront-outline',
-    modules: ['invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports', 'dayClose', 'budgets'],
+    modules: ['pos', 'invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports', 'dayClose', 'budgets'],
     terms: { client: 'Customer', clients: 'Customers', item: 'Product', items: 'Products', invoice: 'Sale', invoices: 'Sales' },
     itemTypes: ['Product', 'Service'],
     fields: [field('item', 'Barcode'), field('item', 'Brand')],
@@ -208,7 +210,7 @@ export const PRESETS: Record<BusinessType, Preset> = {
     name: 'Restaurant / food',
     hint: 'Restaurants, cafés, bakeries, caterers',
     icon: 'restaurant-outline',
-    modules: ['invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports', 'dayClose', 'budgets'],
+    modules: ['pos', 'invoices', 'payments', 'purchases', 'inventory', 'finance', 'accounts', 'reports', 'dayClose', 'budgets'],
     terms: { client: 'Customer', clients: 'Customers', item: 'Dish', items: 'Menu', invoice: 'Bill', invoices: 'Bills' },
     itemTypes: ['Dish', 'Drink', 'Deal'],
     fields: [field('invoice', 'Table no.', 'text', [], true), field('invoice', 'Order type', 'select', ['Dine-in', 'Takeaway', 'Delivery'], true)],
@@ -324,7 +326,8 @@ export function resolveWorkspace(raw: unknown): Workspace {
   return {
     configured: !!r.configured,
     businessType: BUSINESS_TYPES.includes(r.businessType as BusinessType) ? (r.businessType as BusinessType) : base.businessType,
-    modules: { ...base.modules, ...(r.modules ?? {}), invoices: true, payments: true },
+    // a module added after the shop was set up starts as its business type's preset has it
+    modules: { ...(BUSINESS_TYPES.includes(r.businessType as BusinessType) ? workspaceFromPreset(r.businessType as BusinessType).modules : base.modules), ...(r.modules ?? {}), invoices: true, payments: true },
     terms: { ...base.terms, ...Object.fromEntries(Object.entries(r.terms ?? {}).filter(([, v]) => typeof v === 'string' && v.trim())) },
     customFields: Array.isArray(r.customFields) ? r.customFields : [],
     itemTypes: Array.isArray(r.itemTypes) && r.itemTypes.length ? r.itemTypes : base.itemTypes,

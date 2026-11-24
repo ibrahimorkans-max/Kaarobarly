@@ -1,6 +1,6 @@
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { useRef, useState } from 'react';
-import { Modal, View } from 'react-native';
+import { Modal, Vibration, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/lib/app-context';
 import { Btn, Field, IconBtn, Row, Txt } from './ui';
@@ -8,16 +8,27 @@ import { Btn, Field, IconBtn, Row, Txt } from './ui';
 /**
  * Full-screen barcode scanner. Calls onCode once per scan and closes. Typing the code works too
  * (for a USB / Bluetooth scanner that types like a keyboard, or when the camera is not allowed).
+ * `continuous` keeps the camera open for the next item (the same code is ignored for 1.5 s).
  */
-export function BarcodeScanner({ visible, onCode, onClose, title = 'Scan barcode' }: { visible: boolean; onCode: (code: string) => void; onClose: () => void; title?: string }) {
+export function BarcodeScanner({ visible, onCode, onClose, title = 'Scan barcode', continuous, status }: { visible: boolean; onCode: (code: string) => void; onClose: () => void; title?: string; continuous?: boolean; status?: string }) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const [permission, request] = useCameraPermissions();
   const [typed, setTyped] = useState('');
   const done = useRef(false);
 
+  const last = useRef({ code: '', at: 0 });
   const finish = (code: string) => {
     if (done.current || !code.trim()) return;
+    if (continuous) {
+      const c = code.trim();
+      if (c === last.current.code && Date.now() - last.current.at < 1500) return;
+      last.current = { code: c, at: Date.now() };
+      Vibration.vibrate(40);
+      setTyped('');
+      onCode(c);
+      return;
+    }
     done.current = true;
     setTyped('');
     onCode(code.trim());
@@ -60,6 +71,8 @@ export function BarcodeScanner({ visible, onCode, onClose, title = 'Scan barcode
             <Field style={{ flex: 1 }} label="Or type the code" value={typed} onChangeText={setTyped} autoCapitalize="none" autoFocus={!permission?.granted} onSubmitEditing={() => finish(typed)} returnKeyType="done" />
             <Btn small title="Use" onPress={() => finish(typed)} disabled={!typed.trim()} />
           </Row>
+          {!!status && <Txt style={{ fontWeight: '700', textAlign: 'center' }}>{status}</Txt>}
+          {continuous && <Btn title="Done scanning" onPress={onClose} />}
         </View>
       </View>
     </Modal>

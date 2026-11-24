@@ -52,6 +52,15 @@ export const addMonths = (date: string, months: number) => {
   return d.toISOString().slice(0, 10);
 };
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** A stored UTC timestamp as this phone's local date and time: 2026-11-24 08:11. */
+export const dt = (iso: string, timeOnly = false) => {
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return iso;
+  const p = (n: number) => String(n).padStart(2, '0');
+  const time = `${p(d.getHours())}:${p(d.getMinutes())}`;
+  return timeOnly ? time : `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())} ${time}`;
+};
+
 export const fd = (date: string) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(date ?? '');
   return m ? `${Number(m[3])} ${MONTHS[Number(m[2]) - 1]} ${m[1]}` : '';

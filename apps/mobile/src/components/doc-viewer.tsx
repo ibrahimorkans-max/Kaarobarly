@@ -126,7 +126,7 @@ export function DocumentViewer({
           <IconBtn icon="close" label="Close preview" onPress={onClose} />
         </Row>
         <View style={{ paddingHorizontal: 16, gap: 8, paddingBottom: 10 }}>
-          {template && paper !== 'thermal' && (
+          {template && !paper.startsWith('thermal') && (
             <Chips value={design} onChange={setDesign} options={INVOICE_TEMPLATES.map((x) => ({ value: x, label: INVOICE_TEMPLATE_LABELS[x] }))} />
           )}
           <Chips value={paper} onChange={setPaper} options={PAPERS} />

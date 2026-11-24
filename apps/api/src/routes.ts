@@ -16,6 +16,7 @@ import * as col from './collections';
 import * as ppl from './people';
 import * as rules from './rules';
 import { assertLimit } from './saas';
+import * as pos from './pos';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -324,6 +325,27 @@ export function registerRoutes(app: AppLike, db: Db) {
   app.get('/alerts', (req: Req, res: Res) => res.json(rules.alerts(db, T(req))));
   app.post('/alerts/dismiss', (req: Req, res: Res) => {
     rules.dismissAlert(db, req.auth, z.object({ key: z.string().min(1).max(300) }).parse(req.body).key);
+    res.json({ ok: true });
+  });
+
+  // ------------------------------------------------------------ point of sale
+
+  app.get('/pos/shift', need('pos.sell'), (req: Req, res: Res) => {
+    const s = pos.myShift(db, req.auth);
+    res.json({ shift: s, report: s ? pos.zReport(db, T(req), s.id) : null });
+  });
+  app.get('/pos/shifts', need('pos.manage'), (req: Req, res: Res) => res.json(pos.listShifts(db, T(req))));
+  app.get('/pos/shifts/:id', need('pos.sell'), (req: Req, res: Res) => res.json(pos.zReport(db, T(req), String(req.params.id))));
+  app.post('/pos/shifts', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(pos.openShift(db, req.auth, pos.openSchema.parse(req.body))));
+  app.post('/pos/shifts/:id/cash', need('pos.sell'), (req: Req, res: Res) => res.json(pos.cashMove(db, req.auth, String(req.params.id), pos.cashMoveSchema.parse(req.body))));
+  app.post('/pos/shifts/:id/close', need('pos.sell'), (req: Req, res: Res) => res.json(pos.closeShift(db, req.auth, String(req.params.id), pos.closeSchema.parse(req.body))));
+  app.post('/pos/sales', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(pos.sell(db, req.auth, pos.saleSchema.parse(req.body))));
+  app.get('/pos/sales/find', need('pos.sell'), (req: Req, res: Res) => res.json(pos.findSale(db, T(req), String(req.query.number ?? ''))));
+  app.post('/pos/returns', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(pos.returnSale(db, req.auth, pos.returnSchema.parse(req.body))));
+  app.get('/pos/held', need('pos.sell'), (req: Req, res: Res) => res.json(pos.listHeld(db, T(req))));
+  app.post('/pos/held', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(pos.holdBill(db, req.auth, pos.holdSchema.parse(req.body))));
+  app.delete('/pos/held/:id', need('pos.sell'), (req: Req, res: Res) => {
+    pos.dropHeld(db, req.auth, String(req.params.id));
     res.json({ ok: true });
   });
 
