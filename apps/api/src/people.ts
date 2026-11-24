@@ -5,6 +5,7 @@ import { defaultAccount, ensureAccounts, ownedAccount } from './accounts';
 import { now, today, uid, type Db, type Row } from './core';
 import { assertDayOpen } from './daylock';
 import { INVOICE_SELECT, ownedRow } from './domain';
+import { commissionFor, payableDays } from './people2';
 import { HttpError, can, type AuthContext } from './perm';
 
 const isoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD');
@@ -32,6 +33,11 @@ export const employeeSchema = z.object({
   bankAccount: text(200),
   status: z.enum(['active', 'left']).default('active'),
   notes: text(2000),
+  /** their login, for attendance check-in and sales credit */
+  userId: z.string().nullable().default(null),
+  /** monthly sales target and commission on sales */
+  salesTarget: minor.default(0),
+  commissionBp: z.number().int().min(0).max(5000).default(0),
 });
 
 /** Salary advances still to recover: active loans "lent" to this employee. */
@@ -56,6 +62,9 @@ function mapEmployee(db: Db, r: Row): Employee {
     status: r.status,
     notes: r.notes,
     advanceDue: advanceDue(db, r.tenant_id, r.id),
+    userId: r.user_id ?? null,
+    salesTarget: r.sales_target ?? 0,
+    commissionBp: r.commission_bp ?? 0,
     createdAt: r.created_at,
   };
 }
@@ -84,6 +93,8 @@ export function saveEmployee(db: Db, auth: AuthContext, body: z.infer<typeof emp
       id, auth.tenantId, body.businessId, body.name, body.phone, body.cnic, body.designation, body.joinDate, body.payType, body.rate, body.bankAccount, body.status, body.notes, now(),
     );
   }
+  if (body.userId && db.get('select 1 from employee where tenant_id = ? and user_id = ? and id <> ?', auth.tenantId, body.userId, id)) throw new HttpError(409, 'That login is already linked to another employee.');
+  db.run('update employee set user_id = ?, sales_target = ?, commission_bp = ? where id = ?', body.userId, body.salesTarget, body.commissionBp, id);
   db.audit(auth.tenantId, auth.userId, 'employee.save', 'employee', id, { name: body.name });
   return getEmployee(db, auth.tenantId, id);
 }
@@ -185,16 +196,18 @@ export function createRun(db: Db, auth: AuthContext, businessId: string, month: 
     db.run("insert into payroll_run (id, tenant_id, business_id, month, status, created_by_name, created_at) values (?,?,?,?,'draft',?,?)", id, auth.tenantId, businessId, month, auth.name, now());
     const dim = daysInMonth(month);
     for (const e of employees) {
-      const days = e.pay_type === 'monthly' ? dim : 0;
+      // attendance decides the days when it was kept this month; commission is paid as a bonus
+      const days = payableDays(db, auth.tenantId, e.id, month, e.pay_type, dim) ?? (e.pay_type === 'monthly' ? dim : 0);
+      const commission = e.commission_bp ? commissionFor(db, auth.tenantId, e.id, month) : 0;
       // recover the agreed monthly amount of any advance, never more than is still due
       const loans = db.all("select l.id, l.installment_amount from loan l where l.employee_id = ? and l.status = 'active'", e.id);
       const due = advanceDue(db, auth.tenantId, e.id);
       const planned = loans.reduce((s, l) => s + (l.installment_amount || 0), 0);
       const recovery = Math.min(due, planned || 0);
-      const { earned, net } = computeSlip({ payType: e.pay_type, rate: e.rate, days, daysInMonth: dim, overtime: 0, allowances: 0, bonus: 0, deductions: 0, tax: 0, advanceRecovery: recovery });
+      const { earned, net } = computeSlip({ payType: e.pay_type, rate: e.rate, days, daysInMonth: dim, overtime: 0, allowances: 0, bonus: commission, deductions: 0, tax: 0, advanceRecovery: recovery });
       db.run(
-        'insert into payslip (id, tenant_id, run_id, employee_id, employee_name, designation, pay_type, rate, days, days_in_month, earned, overtime, allowances, bonus, deductions, tax, advance_recovery, net, notes) values (?,?,?,?,?,?,?,?,?,?,?,0,0,0,0,0,?,?,\'\')',
-        uid(), auth.tenantId, id, e.id, e.name, e.designation, e.pay_type, e.rate, days, dim, earned, recovery, net,
+        'insert into payslip (id, tenant_id, run_id, employee_id, employee_name, designation, pay_type, rate, days, days_in_month, earned, overtime, allowances, bonus, deductions, tax, advance_recovery, net, notes) values (?,?,?,?,?,?,?,?,?,?,?,0,0,?,0,0,?,?,?)',
+        uid(), auth.tenantId, id, e.id, e.name, e.designation, e.pay_type, e.rate, days, dim, earned, commission, recovery, net, commission ? 'Bonus is sales commission' : '',
       );
     }
     db.audit(auth.tenantId, auth.userId, 'payroll.create', 'payroll_run', id, { month });

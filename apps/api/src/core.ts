@@ -321,6 +321,11 @@ create table if not exists pos_held (
   id text primary key, tenant_id text not null references tenant, name text not null, client_id text, lines text not null,
   bill_discount integer not null default 0, by_name text not null, created_at text not null
 );
+create table if not exists attendance (
+  id text primary key, tenant_id text not null references tenant, employee_id text not null, date text not null,
+  status text not null default 'present', check_in text not null default '', check_out text not null default '', method text not null default 'manual',
+  late integer not null default 0, note text not null default '', created_at text not null, unique (tenant_id, employee_id, date)
+);
 create table if not exists recon_match (
   id text primary key, tenant_id text not null references tenant, account_id text not null, ref_key text not null, statement_date text not null,
   description text not null default '', amount integer not null, created_by text not null, created_at text not null, unique (tenant_id, account_id, ref_key)
@@ -520,6 +525,9 @@ export const MIGRATIONS: [table: string, column: string, definition: string][] =
   ['stock_move', 'expiry', "text not null default ''"],
   ['service', 'modifiers', "text not null default '[]'"],
   ['purchase', 'tax_amount', 'integer not null default 0'],
+  ['employee', 'user_id', 'text'],
+  ['employee', 'sales_target', 'integer not null default 0'],
+  ['employee', 'commission_bp', 'integer not null default 0'],
   ['service', 'kitchen_section', "text not null default ''"],
   ['service', 'recipe', "text not null default '[]'"],
   ['purchase', 'supplier_id', 'text'],

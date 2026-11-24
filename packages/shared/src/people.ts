@@ -20,6 +20,10 @@ export interface Employee {
   /** salary advances not yet recovered */
   advanceDue: number;
   createdAt: string;
+  /** linked login (attendance check-in, sales credit) */
+  userId?: string | null;
+  salesTarget?: number;
+  commissionBp?: number;
 }
 
 export interface Payslip {

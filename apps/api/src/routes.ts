@@ -21,6 +21,7 @@ import * as labels from './labels';
 import * as stockplus from './stockplus';
 import * as growth from './growth';
 import * as fin2 from './finance2';
+import * as people2 from './people2';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -442,6 +443,20 @@ export function registerRoutes(app: AppLike, db: Db) {
     const r = range(req);
     const by = z.enum(['item', 'client', 'category', 'cashier']).catch('item').parse(req.query.by);
     res.json(fin2.profitability(db, T(req), by, r.from, r.to));
+  });
+
+  // ------------------------------------------------------------ attendance, targets, cashier performance
+
+  app.get('/attendance', (req: Req, res: Res) => res.json(people2.attendanceDay(db, T(req), String(req.query.date ?? '') || today())));
+  app.get('/attendance/month', need('payroll.manage'), (req: Req, res: Res) => res.json(people2.attendanceMonth(db, T(req), people2.monthSchema.parse(String(req.query.month ?? today().slice(0, 7))))));
+  app.post('/attendance/check', (req: Req, res: Res) => res.json(people2.checkByCode(db, req.auth, z.object({ code: z.string().min(1).max(60) }).parse(req.body).code)));
+  app.post('/attendance/mark', need('payroll.manage'), (req: Req, res: Res) => res.json(people2.markAttendance(db, req.auth, people2.markSchema.parse(req.body))));
+  app.get('/attendance/settings', need('payroll.manage'), (req: Req, res: Res) => res.json(people2.attendanceSettings(db, T(req))));
+  app.put('/attendance/settings', need('payroll.manage'), (req: Req, res: Res) => res.json(people2.saveAttendanceSettings(db, req.auth, people2.attendanceSettingsSchema.parse(req.body))));
+  app.get('/people/leaderboard', (req: Req, res: Res) => res.json(people2.leaderboard(db, T(req), people2.monthSchema.parse(String(req.query.month ?? today().slice(0, 7))))));
+  app.get('/reports/cashiers', need('pos.manage'), (req: Req, res: Res) => {
+    const r = range(req);
+    res.json(people2.cashierPerformance(db, T(req), r.from, r.to));
   });
 
   app.get('/pos/held', need('pos.sell'), (req: Req, res: Res) => res.json(pos.listHeld(db, T(req))));
