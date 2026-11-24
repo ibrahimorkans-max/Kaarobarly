@@ -38,6 +38,10 @@ export default function More() {
         {on('payroll') && can('payroll.manage') && <MenuRow icon="calculator-outline" title="Payroll" sub="Salaries, advances and payslips" onPress={() => router.push('/payroll')} />}
         {on('payroll') && can('payroll.manage') && <MenuRow icon="people-outline" title="Employees" sub="Staff, pay rates and advances" onPress={() => router.push('/employees')} />}
         {on('expenseClaims') && <MenuRow icon="receipt-outline" title="Expense claims" sub="Claim money you spent; approve others' claims" onPress={() => router.push('/claims')} />}
+        {on('payroll') && <MenuRow icon="finger-print-outline" title="Attendance" sub="Check in by QR, mark the day, monthly summary" onPress={() => router.push('/attendance')} />}
+        {on('payroll') && <MenuRow icon="trophy-outline" title="Targets & commission" sub="Sales leaderboard for the month" onPress={() => router.push('/leaderboard')} />}
+        {on('pos') && can('pos.manage') && <MenuRow icon="speedometer-outline" title="Cashier performance" sub="Bills, discounts, returns and cash differences" onPress={() => router.push('/cashiers')} />}
+        {can('reports.view') && <MenuRow icon="pulse-outline" title="Activity" sub="Who did what, and when" onPress={() => router.push('/activity')} />}
         {can('users.manage') && <MenuRow icon="people-circle-outline" title="Team" sub="Who can sign in, and what each person may do" onPress={() => router.push('/team')} />}
       </Section>
       <Section title="Accounts">

@@ -2,10 +2,10 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { View } from 'react-native';
 import { AccountSelect } from '@/components/money';
-import { Badge, Btn, Card, Chips, DateField, Empty, Field, KV, Loader, Row, Screen, Sheet, Txt, fm, todayStr } from '@/components/ui';
+import { Badge, Btn, Card, Chips, DateField, Empty, Field, KV, Loader, Row, Screen, Select, Sheet, Txt, fm, todayStr } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import { useToast } from '@/lib/app-context';
-import { moneyToInput, parseMoney, type BusinessProfile, type Employee, type MoneyAccount, type PayType } from '@/lib/shared';
+import { moneyToInput, parseMoney, parsePercent, percentToString, type BusinessProfile, type Employee, type MoneyAccount, type PayType, type User } from '@/lib/shared';
 
 interface Form {
   id?: string;
@@ -19,8 +19,11 @@ interface Form {
   bankAccount: string;
   status: 'active' | 'left';
   notes: string;
+  userId: string | null;
+  target: string;
+  commission: string;
 }
-const blank: Form = { name: '', phone: '', cnic: '', designation: '', joinDate: '', payType: 'monthly', rate: '', bankAccount: '', status: 'active', notes: '' };
+const blank: Form = { name: '', phone: '', cnic: '', designation: '', joinDate: '', payType: 'monthly', rate: '', bankAccount: '', status: 'active', notes: '', userId: null, target: '', commission: '' };
 
 /** Employees, their pay, and salary advances. */
 export default function Employees() {
@@ -28,6 +31,7 @@ export default function Employees() {
   const list = useApi<Employee[]>('/employees');
   const businesses = useApi<BusinessProfile[]>('/businesses');
   const accounts = useApi<MoneyAccount[]>('/accounts');
+  const users = useApi<User[]>('/users');
   const [form, setForm] = useState<Form | null>(null);
   const [adv, setAdv] = useState<{ e: Employee; amount: string; monthly: string; date: string; accountId: string } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -41,8 +45,10 @@ export default function Employees() {
     if (rate === null || rate < 0) return toast('Enter the salary or wage', 'error');
     setBusy(true);
     try {
-      const { id, ...rest } = form;
-      await api(id ? `/employees/${id}` : '/employees', { method: id ? 'PUT' : 'POST', body: { ...rest, businessId: businesses.data?.[0]?.id, rate } });
+      const { id, target, commission, ...rest } = form;
+      const salesTarget = target.trim() ? (parseMoney(target) ?? 0) : 0;
+      const commissionBp = commission.trim() ? (parsePercent(commission) ?? 0) : 0;
+      await api(id ? `/employees/${id}` : '/employees', { method: id ? 'PUT' : 'POST', body: { ...rest, businessId: businesses.data?.[0]?.id, rate, salesTarget, commissionBp } });
       toast(id ? 'Saved' : `${form.name} added`);
       setForm(null);
       list.reload();
@@ -86,7 +92,7 @@ export default function Employees() {
           <Empty icon="people-outline" title="No employees yet" hint="Add your staff with their monthly salary or daily wage, then run payroll each month." />
         ) : (
           list.data!.map((e) => (
-            <Card key={e.id} label={`Employee ${e.name}`} onPress={() => setForm({ ...e, rate: moneyToInput(e.rate) })}>
+            <Card key={e.id} label={`Employee ${e.name}`} onPress={() => setForm({ ...e, rate: moneyToInput(e.rate), userId: e.userId ?? null, target: e.salesTarget ? moneyToInput(e.salesTarget) : '', commission: e.commissionBp ? percentToString(e.commissionBp) : '' })}>
               <Row style={{ justifyContent: 'space-between' }}>
                 <View style={{ flex: 1 }}>
                   <Txt style={{ fontWeight: '700' }}>{e.name}</Txt>
@@ -122,6 +128,14 @@ export default function Employees() {
         <Field label="CNIC (optional)" value={form?.cnic ?? ''} onChangeText={(v) => set({ cnic: v })} />
         <DateField label="Joining date (optional)" value={form?.joinDate ?? ''} onChange={(v) => set({ joinDate: v })} />
         <Field label="Bank account for salary (optional)" value={form?.bankAccount ?? ''} onChangeText={(v) => set({ bankAccount: v })} />
+        {(users.data ?? []).length > 0 && (
+          <Select<User> label="Their login (for attendance and sales credit)" placeholder="Not linked" value={(users.data ?? []).find((u) => u.id === form?.userId)?.name ?? ''} items={users.data ?? []} getKey={(u) => u.id} getLabel={(u) => u.name} getSub={(u) => u.email} onSelect={(u) => set({ userId: u.id })} />
+        )}
+        {!!form?.userId && <Btn small kind="ghost" title="Unlink login" onPress={() => set({ userId: null })} />}
+        <Row gap={10} style={{ alignItems: 'flex-start' }}>
+          <Field style={{ flex: 1 }} label="Monthly sales target" money value={form?.target ?? ''} onChangeText={(v) => set({ target: v })} placeholder="0" />
+          <Field style={{ flex: 1 }} label="Commission %" money value={form?.commission ?? ''} onChangeText={(v) => set({ commission: v })} placeholder="0" />
+        </Row>
         {form?.id && (
           <Chips
             value={form.status}
