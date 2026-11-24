@@ -101,6 +101,7 @@ function Navigation() {
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
         </Stack.Protected>
       </Stack>
     </ThemeProvider>

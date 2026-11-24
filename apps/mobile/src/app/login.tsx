@@ -1,10 +1,12 @@
-import { useState } from 'react';
+import { router } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LinearGradient } from 'expo-linear-gradient';
 import { BRAND, LogoLockup } from '@/components/logo';
 import { Btn, Card, Chips, FadeIn, Field, Notice, Screen } from '@/components/ui';
 import { useAuth } from '@/lib/app-context';
+import { local } from '@/lib/storage';
 
 export default function Login() {
   const { signIn, register } = useAuth();
@@ -16,6 +18,13 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
+  // first launch on this device: show the introduction once
+  useEffect(() => {
+    local
+      .get<boolean>('kaarobarly.onboarded')
+      .then((seen) => !seen && router.replace('/onboarding'))
+      .catch(() => {});
+  }, []);
 
   async function submit() {
     setError('');

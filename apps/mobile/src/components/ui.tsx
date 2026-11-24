@@ -221,7 +221,8 @@ export function Card({ children, style, onPress, label }: { children: ReactNode;
 }
 
 const NATIVE = Platform.OS !== 'web';
-export const GRADIENT = ['#0B46D6', '#0A6FD0', '#0E9E8A'] as const;
+/** Brand blue, kept nearly flat to match the clean POS look. */
+export const GRADIENT = ['#3552EE', '#3D5AF1', '#4A66F5'] as const;
 
 /** Springy press feedback shared by cards and buttons. */
 export function usePressScale(to = 0.96) {
@@ -860,19 +861,19 @@ export const styles = StyleSheet.create({
   content: { padding: 16, gap: 14, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center' },
   footer: { borderTopWidth: StyleSheet.hairlineWidth, paddingHorizontal: 16, paddingTop: 12 },
   footerInner: { width: '100%', maxWidth: MAX_WIDTH - 32, alignSelf: 'center', gap: 10 },
-  card: { borderRadius: 18, padding: 14, borderWidth: StyleSheet.hairlineWidth, gap: 8 },
-  btn: { minHeight: 52, borderRadius: 16, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  btnSmall: { minHeight: 40, paddingHorizontal: 14, borderRadius: 10 },
+  card: { borderRadius: 20, padding: 16, borderWidth: StyleSheet.hairlineWidth, gap: 8, boxShadow: '0 4px 16px rgba(41, 52, 110, 0.06)' } as any,
+  btn: { minHeight: 52, borderRadius: 14, paddingHorizontal: 18, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  btnSmall: { minHeight: 40, paddingHorizontal: 14, borderRadius: 12 },
   iconBtn: { width: 44, height: 44, borderRadius: 22, alignItems: 'center', justifyContent: 'center' },
-  chip: { minHeight: 40, paddingHorizontal: 14, borderRadius: 20, borderWidth: 1, justifyContent: 'center' },
-  input: { flex: 1, minWidth: 0, minHeight: 50, borderWidth: 1, borderRadius: 12, paddingHorizontal: 14, fontSize: 16 },
+  chip: { minHeight: 38, paddingHorizontal: 16, borderRadius: 19, borderWidth: 1, justifyContent: 'center' },
+  input: { flex: 1, minWidth: 0, minHeight: 50, borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, fontSize: 16 },
   selectBox: { flex: 0, flexDirection: 'row', alignItems: 'center', gap: 8 },
   quick: { minHeight: 36, paddingHorizontal: 12, borderRadius: 18, justifyContent: 'center' },
-  search: { borderWidth: 1, borderRadius: 12, paddingHorizontal: 12, minHeight: 48 },
+  search: { borderWidth: 1, borderRadius: 14, paddingHorizontal: 14, minHeight: 48 },
   backdrop: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)' },
-  sheet: { maxHeight: '85%', padding: 16, gap: 12, borderTopLeftRadius: 20, borderTopRightRadius: 20, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center' },
+  sheet: { maxHeight: '88%', padding: 18, gap: 12, borderTopLeftRadius: 26, borderTopRightRadius: 26, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center' },
   option: { paddingVertical: 14, paddingHorizontal: 4, borderBottomWidth: StyleSheet.hairlineWidth, minHeight: 52, justifyContent: 'center', gap: 2 },
-  badge: { paddingHorizontal: 9, paddingVertical: 4, borderRadius: 8, alignSelf: 'flex-start' },
+  badge: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 10, alignSelf: 'flex-start' },
   track: { height: 10, borderRadius: 6, overflow: 'hidden' },
   notice: { padding: 12, borderRadius: 12 },
   calWrap: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', alignItems: 'center', justifyContent: 'center', padding: 16 },

@@ -64,6 +64,10 @@ const UR: Record<string, string> = {
   'Purchase orders': 'خریداری آرڈرز', 'Goods received': 'وصول شدہ مال', Requests: 'درخواستیں', All: 'تمام', Received: 'وصول شدہ', Issued: 'جاری کردہ', Open: 'کھلے',
   'Money in': 'آمدنی', 'Money out': 'اخراجات', 'To collect': 'وصول کرنا ہے', 'To pay': 'ادا کرنا ہے', 'You owe': 'آپ کے ذمے', 'Owed to you': 'آپ کا لینا',
   'Everyone who owes': 'تمام مقروض', 'Running low': 'کم ہو رہا ہے', 'Out of stock': 'ختم', Adjust: 'ایڈجسٹ', Count: 'گنتی', Repay: 'واپسی', Interest: 'سود',
+  Skip: 'چھوڑیں', Next: 'اگلا', 'Get started': 'شروع کریں', 'Start your\nBusiness Online': 'اپنا کاروبار\nآن لائن شروع کریں', 'Sell faster,\nanywhere': 'تیزی سے بیچیں،\nکہیں بھی', 'Choose\nYour plan': 'اپنا\nپلان چنیں',
+  'Invoices, stock, payments and staff in one app, set up for your kind of business in minutes.': 'انوائس، اسٹاک، ادائیگیاں اور عملہ ایک ایپ میں، چند منٹ میں آپ کے کاروبار کے مطابق۔',
+  'Scan, bill and print at the counter. It keeps working without internet and syncs when you are back online.': 'کاؤنٹر پر اسکین کریں، بل بنائیں اور پرنٹ کریں۔ انٹرنیٹ کے بغیر بھی چلتی ہے اور بعد میں سنک ہو جاتی ہے۔',
+  'Start with a free 30-day Pro trial, then pick the plan that fits. You can upgrade any time.': '30 دن کے مفت پرو ٹرائل سے شروع کریں، پھر اپنا پلان چنیں۔ کبھی بھی اپگریڈ کریں۔',
   Language: 'زبان', 'Plan & usage': 'پلان اور استعمال', 'Smart tools': 'سمارٹ ٹولز', Alerts: 'الرٹس', 'Ask Kaarobarly': 'کاروبارلی سے پوچھیں', 'Quick entry': 'فوری اندراج', Automation: 'آٹومیشن', People: 'لوگ', Approvals: 'منظوریاں', Payroll: 'تنخواہیں', Employees: 'ملازمین', 'Expense claims': 'اخراجات کے دعوے', Claims: 'دعوے', Team: 'ٹیم', 'App language': 'ایپ کی زبان', 'Sign out': 'سائن آؤٹ',
 };
 
