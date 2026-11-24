@@ -56,6 +56,7 @@ export default function NewPurchase() {
   const [accountId, setAccountId] = useState('');
   const [notes, setNotes] = useState('');
   const [reference, setReference] = useState('');
+  const [taxPaid, setTaxPaid] = useState('');
   const [onPlan, setOnPlan] = useState(false);
   const [plan, setPlan] = useState<{ key: string; dueDate: string; amount: string; paid: boolean }[]>([]);
   const [attachment, setAttachment] = useState('');
@@ -83,6 +84,7 @@ export default function NewPurchase() {
     setAccountId(p.accountId ?? '');
     setNotes(p.notes);
     setReference(p.reference ?? '');
+    setTaxPaid(p.taxAmount ? moneyToInput(p.taxAmount, p.currencyPrecision) : '');
     setOnPlan((p.installments ?? []).length > 0);
     setPlan((p.installments ?? []).map((x) => ({ key: newKey(), dueDate: x.dueDate, amount: moneyToInput(x.amount, p.currencyPrecision), paid: x.paid })));
   }, [editing.data]);
@@ -172,6 +174,7 @@ export default function NewPurchase() {
         accountId: accountId || null,
         notes: notes.trim(),
         reference: method === 'cash' ? '' : reference.trim(),
+        taxAmount: taxPaid.trim() ? (parseMoney(taxPaid) ?? 0) : 0,
         installments: onPlan ? plan.map((x, i) => ({ dueDate: x.dueDate, amount: planAmounts[i], paid: x.paid })) : [],
         attachment,
         ...(id ? {} : { clientRequestId: requestId.current }),
@@ -350,6 +353,7 @@ export default function NewPurchase() {
             })}
           </View>
           <Field label="Or type your own category" value={CATEGORIES.includes(category) ? '' : category} onChangeText={(v) => setCategory(v || 'Purchases')} placeholder="e.g. Spare parts" />
+          <Field label="Sales tax in this bill (optional)" money value={taxPaid} onChangeText={setTaxPaid} placeholder="0" hint="Counts as input tax in the Tax centre" />
           <Field label="Notes (optional)" value={notes} onChangeText={setNotes} multiline />
           <Card>
             <Txt v="label">Bill photo (optional)</Txt>

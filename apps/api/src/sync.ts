@@ -46,6 +46,7 @@ export const SYNC_TABLES = [
   'label_template',
   'stock_alert_config',
   'tenant_setting',
+  'recon_match',
   'promotion',
   'loyalty_txn',
   'gift_card',

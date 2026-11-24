@@ -431,6 +431,8 @@ export function profitLoss(db: Db, tenantId: string, f: { businessId?: string; f
     )) {
       const v = conv.convert(e.amount, e.currency);
       if (e.type === 'income') {
+        // money the owner puts in, or a loan received, is not earned income
+        if (e.category === 'Owner investment' || e.category === 'Loan received') continue;
         add(income, e.category, v);
         monthly.get(e.date.slice(0, 7))!.income += v;
       } else if (e.category !== 'Owner withdrawal') {

@@ -114,6 +114,8 @@ export interface Purchase {
   date: string;
   lines: PurchaseLine[];
   total: number;
+  /** sales tax included in the bill (input tax) */
+  taxAmount?: number;
   category: string;
   method: PaymentMethod;
   accountId: string | null;

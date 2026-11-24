@@ -41,6 +41,8 @@ export const purchaseSchema = z.object({
   accountId: z.string().nullable().optional(),
   notes: z.string().trim().max(2000).default(''),
   reference: z.string().trim().max(100).default(''),
+  /** sales tax included in the bill (input tax), minor units */
+  taxAmount: z.number().int().min(0).max(1e13).default(0),
   installments: z
     .array(
       z.object({
@@ -92,6 +94,7 @@ function map(r: Row): Purchase {
     date: r.date,
     lines: JSON.parse(r.lines),
     total: r.total,
+    taxAmount: r.tax_amount ?? 0,
     category: r.category,
     method: r.method,
     accountId: r.account_id,
@@ -188,7 +191,7 @@ export function savePurchase(db: Db, auth: AuthContext, body: PurchaseBody, id?:
       );
     }
 
-    db.run('update purchase set supplier = ?, supplier_id = ?, receipt_id = ?, custom = ? where id = ?', supplier.name, supplier.id, receiptId, custom, id);
+    db.run('update purchase set supplier = ?, supplier_id = ?, receipt_id = ?, custom = ?, tax_amount = ? where id = ?', supplier.name, supplier.id, receiptId, custom, Math.min(body.taxAmount, total), id);
     // a bill made from goods received does not count the stock a second time
     if (receiptId) clearMoves(db, auth.tenantId, 'purchase', id);
     else postIncoming(db, auth, 'purchase', id, number, body.date, lines);

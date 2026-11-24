@@ -20,6 +20,7 @@ import * as pos from './pos';
 import * as labels from './labels';
 import * as stockplus from './stockplus';
 import * as growth from './growth';
+import * as fin2 from './finance2';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -426,6 +427,22 @@ export function registerRoutes(app: AppLike, db: Db) {
 
   app.get('/shop/settings', (req: Req, res: Res) => res.json(growth.getShop(db, T(req))));
   app.put('/shop/settings', need('pos.manage'), (req: Req, res: Res) => res.json(growth.saveShop(db, req.auth, growth.shopSchema.parse(req.body))));
+
+  // ------------------------------------------------------------ tax centre, reconciliation, profitability
+
+  const range = (req: Req) => ({ from: String(req.query.from ?? '') || `${today().slice(0, 4)}-01-01`, to: String(req.query.to ?? '') || today() });
+  app.get('/tax/summary', need('reports.view'), (req: Req, res: Res) => {
+    const r = range(req);
+    res.json(fin2.taxSummary(db, T(req), r.from, r.to));
+  });
+  app.post('/reconcile/preview', need('finance.manage'), (req: Req, res: Res) => res.json(fin2.reconcilePreview(db, T(req), fin2.statementSchema.parse(req.body))));
+  app.post('/reconcile/confirm', need('finance.manage'), (req: Req, res: Res) => res.json(fin2.reconcileConfirm(db, req.auth, fin2.confirmSchema.parse(req.body))));
+  app.get('/reconcile/status/:accountId', need('finance.manage'), (req: Req, res: Res) => res.json(fin2.reconcileStatus(db, T(req), String(req.params.accountId))));
+  app.get('/reports/profit', need('reports.view'), (req: Req, res: Res) => {
+    const r = range(req);
+    const by = z.enum(['item', 'client', 'category', 'cashier']).catch('item').parse(req.query.by);
+    res.json(fin2.profitability(db, T(req), by, r.from, r.to));
+  });
 
   app.get('/pos/held', need('pos.sell'), (req: Req, res: Res) => res.json(pos.listHeld(db, T(req))));
   app.post('/pos/held', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(pos.holdBill(db, req.auth, pos.holdSchema.parse(req.body))));

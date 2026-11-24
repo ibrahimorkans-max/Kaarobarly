@@ -451,6 +451,7 @@ export function billReceipt(db: Db, auth: AuthContext, id: string, body: z.infer
       receiptId: g.id,
       date: body.date ?? g.date,
       lines: g.lines.map((l) => ({ itemId: l.itemId, name: l.name, qty: l.qty, unit: l.unit, unitPrice: l.unitPrice, batch: '', expiry: '' })),
+      taxAmount: 0,
       custom: {},
     });
     db.run('update goods_receipt set purchase_id = ? where id = ?', p.id, g.id);

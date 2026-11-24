@@ -63,6 +63,9 @@ export default function More() {
         {on('loans') && <MenuRow icon="git-compare-outline" title="Loans" sub="Borrowed and lent, repayments and interest" onPress={() => router.push('/loans')} />}
         {on('budgets') && <MenuRow icon="pie-chart-outline" title="Budgets" sub="Monthly spending limits by category" onPress={() => router.push('/budgets')} />}
         {on('dayClose') && <MenuRow icon="lock-closed-outline" title="Day close" sub="Count the cash and lock the day" onPress={() => router.push('/day-close')} />}
+        {on('reports') && <MenuRow icon="podium-outline" title="Profit by item, customer, cashier" sub="What makes money, and what does not" onPress={() => router.push('/profit')} />}
+        {on('reports') && <MenuRow icon="receipt-outline" title="Tax centre" sub="Sales tax collected and paid, month by month" onPress={() => router.push('/tax')} />}
+        {on('accounts') && <MenuRow icon="git-merge-outline" title="Bank reconciliation" sub="Match a bank or wallet statement to your records" onPress={() => router.push('/reconcile')} />}
         {on('reports') && <MenuRow icon="trending-up-outline" title="Profit & Loss · Cash Flow" sub="Is the business making money?" onPress={() => router.push('/statements')} />}
         {on('multiCurrency') && <MenuRow icon="globe-outline" title="Exchange Rates" sub={`Multi-currency ${lower(t('invoices'))} and accounts`} onPress={() => router.push('/rates')} />}
         {on('quotations') && <MenuRow icon="document-outline" title={t('quotations')} sub={`Price quotes you can turn into ${lower(t('invoices'))}`} onPress={() => router.push('/quotations')} />}
