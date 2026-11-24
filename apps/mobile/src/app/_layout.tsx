@@ -71,6 +71,8 @@ function Navigation() {
           <Stack.Screen name="buying" options={{ title: 'Buying' }} />
           <Stack.Screen name="suppliers" options={{ title: 'Suppliers' }} />
           <Stack.Screen name="supplier/[id]" options={{ title: 'Supplier' }} />
+          <Stack.Screen name="developer" options={{ title: 'Developers' }} />
+          <Stack.Screen name="admin/partners" options={{ title: 'Partners' }} />
           <Stack.Screen name="insights" options={{ title: 'Insights' }} />
           <Stack.Screen name="attendance" options={{ title: 'Attendance' }} />
           <Stack.Screen name="leaderboard" options={{ title: 'Targets & commission' }} />

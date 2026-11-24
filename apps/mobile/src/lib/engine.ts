@@ -68,7 +68,7 @@ export interface SyncState {
 type Remote = (path: string, init: { method: string; body?: unknown; headers?: Record<string, string> }) => Promise<{ status: number; body: any; headers: Headers }>;
 
 /** Paths only the server can answer (accounts, team, files). Everything else works offline. */
-const REMOTE_ONLY = [/^\/auth\//, /^\/ai\//, /^\/plan/, /^\/platform\//, /^\/me$/, /^\/users/, /^\/audit/, /^\/reports\/export\.xlsx/, /^\/sync\//, /^\/shop\//];
+const REMOTE_ONLY = [/^\/auth\//, /^\/ai\//, /^\/plan/, /^\/platform\//, /^\/me$/, /^\/users/, /^\/audit/, /^\/reports\/export\.xlsx/, /^\/sync\//, /^\/shop\//, /^\/developer\//];
 
 const LABELS: [RegExp, string][] = [
   [/^POST \/invoices$/, 'New invoice'],

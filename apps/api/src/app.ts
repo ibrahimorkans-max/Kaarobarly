@@ -21,6 +21,7 @@ import * as acc from './accounts';
 import { deleteAccount, exportAllData } from './account';
 import { reportFileName, reportWorkbook } from './excel';
 import { shopOrder, shopOrderSchema, shopPage } from './growth';
+import * as saas2 from './saas2';
 import { MiniApp } from './mini';
 import { portalInvoice, portalPage } from './portal';
 import * as ai from './ai';
@@ -117,6 +118,7 @@ export function createApp(db: Db) {
         email: z.string().trim().email(),
         password: z.string().min(8, 'Password must be at least 8 characters').max(200),
         deviceName: z.string().max(100).default(''),
+        referralCode: z.string().trim().max(20).default(''),
       })
       .parse(req.body);
     const out = db.tx(() => {
@@ -128,6 +130,7 @@ export function createApp(db: Db) {
       const bizId = upsert(db, 'business', tenantId, d.businessSchema.parse({ legalName: body.businessName, ownerName: body.name, email: body.email }));
       acc.ensureAccounts(db, { businessId: bizId });
       saas.startTrial(db, tenantId);
+      saas2.creditReferral(db, tenantId, body.referralCode);
       db.audit(tenantId, userId, 'tenant.register', 'tenant', tenantId);
       return openSession(db.get('select * from app_user where id = ?', userId)!, body.deviceName);
     });
@@ -168,7 +171,8 @@ export function createApp(db: Db) {
     });
   });
 
-  app.use(requireAuth);
+  db.onAudit = saas2.webhookDispatcher(db);
+  app.use(saas2.withApiKeys(db, requireAuth));
   const T = (req: Request) => req.auth.tenantId;
 
   app.post('/auth/logout', (req, res) => {
@@ -299,6 +303,33 @@ export function createApp(db: Db) {
       return next(e);
     }
     ai.testConnection(db, T(req)).then((reply) => res.json({ reply }), next);
+  });
+  // developers: API keys and webhooks (owner only, server only)
+  const devOwnerOnly = (req: Request) => {
+    if (req.auth.role !== 'owner') throw new HttpError(403, 'Only the owner can manage API keys and webhooks.');
+  };
+  app.get('/developer/keys', (req, res) => (devOwnerOnly(req), res.json(saas2.listApiKeys(db, T(req)))));
+  app.post('/developer/keys', (req, res) => (devOwnerOnly(req), res.status(201).json(saas2.createApiKey(db, req.auth, saas2.apiKeySchema.parse(req.body)))));
+  app.delete('/developer/keys/:id', (req, res) => (devOwnerOnly(req), res.json(saas2.revokeApiKey(db, req.auth, String(req.params.id)))));
+  app.get('/developer/webhooks', (req, res) => (devOwnerOnly(req), res.json(saas2.listWebhooks(db, T(req)))));
+  app.post('/developer/webhooks', (req, res) => (devOwnerOnly(req), res.status(201).json(saas2.saveWebhook(db, req.auth, saas2.webhookSchema.parse(req.body)))));
+  app.put('/developer/webhooks/:id', (req, res) => (devOwnerOnly(req), res.json(saas2.saveWebhook(db, req.auth, saas2.webhookSchema.parse(req.body), String(req.params.id)))));
+  app.delete('/developer/webhooks/:id', (req, res) => (devOwnerOnly(req), res.json(saas2.deleteWebhook(db, req.auth, String(req.params.id)))));
+  app.post('/developer/webhooks/:id/test', (req, res, next) => {
+    try {
+      devOwnerOnly(req);
+      saas2.testWebhook(db, req.auth, String(req.params.id)).then((r) => res.json(r), next);
+    } catch (e) {
+      next(e);
+    }
+  });
+  app.get('/platform/partners', (req, res) => {
+    platformOnly(req);
+    res.json(saas2.listPartners(db));
+  });
+  app.put('/platform/tenants/:id/partner', (req, res) => {
+    platformOnly(req);
+    res.json(saas2.setPartner(db, String(req.params.id), z.object({ partner: z.boolean() }).parse(req.body).partner));
   });
   app.put('/platform/tenants/:id/plan', (req, res) => {
     const email = platformOnly(req);

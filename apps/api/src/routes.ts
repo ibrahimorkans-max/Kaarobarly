@@ -23,6 +23,7 @@ import * as growth from './growth';
 import * as fin2 from './finance2';
 import * as people2 from './people2';
 import * as insights from './insights';
+import * as saas2 from './saas2';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -460,6 +461,7 @@ export function registerRoutes(app: AppLike, db: Db) {
     res.json(people2.cashierPerformance(db, T(req), r.from, r.to));
   });
 
+  app.post('/workspace/sample-data', need('businesses.manage'), (req: Req, res: Res) => res.status(201).json(saas2.addSampleData(db, req.auth, z.object({ type: z.string().max(30).default('') }).parse(req.body ?? {}).type)));
   app.get('/insights/anomalies', need('reports.view'), (req: Req, res: Res) => res.json(insights.anomalies(db, T(req))));
   app.get('/insights/monthly', need('reports.view'), (req: Req, res: Res) => res.json(insights.monthlyReport(db, T(req), people2.monthSchema.parse(String(req.query.month ?? today().slice(0, 7))), req.query.lang === 'ur' ? 'ur' : 'en')));
 

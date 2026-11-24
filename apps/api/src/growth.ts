@@ -567,5 +567,6 @@ export function shopOrder(db: Db, token: string, body: z.infer<typeof shopOrderS
   if (body.address && t.shop.deliveryFee) lines.push({ serviceId: null, name: 'Delivery charge', qty: 1000, unit: '', unitPrice: t.shop.deliveryFee, modifiers: [], note: '', section: '', sent: 0, taxRateBp: 0 });
   const auth = { tenantId: t.tenantId, userId: 'online', name: 'Online shop', role: 'staff' } as unknown as AuthContext;
   const o = openOrder(db, auth, { kind: body.address ? 'delivery' : 'takeaway', table: '', guests: 0, customer: body.name, phone: body.phone, address: body.address, lines }, 'online');
+  db.audit(t.tenantId, null, 'order.online', 'table_order', o.id, { number: o.number, total: o.total, name: body.name });
   return { number: o.number, total: o.total };
 }

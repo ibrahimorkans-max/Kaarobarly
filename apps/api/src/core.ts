@@ -321,6 +321,14 @@ create table if not exists pos_held (
   id text primary key, tenant_id text not null references tenant, name text not null, client_id text, lines text not null,
   bill_discount integer not null default 0, by_name text not null, created_at text not null
 );
+create table if not exists api_key (
+  id text primary key, tenant_id text not null references tenant, name text not null, prefix text not null, hash text not null unique,
+  role text not null, created_by text not null, created_at text not null, last_used_at text, revoked_at text
+);
+create table if not exists webhook (
+  id text primary key, tenant_id text not null references tenant, url text not null, events text not null, secret text not null,
+  active integer not null default 1, last_status text, last_at text, created_at text not null
+);
 create table if not exists attendance (
   id text primary key, tenant_id text not null references tenant, employee_id text not null, date text not null,
   status text not null default 'present', check_in text not null default '', check_out text not null default '', method text not null default 'manual',
@@ -526,6 +534,8 @@ export const MIGRATIONS: [table: string, column: string, definition: string][] =
   ['service', 'modifiers', "text not null default '[]'"],
   ['purchase', 'tax_amount', 'integer not null default 0'],
   ['employee', 'user_id', 'text'],
+  ['tenant', 'referral_code', 'text'],
+  ['tenant', 'referred_by', 'text'],
   ['employee', 'sales_target', 'integer not null default 0'],
   ['employee', 'commission_bp', 'integer not null default 0'],
   ['service', 'kitchen_section', "text not null default ''"],
@@ -595,10 +605,15 @@ export abstract class BaseDb {
     return this.get('select value from counter where tenant_id = ? and key = ?', tenantId, key)!.value;
   }
 
+  /** set on the server to send webhooks for recorded actions */
+  onAudit?: (auditId: string, tenantId: string, action: string, entity: string, entityId: string | null, detail: unknown) => void;
+
   audit(tenantId: string, userId: string | null, action: string, entity: string, entityId: string | null, detail: unknown = {}) {
+    const auditId = randomId();
+    this.onAudit?.(auditId, tenantId, action, entity, entityId, detail);
     this.run(
       'insert into audit_log (id, tenant_id, user_id, action, entity, entity_id, detail, at) values (?,?,?,?,?,?,?,?)',
-      randomId(),
+      auditId,
       tenantId,
       userId,
       action,

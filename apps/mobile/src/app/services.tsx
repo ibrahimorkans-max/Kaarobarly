@@ -57,6 +57,15 @@ export default function Services() {
   const [kind, setKind] = useState('');
   const suppliers = useApi<Supplier[]>(on('purchases') ? '/suppliers' : null);
   const aiOn = !!useAiStatus()?.available;
+  async function addSamples() {
+    try {
+      const r = await api<{ items: number }>('/workspace/sample-data', { body: { type: ws.businessType } });
+      toast(`${r.items} sample items, customers and a supplier added: edit or delete them any time`);
+      reload();
+    } catch (e: any) {
+      toast(e.message, 'error');
+    }
+  }
   const [reading, setReading] = useState(false);
   /** Photograph the product or its pack; AI suggests the name, category and barcode. */
   async function fromPhoto() {
@@ -165,7 +174,7 @@ export default function Services() {
       </Row>
       <Loader loading={loading && !data} error={data ? '' : error} onRetry={reload}>
         {shown.length === 0 ? (
-          <Empty icon="pricetags-outline" title={needle || kind ? 'Nothing matches' : `No ${lower(t('items'))} yet`} hint={needle ? undefined : `Add anything you bill for: ${EXAMPLES.slice(0, 4).join(', ')} and more.`} />
+          <Empty icon="pricetags-outline" title={needle || kind ? 'Nothing matches' : `No ${lower(t('items'))} yet`} hint={needle ? undefined : `Add anything you bill for: ${EXAMPLES.slice(0, 4).join(', ')} and more.`} action={!needle && !kind && canEdit && !(data ?? []).length ? <Btn small kind="secondary" icon="sparkles-outline" title="Add sample items to try" onPress={addSamples} /> : undefined} />
         ) : (
           shown.map((s) => (
             <Card key={s.id} onPress={canEdit ? () => edit(s) : undefined} label={`Service ${s.name}`}>

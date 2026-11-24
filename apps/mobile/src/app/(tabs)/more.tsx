@@ -43,6 +43,7 @@ export default function More() {
         {on('pos') && can('pos.manage') && <MenuRow icon="speedometer-outline" title="Cashier performance" sub="Bills, discounts, returns and cash differences" onPress={() => router.push('/cashiers')} />}
         {can('reports.view') && <MenuRow icon="bulb-outline" title="Insights" sub="Unusual activity, and the month in plain words" onPress={() => router.push('/insights')} />}
         {can('reports.view') && <MenuRow icon="pulse-outline" title="Activity" sub="Who did what, and when" onPress={() => router.push('/activity')} />}
+        {user?.role === 'owner' && <MenuRow icon="code-slash-outline" title="Developers" sub="API keys and webhooks for other software" onPress={() => router.push('/developer')} />}
         {can('users.manage') && <MenuRow icon="people-circle-outline" title="Team" sub="Who can sign in, and what each person may do" onPress={() => router.push('/team')} />}
       </Section>
       <Section title="Accounts">
