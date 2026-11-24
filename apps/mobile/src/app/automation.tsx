@@ -5,7 +5,7 @@ import { api, useApi } from '@/lib/api';
 import { useAuth, useToast } from '@/lib/app-context';
 import { EXPENSE_CATEGORIES, INCOME_CATEGORIES, moneyToInput, parseMoney } from '@/lib/shared';
 
-type Trigger = 'invoice_overdue' | 'stock_low' | 'cheque_due' | 'bill_due' | 'big_expense';
+type Trigger = 'invoice_overdue' | 'stock_low' | 'cheque_due' | 'bill_due' | 'big_expense' | 'cash_drawer_high' | 'shift_variance';
 interface Rule {
   id: string;
   kind: 'categorize' | 'alert';
@@ -19,6 +19,8 @@ const TRIGGERS: Record<Trigger, { name: string; days?: string; amount?: boolean 
   cheque_due: { name: 'Cheque date coming up', days: 'Days ahead' },
   bill_due: { name: 'Supplier bill due', days: 'Days ahead' },
   big_expense: { name: 'Large money out', amount: true },
+  cash_drawer_high: { name: 'Too much cash in the drawer', amount: true },
+  shift_variance: { name: 'Drawer short or over at close', amount: true },
 };
 const describe = (r: Rule) =>
   r.kind === 'categorize'

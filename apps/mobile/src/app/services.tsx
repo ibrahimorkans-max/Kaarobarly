@@ -8,6 +8,8 @@ import { api, useApi } from '@/lib/api';
 import { useAuth, useToast } from '@/lib/app-context';
 import { moneyToInput, parseMoney, parsePercent, parseQty, percentToString, qtyToString, type CustomValues, type Service, type Supplier } from '@/lib/shared';
 import { lower, useWorkspace } from '@/lib/workspace';
+import { pickImage } from '@/lib/image';
+import { useAiStatus } from '@/lib/ai-status';
 
 interface Form {
   id?: string;
@@ -54,6 +56,23 @@ export default function Services() {
   const [scan, setScan] = useState(false);
   const [kind, setKind] = useState('');
   const suppliers = useApi<Supplier[]>(on('purchases') ? '/suppliers' : null);
+  const aiOn = !!useAiStatus()?.available;
+  const [reading, setReading] = useState(false);
+  /** Photograph the product or its pack; AI suggests the name, category and barcode. */
+  async function fromPhoto() {
+    try {
+      const image = await pickImage();
+      if (!image) return;
+      setReading(true);
+      const p = await api<{ name: string; category: string; barcode: string; unit: string; description: string }>('/ai/scan-product', { body: { image } });
+      set({ ...(p.name ? { name: p.name } : {}), ...(p.category ? { category: p.category } : {}), ...(p.barcode ? { barcode: p.barcode } : {}), ...(p.unit ? { unit: p.unit } : {}), ...(p.description ? { description: p.description } : {}) });
+      toast('Filled from the photo: check before saving');
+    } catch (e: any) {
+      toast(e.message, 'error');
+    } finally {
+      setReading(false);
+    }
+  }
   // opened from a scan of an unknown barcode: start a new stock item with that code
   const params = useLocalSearchParams<{ barcode?: string }>();
   useEffect(() => {
@@ -172,6 +191,7 @@ export default function Services() {
       </Loader>
 
       <Sheet visible={!!form} title={form?.id ? `Edit ${lower(t('item'))}` : `New ${lower(t('item'))}`} onClose={() => setForm(null)}>
+        {aiOn && !form?.id && <Btn small kind="secondary" icon="camera-outline" title="Fill from a product photo" onPress={fromPhoto} loading={reading} />}
         <Field label="Name" value={form?.name ?? ''} onChangeText={(v) => set({ name: v })} placeholder="e.g. Laboratory Testing" />
         {on('inventory') && <Field label="Name in Urdu (for labels)" value={form?.nameUr ?? ''} onChangeText={(v) => set({ nameUr: v })} textAlign="right" />}
         {ws.itemTypes.length > 1 && <Chips value={form?.itemType ?? ''} onChange={(v) => set({ itemType: v })} options={ws.itemTypes.map((x) => ({ value: x, label: x }))} />}

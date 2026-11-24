@@ -13,7 +13,7 @@ import { HttpError, type AuthContext } from './perm';
  * dismissing one hides it until something changes.
  */
 
-export const ALERT_TRIGGERS = ['invoice_overdue', 'stock_low', 'cheque_due', 'bill_due', 'big_expense'] as const;
+export const ALERT_TRIGGERS = ['invoice_overdue', 'stock_low', 'cheque_due', 'bill_due', 'big_expense', 'cash_drawer_high', 'shift_variance'] as const;
 export type AlertTrigger = (typeof ALERT_TRIGGERS)[number];
 
 export const ruleSchema = z.discriminatedUnion('kind', [
@@ -149,6 +149,19 @@ export function alerts(db: Db, tenantId: string): Alert[] {
     } else if (c.trigger === 'big_expense' && c.amount > 0) {
       for (const e of db.all("select * from finance_entry where tenant_id = ? and type = 'expense' and amount >= ? and date >= ?", tenantId, c.amount, addDays(t, -7))) {
         out.push({ key: `${rule.id}:exp:${e.id}`, ruleId: rule.id, trigger: c.trigger, level: 'info', title: `Large money out: ${e.category}`, sub: `${money(e.amount)} on ${e.date}${e.party ? ` · ${e.party}` : ''}`, date: e.date, refType: 'finance', refId: e.id });
+      }
+    } else if (c.trigger === 'cash_drawer_high' && c.amount > 0) {
+      // an open drawer holding more cash than set: time to deposit
+      for (const s of db.all("select id, opened_by_name, opening_float, opened_at from pos_shift where tenant_id = ? and status = 'open'", tenantId)) {
+        const cash =
+          s.opening_float +
+          db.get("select coalesce(sum(p.amount), 0) as v from payment p where p.pos_shift_id = ? and p.method = 'cash'", s.id)!.v +
+          db.get("select coalesce(sum(case when kind = 'in' then amount else -amount end), 0) as v from pos_cash_move where shift_id = ?", s.id)!.v;
+        if (cash >= c.amount) out.push({ key: `${rule.id}:drawer:${s.id}`, ruleId: rule.id, trigger: c.trigger, level: 'warn', title: `Drawer has ${money(cash)}: deposit some`, sub: `${s.opened_by_name}'s shift since ${String(s.opened_at).slice(11, 16)}`, date: t, refType: 'shift', refId: s.id });
+      }
+    } else if (c.trigger === 'shift_variance' && c.amount > 0) {
+      for (const s of db.all("select id, opened_by_name, difference, closed_at from pos_shift where tenant_id = ? and status = 'closed' and closed_at >= ? and abs(difference) >= ?", tenantId, addDays(t, -7), c.amount)) {
+        out.push({ key: `${rule.id}:var:${s.id}`, ruleId: rule.id, trigger: c.trigger, level: s.difference < 0 ? 'danger' : 'warn', title: `${s.opened_by_name}'s drawer ${s.difference < 0 ? 'short' : 'over'} by ${money(Math.abs(s.difference))}`, sub: `Shift closed ${String(s.closed_at).slice(0, 10)}`, date: String(s.closed_at).slice(0, 10), refType: 'shift', refId: s.id });
       }
     }
   }

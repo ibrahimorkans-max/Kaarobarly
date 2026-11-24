@@ -22,6 +22,7 @@ import * as stockplus from './stockplus';
 import * as growth from './growth';
 import * as fin2 from './finance2';
 import * as people2 from './people2';
+import * as insights from './insights';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -458,6 +459,9 @@ export function registerRoutes(app: AppLike, db: Db) {
     const r = range(req);
     res.json(people2.cashierPerformance(db, T(req), r.from, r.to));
   });
+
+  app.get('/insights/anomalies', need('reports.view'), (req: Req, res: Res) => res.json(insights.anomalies(db, T(req))));
+  app.get('/insights/monthly', need('reports.view'), (req: Req, res: Res) => res.json(insights.monthlyReport(db, T(req), people2.monthSchema.parse(String(req.query.month ?? today().slice(0, 7))), req.query.lang === 'ur' ? 'ur' : 'en')));
 
   app.get('/pos/held', need('pos.sell'), (req: Req, res: Res) => res.json(pos.listHeld(db, T(req))));
   app.post('/pos/held', need('pos.sell'), (req: Req, res: Res) => res.status(201).json(pos.holdBill(db, req.auth, pos.holdSchema.parse(req.body))));

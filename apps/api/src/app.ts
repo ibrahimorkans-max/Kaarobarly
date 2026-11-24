@@ -261,6 +261,10 @@ export function createApp(db: Db) {
     if (!can(req, 'finance.manage') && !can(req, 'expenses.claim')) throw new HttpError(403, 'You do not have permission to do this.');
     return ai.scanBill(db, T(req), z.object({ image: z.string().min(20).max(1_500_000) }).parse(req.body).image);
   }));
+  app.post('/ai/scan-product', aiRoute(async (req) => {
+    if (!can(req, 'invoices.create')) throw new HttpError(403, 'You do not have permission to do this.');
+    return ai.scanProduct(db, T(req), z.object({ image: z.string().min(20).max(1_500_000) }).parse(req.body).image);
+  }));
   app.post('/ai/parse-entry', aiRoute(async (req) => ai.parseEntry(db, T(req), z.object({ text: z.string().trim().min(3).max(500) }).parse(req.body).text)));
 
   // ------------------------------------------------------------ server-only: plan & usage, platform admin

@@ -24,6 +24,7 @@ export default function Alerts() {
     else if (a.refType === 'stock') router.push({ pathname: '/stock/[id]', params: { id: a.refId } });
     else if (a.refType === 'purchase') router.push({ pathname: '/purchase/[id]', params: { id: a.refId } });
     else if (a.refType === 'cheque') router.push('/cheques');
+    else if (a.refType === 'shift') router.push({ pathname: '/pos/shift', params: { id: a.refId } });
     else router.push('/finance');
   };
   async function dismiss(a: Alert) {

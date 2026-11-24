@@ -277,6 +277,44 @@ export async function scanBill(db: Db, tenantId: string, image: string): Promise
   return bill;
 }
 
+// ---------------------------------------------------------------- product photo to catalogue item
+
+const PRODUCT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['name', 'category', 'barcode', 'unit', 'description'],
+  properties: {
+    name: { type: 'string', description: 'Product name as sold, with brand and size, e.g. "Olpers Milk 1L"' },
+    category: { type: 'string', description: 'A short shop category such as Dairy, Snacks, Beverages, Personal care' },
+    barcode: { type: 'string', description: 'Digits of the barcode if clearly readable, else empty' },
+    unit: { type: 'string', description: 'pcs, pack, kg, litre, box …' },
+    description: { type: 'string', description: 'One short line, or empty' },
+  },
+};
+
+export interface ScannedProduct {
+  name: string;
+  category: string;
+  barcode: string;
+  unit: string;
+  description: string;
+}
+
+/** Read a photo of a product or its pack and suggest the catalogue entry. Nothing is saved. */
+export async function scanProduct(db: Db, tenantId: string, image: string): Promise<ScannedProduct> {
+  const cats = db.all("select distinct category from service where tenant_id = ? and category <> '' limit 40", tenantId).map((r) => r.category as string);
+  const text = await complete(db, tenantId, {
+    system: `You read product photos for a shop's catalogue. Copy what is printed; never invent a barcode.${cats.length ? ` Prefer one of these existing categories when it fits: ${cats.join(', ')}.` : ''}`,
+    text: 'What product is this?',
+    image,
+    schema: PRODUCT_SCHEMA,
+    effort: 'low',
+  });
+  const p = parseJson<ScannedProduct>(text);
+  if (!/^\d{8,14}$/.test(p.barcode ?? '')) p.barcode = '';
+  return p;
+}
+
 // ---------------------------------------------------------------- quick entry from a sentence
 
 const ENTRY_SCHEMA = {
