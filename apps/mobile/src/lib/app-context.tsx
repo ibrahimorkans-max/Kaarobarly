@@ -1,7 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { Animated, Platform, StyleSheet, Text, useColorScheme } from 'react-native';
 import { Alert, Platform as RNPlatform } from 'react-native';
-import { api, clearSession, remoteForEngine, restoreSession, setSignedOutHandler, storeSession } from './api';
+import { api, clearSession, remoteForEngine, restoreSession, setSignedOutHandler, storeSession, storeUser } from './api';
 import { engine } from './engine';
 import { unregisterPush } from './push';
 import { local } from './storage';
@@ -66,7 +66,12 @@ interface AuthState {
   user: User | null;
   ready: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  register: (input: { businessName: string; name: string; email: string; password: string }) => Promise<void>;
+  /** returns which ways a verification code can be sent (to show the verify screen) */
+  register: (input: { businessName: string; name: string; email: string; password: string; phone?: string; referralCode?: string }) => Promise<{ email: boolean; whatsapp: boolean }>;
+  /** a session from a code sign-in or a password reset */
+  adoptSession: (s: { accessToken: string; refreshToken: string; user: User }) => Promise<void>;
+  /** the signed-in user changed (verified email, new number) */
+  updateUser: (u: User) => void;
   /** force: skip the unsynced-changes warning (used after the account was deleted) */
   signOut: (force?: boolean) => Promise<void>;
   can: (p: Permission) => boolean;
@@ -162,6 +167,17 @@ export function AppProviders({ children }: { children: ReactNode }) {
         await startOffline(s.user);
         setUser(s.user);
         void loadWorkspace();
+        return s.verify ?? { email: false, whatsapp: false };
+      },
+      async adoptSession(s) {
+        await storeSession(s);
+        await startOffline(s.user);
+        setUser(s.user);
+        void loadWorkspace();
+      },
+      updateUser(u) {
+        setUser(u);
+        void storeUser(u);
       },
       async signOut(force = false) {
         const waiting = engine.state.pending + engine.state.failed;

@@ -321,6 +321,11 @@ create table if not exists pos_held (
   id text primary key, tenant_id text not null references tenant, name text not null, client_id text, lines text not null,
   bill_discount integer not null default 0, by_name text not null, created_at text not null
 );
+create table if not exists auth_code (
+  id text primary key, user_id text not null, purpose text not null, channel text not null, target text not null,
+  code_hash text not null, attempts integer not null default 0, expires_at text not null, used_at text, created_at text not null
+);
+create index if not exists auth_code_user on auth_code (user_id, purpose);
 create table if not exists push_device (
   id text primary key, tenant_id text not null, user_id text not null, token text not null unique, platform text not null default 'android',
   created_at text not null, last_seen text not null
@@ -539,6 +544,9 @@ export const MIGRATIONS: [table: string, column: string, definition: string][] =
   ['purchase', 'tax_amount', 'integer not null default 0'],
   ['employee', 'user_id', 'text'],
   ['tenant', 'referral_code', 'text'],
+  ['app_user', 'phone', "text not null default ''"],
+  ['app_user', 'email_verified', 'integer not null default 0'],
+  ['app_user', 'phone_verified', 'integer not null default 0'],
   ['tenant', 'referred_by', 'text'],
   ['employee', 'sales_target', 'integer not null default 0'],
   ['employee', 'commission_bp', 'integer not null default 0'],

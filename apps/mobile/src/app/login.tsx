@@ -1,39 +1,38 @@
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { Text, View } from 'react-native';
-import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { LinearGradient } from 'expo-linear-gradient';
-import { BRAND, LogoLockup } from '@/components/logo';
-import { Btn, Card, Chips, FadeIn, Field, Notice, Screen } from '@/components/ui';
+import { AUTH, AuthAlternatives, AuthButton, AuthField, AuthLink, AuthShell } from '@/components/auth-art';
+import { api } from '@/lib/api';
 import { useAuth } from '@/lib/app-context';
+import { tr } from '@/lib/i18n';
 import { local } from '@/lib/storage';
 
+/** Sign in with email or WhatsApp number and password, or with a code sent by WhatsApp or email. */
 export default function Login() {
-  const { signIn, register } = useAuth();
-  const insets = useSafeAreaInsets();
-  const [mode, setMode] = useState<'in' | 'up'>('in');
-  const [businessName, setBusinessName] = useState('');
-  const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const { signIn } = useAuth();
+  const [login, setLogin] = useState('');
   const [password, setPassword] = useState('');
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  // first launch on this device: show the introduction once
+  const [channels, setChannels] = useState({ email: false, whatsapp: false });
+
   useEffect(() => {
+    // first launch on this device: show the introduction once
     local
       .get<boolean>('kaarobarly.onboarded')
       .then((seen) => !seen && router.replace('/onboarding'))
+      .catch(() => {});
+    api<{ email: boolean; whatsapp: boolean }>('/auth/channels', { auth: false })
+      .then(setChannels)
       .catch(() => {});
   }, []);
 
   async function submit() {
     setError('');
-    if (!email.trim() || !password) return setError('Enter your email and password.');
-    if (mode === 'up' && (!businessName.trim() || !name.trim())) return setError('Enter your business name and your name.');
+    if (!login.trim() || !password) return setError('Enter your email or WhatsApp number, and your password.');
     setBusy(true);
     try {
-      if (mode === 'in') await signIn(email.trim(), password);
-      else await register({ businessName: businessName.trim(), name: name.trim(), email: email.trim(), password });
+      await signIn(login.trim(), password);
     } catch (e: any) {
       setError(e.message);
     } finally {
@@ -41,46 +40,23 @@ export default function Login() {
     }
   }
 
+  const alt = [
+    ...(channels.whatsapp ? [{ icon: 'logo-whatsapp' as const, color: '#25D366', label: 'WhatsApp code', onPress: () => router.push({ pathname: '/forgot', params: { mode: 'login', channel: 'whatsapp', login } }) }] : []),
+    ...(channels.email ? [{ icon: 'mail' as const, color: AUTH.accent, label: 'Email code', onPress: () => router.push({ pathname: '/forgot', params: { mode: 'login', channel: 'email', login } }) }] : []),
+  ];
+
   return (
-    <Screen>
-      <FadeIn>
-        <LinearGradient colors={BRAND.splash} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ marginTop: insets.top + 8, borderRadius: 24, padding: 22, paddingVertical: 30, gap: 16, overflow: 'hidden' }}>
-          <View pointerEvents="none" style={{ position: 'absolute', right: -50, top: -60, width: 190, height: 190, borderRadius: 95, backgroundColor: 'rgba(20,99,243,0.25)' }} />
-          <LogoLockup size={50} onDark />
-          <Text style={{ color: 'rgba(255,255,255,0.9)', fontSize: 15, lineHeight: 21 }}>Smarter invoicing. Stronger finances. Create invoices, track payments and manage your business money from your phone.</Text>
-        </LinearGradient>
-      </FadeIn>
-      <Chips
-        value={mode}
-        onChange={(m) => {
-          setMode(m);
-          setError('');
-        }}
-        options={[
-          { value: 'in', label: 'Sign in' },
-          { value: 'up', label: 'Create account' },
-        ]}
-      />
-      <Card style={{ gap: 12 }}>
-        {mode === 'up' && (
-          <>
-            <Field label="Business name" value={businessName} onChangeText={setBusinessName} autoCapitalize="words" />
-            <Field label="Your name" value={name} onChangeText={setName} autoCapitalize="words" autoComplete="name" />
-          </>
-        )}
-        <Field label="Email" value={email} onChangeText={setEmail} keyboardType="email-address" autoCapitalize="none" autoComplete="email" autoCorrect={false} />
-        <Field
-          label="Password"
-          value={password}
-          onChangeText={setPassword}
-          secureTextEntry
-          autoComplete={mode === 'in' ? 'current-password' : 'new-password'}
-          hint={mode === 'up' ? 'At least 8 characters' : undefined}
-          onSubmitEditing={submit}
-        />
-        {!!error && <Notice kind="danger">{error}</Notice>}
-        <Btn title={mode === 'in' ? 'Sign in' : 'Create account'} onPress={submit} loading={busy} />
-      </Card>
-    </Screen>
+    <AuthShell pose="wave" title="Welcome Back!" subtitle="Let's get you signed in" back={false} footer={<AuthLink text="Don't have an account?" link="Sign up" onPress={() => router.push('/signup')} />}>
+      <AuthField icon="person-outline" label="Email or WhatsApp number" value={login} onChangeText={setLogin} autoCapitalize="none" autoCorrect={false} keyboardType="email-address" autoComplete="username" />
+      <AuthField icon="lock-closed-outline" label="Password" password value={password} onChangeText={setPassword} autoComplete="current-password" onSubmitEditing={submit} returnKeyType="go" />
+      <View style={{ alignItems: 'flex-end' }}>
+        <Text accessibilityRole="link" onPress={() => router.push({ pathname: '/forgot', params: { mode: 'reset', login } })} style={{ color: AUTH.accent, fontWeight: '700', fontSize: 13.5 }}>
+          {tr('Forgot Password?')}
+        </Text>
+      </View>
+      {!!error && <Text style={{ color: AUTH.danger, textAlign: 'center' }}>{error}</Text>}
+      <AuthButton title="Login" onPress={submit} loading={busy} />
+      <AuthAlternatives items={alt} />
+    </AuthShell>
   );
 }

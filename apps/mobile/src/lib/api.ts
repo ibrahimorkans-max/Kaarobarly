@@ -61,6 +61,11 @@ export async function storeSession(s: { accessToken: string; refreshToken: strin
   if (s.user) await local.set(USER_KEY, s.user);
 }
 
+/** Keep the signed-in user's details (tokens unchanged). */
+export async function storeUser(u: User) {
+  await local.set(USER_KEY, u);
+}
+
 export async function clearSession() {
   accessToken = '';
   await secure.remove(REFRESH_KEY);

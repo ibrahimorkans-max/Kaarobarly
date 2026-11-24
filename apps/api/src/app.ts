@@ -23,6 +23,7 @@ import { reportFileName, reportWorkbook } from './excel';
 import { shopOrder, shopOrderSchema, shopPage } from './growth';
 import * as saas2 from './saas2';
 import * as push from './push';
+import * as msg from './messaging';
 import { MiniApp } from './mini';
 import { portalInvoice, portalPage } from './portal';
 import * as ai from './ai';
@@ -90,7 +91,7 @@ export function createApp(db: Db) {
 
   function userDto(u: Row): User {
     const tenant = db.get('select name from tenant where id = ?', u.tenant_id)!;
-    return { id: u.id, name: u.name, email: u.email, role: u.role, permissions: permissionsFor(u.role), tenantName: tenant.name, tenantId: u.tenant_id, isPlatformAdmin: saas.isPlatformAdmin(u.email) };
+    return { id: u.id, name: u.name, email: u.email, role: u.role, permissions: permissionsFor(u.role), tenantName: tenant.name, tenantId: u.tenant_id, isPlatformAdmin: saas.isPlatformAdmin(u.email), phone: u.phone ?? '', emailVerified: !!u.email_verified, phoneVerified: !!u.phone_verified };
   }
 
   function openSession(u: Row, deviceName: string) {
@@ -120,10 +121,14 @@ export function createApp(db: Db) {
         password: z.string().min(8, 'Password must be at least 8 characters').max(200),
         deviceName: z.string().max(100).default(''),
         referralCode: z.string().trim().max(20).default(''),
+        phone: z.string().trim().max(30).default(''),
       })
       .parse(req.body);
+    const phone = body.phone ? msg.normalizePhone(body.phone) : '';
+    if (body.phone && phone.length < 10) throw new HttpError(422, 'Enter the WhatsApp number with the country code, e.g. 0300 1234567.');
     const out = db.tx(() => {
       if (db.get('select 1 from app_user where email = ?', body.email)) throw new HttpError(409, 'An account with this email already exists.');
+      if (phone && db.get('select 1 from app_user where phone = ?', phone)) throw new HttpError(409, 'An account with this WhatsApp number already exists.');
       const tenantId = uid();
       const userId = uid();
       db.run('insert into tenant (id, name, created_at) values (?,?,?)', tenantId, body.businessName, now());
@@ -132,17 +137,19 @@ export function createApp(db: Db) {
       acc.ensureAccounts(db, { businessId: bizId });
       saas.startTrial(db, tenantId);
       saas2.creditReferral(db, tenantId, body.referralCode);
+      if (phone) db.run('update app_user set phone = ? where id = ?', phone, userId);
       db.audit(tenantId, userId, 'tenant.register', 'tenant', tenantId);
       return openSession(db.get('select * from app_user where id = ?', userId)!, body.deviceName);
     });
-    res.status(201).json(out);
+    const ch = msg.channels(db);
+    res.status(201).json({ ...out, verify: ch });
   });
 
   app.post('/auth/login', (req, res) => {
     saas.rateLimit(`login:${req.ip}`, 30, 15 * 60_000);
     const body = z.object({ email: z.string().trim(), password: z.string(), deviceName: z.string().max(100).default('') }).parse(req.body);
-    const u = db.get('select * from app_user where email = ?', body.email);
-    const fail = new HttpError(401, 'Incorrect email or password.');
+    const u = body.email.includes('@') ? db.get('select * from app_user where email = ?', body.email) : msg.findUser(db, body.email);
+    const fail = new HttpError(401, 'Incorrect email, number or password.');
     if (!u || u.status !== 'active') throw fail;
     if (u.locked_until && u.locked_until > now()) throw new HttpError(429, 'Too many attempts. Try again in a few minutes.');
     if (!verifyPassword(body.password, u.password_hash)) {
@@ -154,6 +161,55 @@ export function createApp(db: Db) {
     db.run('update app_user set failed_logins = 0, locked_until = null where id = ?', u.id);
     db.audit(u.tenant_id, u.id, 'auth.login', 'user', u.id, { device: body.deviceName });
     res.json(openSession(u, body.deviceName));
+  });
+
+  // ------------------------------------------------------------ codes by email or WhatsApp
+
+  /** Which ways of receiving a code this service offers. */
+  app.get('/auth/channels', (_req, res) => res.json(msg.channels(db)));
+
+  const loginOrPhone = z.string().trim().min(3, 'Enter your email or WhatsApp number').max(200);
+  /** Forgot password or sign in with a code. The answer is the same whether or not the account exists. */
+  app.post('/auth/code', async (req, res, next) => {
+    try {
+      saas.rateLimit(`code:${req.ip}`, 15, 60 * 60_000);
+      const body = z.object({ login: loginOrPhone, purpose: z.enum(['reset', 'login']), channel: z.enum(['email', 'whatsapp']) }).parse(req.body);
+      const u = msg.findUser(db, body.login);
+      const ok = u && (body.channel === 'email' ? !!u.email : !!u.phone);
+      if (!msg.channels(db)[body.channel]) throw new HttpError(503, body.channel === 'email' ? 'Email codes are not available yet.' : 'WhatsApp codes are not available yet.');
+      if (ok) res.json(await msg.issueCode(db, u!, body.purpose, body.channel));
+      else res.json({ sentTo: '' });
+    } catch (e) {
+      next(e);
+    }
+  });
+  const byLogin = (login: string) => {
+    const u = msg.findUser(db, login);
+    if (!u) throw new HttpError(422, 'That code is not right.');
+    return u;
+  };
+  /** Set a new password with the code; every other device is signed out. */
+  app.post('/auth/reset', (req, res) => {
+    saas.rateLimit(`reset:${req.ip}`, 20, 60 * 60_000);
+    const body = z.object({ login: loginOrPhone, code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code'), password: z.string().min(8, 'Password must be at least 8 characters').max(200), deviceName: z.string().max(100).default('') }).parse(req.body);
+    const u = byLogin(body.login);
+    const c = msg.checkCode(db, u.id, 'reset', body.code);
+    db.tx(() => {
+      db.run(`update app_user set password_hash = ?, failed_logins = 0, locked_until = null, ${c.channel === 'email' ? 'email_verified' : 'phone_verified'} = 1 where id = ?`, hashPassword(body.password), u.id);
+      db.run('update auth_session set revoked_at = ? where user_id = ? and revoked_at is null', now(), u.id);
+      db.audit(u.tenant_id, u.id, 'auth.reset', 'user', u.id, { channel: c.channel });
+    });
+    res.json(openSession(db.get('select * from app_user where id = ?', u.id)!, body.deviceName));
+  });
+  /** Sign in with a code instead of the password. */
+  app.post('/auth/login-code', (req, res) => {
+    saas.rateLimit(`login:${req.ip}`, 30, 15 * 60_000);
+    const body = z.object({ login: loginOrPhone, code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code'), deviceName: z.string().max(100).default('') }).parse(req.body);
+    const u = byLogin(body.login);
+    const c = msg.checkCode(db, u.id, 'login', body.code);
+    db.run(`update app_user set failed_logins = 0, locked_until = null, ${c.channel === 'email' ? 'email_verified' : 'phone_verified'} = 1 where id = ?`, u.id);
+    db.audit(u.tenant_id, u.id, 'auth.login', 'user', u.id, { device: body.deviceName, by: `code:${c.channel}` });
+    res.json(openSession(db.get('select * from app_user where id = ?', u.id)!, body.deviceName));
   });
 
   app.post('/auth/refresh', (req, res) => {
@@ -331,6 +387,56 @@ export function createApp(db: Db) {
     }
   });
   // push notifications: this phone's token, what the business is told about, and the platform's Firebase key
+  // confirm the signed-in person's email or WhatsApp number
+  app.post('/auth/verify/send', async (req, res, next) => {
+    try {
+      const { channel } = z.object({ channel: z.enum(['email', 'whatsapp']) }).parse(req.body);
+      const u = db.get('select * from app_user where id = ?', req.auth.userId);
+      if (!u) throw new HttpError(404, 'Account not found.');
+      res.json(await msg.issueCode(db, u, 'verify', channel));
+    } catch (e) {
+      next(e);
+    }
+  });
+  app.post('/auth/verify', (req, res) => {
+    const { code } = z.object({ code: z.string().trim().regex(/^\d{6}$/, 'Enter the 6-digit code') }).parse(req.body);
+    const c = msg.checkCode(db, req.auth.userId, 'verify', code);
+    db.run(`update app_user set ${c.channel === 'email' ? 'email_verified' : 'phone_verified'} = 1 where id = ?`, req.auth.userId);
+    res.json(userDto(db.get('select * from app_user where id = ?', req.auth.userId)!));
+  });
+  app.put('/auth/phone', (req, res) => {
+    const phone = msg.normalizePhone(z.object({ phone: z.string().trim().min(7).max(30) }).parse(req.body).phone);
+    if (phone.length < 10) throw new HttpError(422, 'Enter the WhatsApp number with the country code.');
+    if (db.get('select 1 from app_user where phone = ? and id <> ?', phone, req.auth.userId)) throw new HttpError(409, 'Another account uses this number.');
+    db.run('update app_user set phone = ?, phone_verified = 0 where id = ?', phone, req.auth.userId);
+    res.json(userDto(db.get('select * from app_user where id = ?', req.auth.userId)!));
+  });
+
+  // SaaS owner: email, WhatsApp and Firebase connections
+  app.get('/platform/integrations', (req, res) => {
+    platformOnly(req);
+    res.json({ ...msg.integrations(db), firebase: push.fcmStatus(db) });
+  });
+  app.put('/platform/integrations/email', (req, res) => {
+    platformOnly(req);
+    res.json(msg.saveEmail(db, msg.emailSchema.parse(req.body)));
+  });
+  app.put('/platform/integrations/whatsapp', (req, res) => {
+    platformOnly(req);
+    res.json(msg.saveWhatsApp(db, msg.whatsappSchema.parse(req.body)));
+  });
+  app.post('/platform/integrations/test', async (req, res, next) => {
+    try {
+      platformOnly(req);
+      const b = z.object({ channel: z.enum(['email', 'whatsapp']), to: z.string().trim().min(5).max(200) }).parse(req.body);
+      if (b.channel === 'email') await msg.sendEmail(db, b.to, 'Kaarobarly email works', 'This test email from Kaarobarly arrived, so codes and notices can be sent by email.');
+      else await msg.sendWhatsAppCode(db, b.to, '123456');
+      res.json({ ok: true });
+    } catch (e) {
+      next(e);
+    }
+  });
+
   app.post('/push/register', (req, res) => res.json(push.registerDevice(db, req.auth, push.registerSchema.parse(req.body))));
   app.post('/push/unregister', (req, res) => res.json(push.unregisterDevice(db, req.auth, z.object({ token: z.string().min(1) }).parse(req.body).token)));
   app.get('/push/settings', (req, res) => res.json({ ...push.getPushSettings(db, T(req)), ready: push.fcmStatus(db).ready, devices: db.get('select count(*) as n from push_device where user_id = ?', req.auth.userId)!.n }));

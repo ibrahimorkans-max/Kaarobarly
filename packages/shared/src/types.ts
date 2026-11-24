@@ -185,6 +185,10 @@ export interface User {
   tenantId: string;
   /** runs the Kaarobarly service itself (sees every account) */
   isPlatformAdmin?: boolean;
+  /** WhatsApp number, digits with country code */
+  phone?: string;
+  emailVerified?: boolean;
+  phoneVerified?: boolean;
 }
 
 export interface BusinessProfile {

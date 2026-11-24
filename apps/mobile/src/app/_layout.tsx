@@ -73,6 +73,8 @@ function Navigation() {
           <Stack.Screen name="buying" options={{ title: 'Buying' }} />
           <Stack.Screen name="suppliers" options={{ title: 'Suppliers' }} />
           <Stack.Screen name="supplier/[id]" options={{ title: 'Supplier' }} />
+          <Stack.Screen name="verify" options={{ headerShown: false }} />
+          <Stack.Screen name="admin/integrations" options={{ title: 'Integrations' }} />
           <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
           <Stack.Screen name="printers" options={{ title: 'Printers' }} />
           <Stack.Screen name="admin/push" options={{ title: 'Push notifications' }} />
@@ -131,6 +133,8 @@ function Navigation() {
         </Stack.Protected>
         <Stack.Protected guard={!user}>
           <Stack.Screen name="login" options={{ headerShown: false }} />
+          <Stack.Screen name="signup" options={{ headerShown: false }} />
+          <Stack.Screen name="forgot" options={{ headerShown: false }} />
           <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
         </Stack.Protected>
       </Stack>
