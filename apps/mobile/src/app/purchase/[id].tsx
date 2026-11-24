@@ -87,6 +87,7 @@ export default function PurchaseDetail() {
             </Card>
 
             <Btn icon="document-text-outline" title="Purchase slip · print, PDF or share" onPress={() => setViewer(true)} disabled={!biz} />
+            {p.lines.some((l) => l.itemId) && <Btn kind="secondary" icon="pricetag-outline" title="Print labels for these items" onPress={() => router.push({ pathname: '/labels', params: { purchaseId: p.id } })} />}
 
             <Section title={`Items (${p.lines.length})`}>
               <Card>

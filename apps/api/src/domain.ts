@@ -110,6 +110,8 @@ export const serviceSchema = z.object({
   trackStock: z.boolean().default(false),
   sku: text(60),
   barcode: text(60),
+  nameUr: text(200),
+  mrp: money.default(0),
   costPrice: money.default(0),
   reorderLevel: z.number().int().min(0).max(1e12).default(0),
 });
@@ -265,6 +267,9 @@ export function mapService(r: Row): Service {
     trackStock: !!r.track_stock,
     sku: r.sku ?? '',
     barcode: r.barcode ?? '',
+    nameUr: r.name_ur ?? '',
+    mrp: r.mrp ?? 0,
+    labelPending: !!r.label_pending,
     costPrice: r.cost_price ?? 0,
     reorderLevel: r.reorder_level ?? 0,
     ...(r.on_hand !== undefined ? { onHand: r.on_hand } : {}),

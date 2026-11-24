@@ -124,6 +124,7 @@ export default function ReceiptScreen() {
           {!!g.notes && <Txt v="sub">{g.notes}</Txt>}
         </Section>
         <Btn kind="secondary" icon="document-outline" title="View / share PDF" onPress={() => setViewer(true)} />
+        <Btn kind="secondary" icon="pricetag-outline" title="Print labels for the received goods" onPress={() => router.push({ pathname: '/labels', params: { receiptId: g.id } })} />
         {g.orderId && <Btn kind="ghost" title="Open purchase order" onPress={() => router.push({ pathname: '/order/[id]', params: { id: g.orderId! } })} />}
         {g.purchaseId ? (
           <Btn icon="receipt-outline" title={`Open bill ${g.purchaseNumber}`} onPress={() => router.push({ pathname: '/purchase/[id]', params: { id: g.purchaseId! } })} />

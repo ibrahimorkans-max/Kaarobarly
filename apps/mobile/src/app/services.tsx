@@ -1,5 +1,5 @@
-import { Stack } from 'expo-router';
-import { useState } from 'react';
+import { Stack, router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Switch, View } from 'react-native';
 import { CustomFieldInputs } from '@/components/custom-fields';
 import { BarcodeScanner } from '@/components/scanner';
@@ -26,8 +26,10 @@ interface Form {
   barcode: string;
   cost: string;
   reorder: string;
+  nameUr: string;
+  mrp: string;
 }
-const blank: Form = { name: '', category: '', description: '', price: '', unit: '', tax: '', discount: '', status: 'active', itemType: '', custom: {}, trackStock: false, sku: '', barcode: '', cost: '', reorder: '' };
+const blank: Form = { name: '', category: '', description: '', price: '', unit: '', tax: '', discount: '', status: 'active', itemType: '', custom: {}, trackStock: false, sku: '', barcode: '', cost: '', reorder: '', nameUr: '', mrp: '' };
 const EXAMPLES = ['Software Development', 'Consultancy', 'Laboratory Testing', 'Weighbridge Services', 'Transportation', 'Installation', 'Maintenance', 'Technical Support'];
 
 export default function Services() {
@@ -42,6 +44,12 @@ export default function Services() {
   const { t, ws, on } = useWorkspace();
   const [scan, setScan] = useState(false);
   const [kind, setKind] = useState('');
+  // opened from a scan of an unknown barcode: start a new stock item with that code
+  const params = useLocalSearchParams<{ barcode?: string }>();
+  useEffect(() => {
+    if (params.barcode) setForm({ ...blank, barcode: params.barcode, trackStock: true, itemType: ws.itemTypes[0] ?? '' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [params.barcode]);
 
   const needle = q.trim().toLowerCase();
   const shown = (data ?? []).filter((s) => (!kind || s.itemType === kind) && (!needle || `${s.name} ${s.category} ${s.itemType}`.toLowerCase().includes(needle)));
@@ -64,6 +72,8 @@ export default function Services() {
       barcode: s.barcode,
       cost: s.costPrice ? moneyToInput(s.costPrice) : '',
       reorder: s.reorderLevel ? qtyToString(s.reorderLevel) : '',
+      nameUr: s.nameUr ?? '',
+      mrp: s.mrp ? moneyToInput(s.mrp) : '',
     });
 
   async function save() {
@@ -80,7 +90,9 @@ export default function Services() {
       const reorderLevel = form.reorder.trim() ? parseQty(form.reorder) : 0;
       if (costPrice === null || costPrice < 0) throw new Error('Cost price is not a valid amount');
       if (reorderLevel === null || reorderLevel < 0) throw new Error('Reorder level is not a valid quantity');
-      const body = { trackStock: form.trackStock, sku: form.sku.trim(), barcode: form.barcode.trim(), costPrice, reorderLevel, name: form.name.trim(), category: form.category.trim(), description: form.description.trim(), defaultPrice: price, unit: form.unit.trim(), taxRateBp: tax, defaultDiscountBp: discount, status: form.status, itemType: form.itemType, custom: form.custom };
+      const mrp = form.mrp.trim() ? parseMoney(form.mrp) : 0;
+      if (mrp === null || mrp < 0) throw new Error('MRP is not a valid amount');
+      const body = { nameUr: form.nameUr.trim(), mrp, trackStock: form.trackStock, sku: form.sku.trim(), barcode: form.barcode.trim(), costPrice, reorderLevel, name: form.name.trim(), category: form.category.trim(), description: form.description.trim(), defaultPrice: price, unit: form.unit.trim(), taxRateBp: tax, defaultDiscountBp: discount, status: form.status, itemType: form.itemType, custom: form.custom };
       await api(form.id ? `/services/${form.id}` : '/services', { method: form.id ? 'PUT' : 'POST', body });
       toast(form.id ? `${t('item')} updated` : `${t('item')} added`);
       setForm(null);
@@ -97,7 +109,10 @@ export default function Services() {
       <Stack.Screen options={{ title: t('items') }} />
       <SearchBar value={q} onChange={setQ} placeholder={`Search ${lower(t('items'))}`} />
       {ws.itemTypes.length > 1 && <Chips value={kind} onChange={setKind} options={[{ value: '', label: 'All' }, ...ws.itemTypes.map((x) => ({ value: x, label: x }))]} />}
-      {canEdit && <Btn icon="add" title={`Add ${lower(t('item'))}`} onPress={() => setForm({ ...blank, itemType: kind || ws.itemTypes[0] || '' })} />}
+      <Row gap={10}>
+        {canEdit && <Btn style={{ flex: 1 }} icon="add" title={`Add ${lower(t('item'))}`} onPress={() => setForm({ ...blank, itemType: kind || ws.itemTypes[0] || '' })} />}
+        {on('inventory') && <Btn style={{ flex: 1 }} kind="secondary" icon="pricetag-outline" title="Print labels" onPress={() => router.push('/labels')} />}
+      </Row>
       <Loader loading={loading && !data} error={data ? '' : error} onRetry={reload}>
         {shown.length === 0 ? (
           <Empty icon="pricetags-outline" title={needle || kind ? 'Nothing matches' : `No ${lower(t('items'))} yet`} hint={needle ? undefined : `Add anything you bill for: ${EXAMPLES.slice(0, 4).join(', ')} and more.`} />
@@ -127,6 +142,7 @@ export default function Services() {
 
       <Sheet visible={!!form} title={form?.id ? `Edit ${lower(t('item'))}` : `New ${lower(t('item'))}`} onClose={() => setForm(null)}>
         <Field label="Name" value={form?.name ?? ''} onChangeText={(v) => set({ name: v })} placeholder="e.g. Laboratory Testing" />
+        {on('inventory') && <Field label="Name in Urdu (for labels)" value={form?.nameUr ?? ''} onChangeText={(v) => set({ nameUr: v })} textAlign="right" />}
         {ws.itemTypes.length > 1 && <Chips value={form?.itemType ?? ''} onChange={(v) => set({ itemType: v })} options={ws.itemTypes.map((x) => ({ value: x, label: x }))} />}
         <Field label="Category" value={form?.category ?? ''} onChangeText={(v) => set({ category: v })} />
         <Field label="Description" value={form?.description ?? ''} onChangeText={(v) => set({ description: v })} multiline />
@@ -151,6 +167,8 @@ export default function Services() {
               <Field style={{ flex: 1 }} label="SKU / code" value={form?.sku ?? ''} onChangeText={(v) => set({ sku: v })} autoCapitalize="characters" />
               <Field style={{ flex: 1 }} label="Barcode" value={form?.barcode ?? ''} onChangeText={(v) => set({ barcode: v })} autoCapitalize="none" right={<IconBtn icon="barcode-outline" label="Scan barcode" onPress={() => setScan(true)} />} />
             </Row>
+            <Field label="MRP (printed retail price, optional)" money placeholder="0" value={form?.mrp ?? ''} onChangeText={(v) => set({ mrp: v })} />
+            {!form?.id && !form?.barcode && form?.trackStock && <Txt v="small">Leave the barcode empty to get the shop's own barcode automatically.</Txt>}
             {form?.trackStock && (
               <Row gap={10} style={{ alignItems: 'flex-start' }}>
                 <Field style={{ flex: 1 }} label="Cost price" money placeholder="0" value={form?.cost ?? ''} onChangeText={(v) => set({ cost: v })} />

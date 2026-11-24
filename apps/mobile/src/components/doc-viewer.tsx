@@ -67,6 +67,7 @@ export function DocumentViewer({
   build,
   template,
   defaultPaper = 'A4',
+  papers = PAPERS,
   note,
 }: {
   visible: boolean;
@@ -77,6 +78,8 @@ export function DocumentViewer({
   /** pass the business's design to let the user try the others; omit for documents with one design */
   template?: InvoiceTemplate;
   defaultPaper?: Paper;
+  /** the paper choices offered (receipts and documents by default; labels pass their own) */
+  papers?: { value: Paper; label: string }[];
   note?: string;
 }) {
   const t = useTheme();
@@ -129,7 +132,7 @@ export function DocumentViewer({
           {template && !paper.startsWith('thermal') && (
             <Chips value={design} onChange={setDesign} options={INVOICE_TEMPLATES.map((x) => ({ value: x, label: INVOICE_TEMPLATE_LABELS[x] }))} />
           )}
-          <Chips value={paper} onChange={setPaper} options={PAPERS} />
+          {papers.length > 1 && <Chips value={paper} onChange={setPaper} options={papers} />}
         </View>
         <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 4, alignItems: 'center' }}>
           <View ref={shot} collapsable={false} style={{ width: '100%', maxWidth: MAX_WIDTH }}>

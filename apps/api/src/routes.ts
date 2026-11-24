@@ -17,6 +17,7 @@ import * as ppl from './people';
 import * as rules from './rules';
 import { assertLimit } from './saas';
 import * as pos from './pos';
+import * as labels from './labels';
 import { buildReport, type ReportFilter } from './reports';
 
 /** Anything with Express-style route methods: the Express app on the server, MiniApp on the phone. */
@@ -130,13 +131,33 @@ export function registerRoutes(app: AppLike, db: Db) {
     res.json(d.mapService(r));
   });
   app.post('/services', need('invoices.create'), (req: Req, res: Res) => {
-    const id = upsert(db, 'service', T(req), withCustom(T(req), 'item', d.serviceSchema.parse(req.body)));
+    const body = d.serviceSchema.parse(req.body);
+    labels.assertBarcodeFree(db, T(req), body.barcode);
+    // stock items without a maker's barcode get the shop's own, so they can be scanned and labelled
+    if (!body.barcode && body.trackStock && req.body?.autoCode !== false) body.barcode = labels.freeStoreBarcode(db, T(req));
+    const id = upsert(db, 'service', T(req), withCustom(T(req), 'item', body));
     res.status(201).json(d.mapService(d.ownedRow(db, 'service', T(req), id)));
   });
   app.put('/services/:id', need('invoices.create'), (req: Req, res: Res) => {
-    upsert(db, 'service', T(req), withCustom(T(req), 'item', d.serviceSchema.parse(req.body)), String(req.params.id));
-    res.json(d.mapService(d.ownedRow(db, 'service', T(req), String(req.params.id))));
+    const id = String(req.params.id);
+    const body = d.serviceSchema.parse(req.body);
+    labels.assertBarcodeFree(db, T(req), body.barcode, id);
+    const before = d.ownedRow(db, 'service', T(req), id);
+    upsert(db, 'service', T(req), withCustom(T(req), 'item', body), id);
+    // a new price means the shelf and product labels are out of date
+    if (before.default_price !== body.defaultPrice || (before.mrp ?? 0) !== body.mrp) db.run('update service set label_pending = 1 where id = ?', id);
+    res.json(d.mapService(d.ownedRow(db, 'service', T(req), id)));
   });
+  app.post('/services/auto-codes', need('invoices.create'), (req: Req, res: Res) => res.json(labels.fillMissingCodes(db, req.auth, labels.autoCodesSchema.parse(req.body ?? {}))));
+
+  // ------------------------------------------------------------ labels
+
+  app.get('/labels/templates', (req: Req, res: Res) => res.json(labels.listTemplates(db, T(req))));
+  app.post('/labels/templates', need('invoices.create'), (req: Req, res: Res) => res.status(201).json(labels.saveTemplate(db, req.auth, labels.templateSchema.parse(req.body))));
+  app.put('/labels/templates/:id', need('invoices.create'), (req: Req, res: Res) => res.json(labels.saveTemplate(db, req.auth, labels.templateSchema.parse(req.body), String(req.params.id))));
+  app.delete('/labels/templates/:id', need('invoices.create'), (req: Req, res: Res) => res.json(labels.deleteTemplate(db, req.auth, String(req.params.id))));
+  app.get('/labels/pending', (req: Req, res: Res) => res.json(labels.pendingLabels(db, T(req))));
+  app.post('/labels/printed', (req: Req, res: Res) => res.json(labels.markPrinted(db, req.auth, labels.printedSchema.parse(req.body))));
 
   // ------------------------------------------------------------ stock
 

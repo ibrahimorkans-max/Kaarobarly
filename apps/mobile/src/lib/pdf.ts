@@ -28,7 +28,10 @@ import {
   type ReportData,
 } from './shared';
 
-export type Paper = 'A4' | 'A5' | 'thermal' | 'thermal58';
+export type Paper = 'A4' | 'A5' | 'thermal' | 'thermal58' | RollPaper;
+/** One label per page, for label printers. */
+export type RollPaper = 'roll38x25' | 'roll50x25' | 'roll50x30' | 'roll60x40' | 'shelf80x40';
+const roll = (w: number, h: number) => ({ width: Math.round((w * 72) / 25.4), height: Math.round((h * 72) / 25.4), css: `${w}mm ${h}mm`, px: Math.round((w * 96) / 25.4), pxHeight: Math.round((h * 96) / 25.4), mm: h });
 export const PAPERS: { value: Paper; label: string }[] = [
   { value: 'A4', label: 'A4' },
   { value: 'A5', label: 'A5' },
@@ -41,6 +44,11 @@ export const PAPER_SIZE: Record<Paper, { width: number; height: number; css: str
   A5: { width: 420, height: 595, css: 'A5', px: 559, pxHeight: 794, mm: 209 },
   thermal: { width: 226, height: 800, css: '80mm auto', px: 302, pxHeight: 0, mm: 0 },
   thermal58: { width: 164, height: 800, css: '58mm auto', px: 219, pxHeight: 0, mm: 0 },
+  roll38x25: roll(38, 25),
+  roll50x25: roll(50, 25),
+  roll50x30: roll(50, 30),
+  roll60x40: roll(60, 40),
+  shelf80x40: roll(80, 40),
 };
 
 /** Default accent and dark colour of each design. */

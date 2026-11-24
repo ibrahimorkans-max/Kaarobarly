@@ -47,6 +47,7 @@ export default function More() {
         {on('purchases') && <MenuRow icon="cart-outline" title="Buying" sub="Requests, purchase orders and goods received" onPress={() => router.push('/buying')} />}
         {on('purchases') && <MenuRow icon="storefront-outline" title={t('suppliers')} sub="Who you buy from and what you owe them" onPress={() => router.push('/suppliers')} />}
         {on('inventory') && <MenuRow icon="cube-outline" title="Stock" sub="In hand, value, low stock and counts" onPress={() => router.push('/stock')} />}
+        {on('inventory') && <MenuRow icon="pricetag-outline" title="Labels & barcodes" sub="Design and print product and shelf labels" onPress={() => router.push('/labels')} />}
         {on('accounts') && <MenuRow icon="wallet-outline" title="Cash & Bank Accounts" sub="Balances, transfers between accounts" onPress={() => router.push('/accounts')} />}
         {on('accounts') && <MenuRow icon="book-outline" title="Daily Cashbook" sub="Opening, in, out and closing for each day" onPress={() => router.push('/cashbook')} />}
         <MenuRow icon="alarm-outline" title="Collections" sub="Who owes you, how late, and one-tap reminders" onPress={() => router.push('/collections')} />

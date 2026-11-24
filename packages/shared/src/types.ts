@@ -278,6 +278,12 @@ export interface Service {
   trackStock: boolean;
   sku: string;
   barcode: string;
+  /** name in Urdu, for labels and Urdu documents */
+  nameUr: string;
+  /** printed maximum retail price, minor units (0 = none) */
+  mrp: number;
+  /** the price changed since the labels were printed */
+  labelPending: boolean;
   /** last purchase price, minor units per 1 */
   costPrice: number;
   /** thousandths; warn when stock falls to this */

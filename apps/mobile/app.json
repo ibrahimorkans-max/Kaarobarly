@@ -2,7 +2,7 @@
   "expo": {
     "name": "Kaarobarly",
     "slug": "kaarobarly",
-    "version": "1.3.0",
+    "version": "1.4.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "kaarobarly",
@@ -14,7 +14,7 @@
     },
     "android": {
       "package": "com.zhtrader.kaarobarly",
-      "versionCode": 6,
+      "versionCode": 7,
       "adaptiveIcon": {
         "backgroundColor": "#0B1B4D",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

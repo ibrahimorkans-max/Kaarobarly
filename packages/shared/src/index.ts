@@ -10,3 +10,5 @@ export * from './collections';
 export * from './people';
 export * from './plans';
 export * from './pos';
+export * from './barcode';
+export * from './labels';

@@ -4,7 +4,7 @@ import { useCallback, useRef, useState } from 'react';
 import { Pressable, View, useWindowDimensions } from 'react-native';
 import { DocumentViewer } from '@/components/doc-viewer';
 import { BarcodeScanner } from '@/components/scanner';
-import { Badge, Btn, Card, Chips, Empty, Field, IconBtn, KV, Loader, Row, Screen, SearchBar, Select, Sheet, Txt, dt, fm, todayStr } from '@/components/ui';
+import { Badge, Btn, Card, Chips, Empty, Field, IconBtn, KV, Loader, Notice, Row, Screen, SearchBar, Select, Sheet, Txt, dt, fm, todayStr } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
 import { useAuth, useTheme, useToast } from '@/lib/app-context';
 import { newKey } from '@/lib/invoice-draft';
@@ -49,6 +49,7 @@ export function PosTerminal() {
   const [cashGiven, setCashGiven] = useState('');
   const [busy, setBusy] = useState('');
   const [float, setFloat] = useState('');
+  const [unknown, setUnknown] = useState('');
   const [done, setDone] = useState<{ invoice: Invoice; payments: Payment[]; change: number } | null>(null);
   const requestId = useRef(`pos-${newKey()}`);
 
@@ -91,6 +92,7 @@ export function PosTerminal() {
     const weighed = scale && active.find((s) => s.barcode === scale.itemCode || s.sku === scale.itemCode);
     if (weighed && scale) return add(weighed, scale.grams);
     toast(`No item has barcode ${code}`, 'error');
+    setUnknown(code);
   };
 
   const setQty = (key: string, qty: number) => setCart((c) => (qty <= 0 ? c.filter((l) => l.key !== key) : c.map((l) => (l.key === key ? { ...l, qty } : l))));
@@ -254,6 +256,16 @@ export function PosTerminal() {
           <Ionicons name="barcode-outline" size={24} color="#fff" />
         </Pressable>
       </Row>
+      {!!unknown && (
+        <Notice kind="warn">
+          Barcode {unknown} is not in your catalogue.{' '}
+          {can('invoices.create') && (
+            <Txt color={th.primary} style={{ fontWeight: '800' }} onPress={() => { setUnknown(''); router.push({ pathname: '/services', params: { barcode: unknown } }); }}>
+              Add it now
+            </Txt>
+          )}
+        </Notice>
+      )}
       {cats.length > 1 && <Chips value={cat} onChange={setCat} options={[{ value: '', label: 'All' }, ...cats.map((c) => ({ value: c, label: c }))]} />}
       <Loader loading={items.loading && !items.data} error={items.data ? '' : items.error} onRetry={items.reload}>
         {shown.length === 0 ? (
