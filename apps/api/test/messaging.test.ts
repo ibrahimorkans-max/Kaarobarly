@@ -72,13 +72,13 @@ const codeIn = (s: string) => s.match(/code is (\d{6})/)?.[1] ?? s.match(/"text"
 
 test('email and WhatsApp codes: verify, reset password, sign in with a code', async () => {
   const boss = (await call('', 'POST', '/auth/register', { businessName: 'Platform', name: 'Boss', email: 'boss@msg.dev', password: 'test-pass-123' })).body.accessToken;
-  assert.deepEqual((await call('', 'GET', '/auth/channels')).body, { email: false, whatsapp: false });
+  assert.deepEqual((await call('', 'GET', '/auth/channels')).body, { email: false, whatsapp: false, trialDays: 30 });
   assert.equal((await call(boss, 'PUT', '/platform/integrations/email', { host: '127.0.0.1', port: smtpPort, secure: false, user: '', pass: '', fromName: 'Kaarobarly', fromEmail: 'no-reply@kaarobarly.test' })).status, 200);
   const wa = await call(boss, 'PUT', '/platform/integrations/whatsapp', { phoneNumberId: '1234567890', accessToken: 'EAAtoken', template: 'kaarobarly_code', language: 'en', copyButton: true });
   assert.equal(wa.status, 200, JSON.stringify(wa.body));
   assert.equal(wa.body.whatsapp.hasToken, true);
   assert.equal(wa.body.whatsapp.accessToken, undefined, 'secrets are never sent back');
-  assert.deepEqual((await call('', 'GET', '/auth/channels')).body, { email: true, whatsapp: true });
+  assert.deepEqual((await call('', 'GET', '/auth/channels')).body, { email: true, whatsapp: true, trialDays: 30 });
 
   // sign up with a WhatsApp number written the local way
   const reg = await call('', 'POST', '/auth/register', { businessName: 'Shop', name: 'Sara', email: 'sara@msg.dev', password: 'test-pass-123', phone: '0300 1234567' });

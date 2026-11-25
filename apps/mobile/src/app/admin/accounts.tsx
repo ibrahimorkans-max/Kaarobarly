@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { View } from 'react-native';
 import { Badge, Btn, Card, Chips, DateField, Empty, Field, KV, Loader, Row, Screen, SearchBar, Sheet, Txt, fd } from '@/components/ui';
 import { api, useApi } from '@/lib/api';
@@ -25,6 +25,22 @@ export default function Platform() {
   const [only, setOnly] = useState<'all' | 'requests' | 'trial'>('all');
   const [edit, setEdit] = useState<{ t: Tenant; plan: PlanId | 'trial'; paidUntil: string; trialDays: string } | null>(null);
   const [busy, setBusy] = useState(false);
+  const trial = useApi<{ days: number }>(user?.isPlatformAdmin ? '/platform/trial' : null);
+  const [trialDays, setTrialDays] = useState('');
+  useEffect(() => {
+    if (trial.data) setTrialDays(String(trial.data.days));
+  }, [trial.data]);
+  async function saveTrial() {
+    const days = Number(trialDays);
+    if (!Number.isInteger(days) || days < 0 || days > 365) return toast('Enter 0 to 365 days', 'error');
+    try {
+      await api('/platform/trial', { method: 'PUT', body: { days } });
+      toast(days ? `New accounts get ${days} days of Pro free` : 'New accounts now start on the Free plan');
+      trial.reload();
+    } catch (e: any) {
+      toast(e.message, 'error');
+    }
+  }
 
   if (!user?.isPlatformAdmin)
     return (
@@ -67,6 +83,19 @@ export default function Platform() {
           <Txt style={{ fontWeight: '800', fontSize: 20 }}>{(data ?? []).filter((t) => t.request).length}</Txt>
         </Card>
       </Row>
+      <Card style={{ gap: 8 }}>
+        <Txt style={{ fontWeight: '800' }}>Free trial for new accounts</Txt>
+        <Txt v="small">Everyone who signs up (app, web or website) gets Pro free for this many days, then moves to Free until they choose a plan. 0 = no trial. The website shows this number too.</Txt>
+        <Row gap={10} style={{ alignItems: 'flex-end' }}>
+          <Field style={{ flex: 1 }} label="Trial days" value={trialDays} onChangeText={setTrialDays} keyboardType="number-pad" placeholder="30" />
+          <Btn small title="Save" onPress={saveTrial} disabled={!trial.data || trialDays === String(trial.data.days)} />
+        </Row>
+        <Row gap={6} style={{ flexWrap: 'wrap' }}>
+          {[0, 7, 14, 30, 60, 90].map((d) => (
+            <Btn key={d} small kind="secondary" title={d ? `${d} days` : 'No trial'} onPress={() => setTrialDays(String(d))} />
+          ))}
+        </Row>
+      </Card>
       <SearchBar value={q} onChange={setQ} placeholder="Search business or owner" />
       <Chips
         value={only}

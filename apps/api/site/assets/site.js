@@ -54,6 +54,7 @@ const ICON = {
   globe: I('<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 3 2.5 15 0 18M12 3c-2.5 3-2.5 15 0 18"/>'),
   bolt: I('<path d="M13 2L4 14h7l-1 8 9-12h-7z"/>'),
   heart: I('<path d="M12 21s-8-5-8-11a4.5 4.5 0 0 1 8-2.8A4.5 4.5 0 0 1 20 10c0 6-8 11-8 11z"/>'),
+  eye: I('<path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/>'),
   check: I('<path d="M5 12l5 5 9-10"/>'),
   x: I('<path d="M6 6l12 12M18 6L6 18"/>'),
   android: I('<path d="M5 10h14v8a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2z"/><path d="M5 10a7 7 0 0 1 14 0M8 4l1.5 2.5M16 4l-1.5 2.5M9 7.5h.01M15 7.5h.01"/>'),
@@ -117,6 +118,101 @@ function announceMotion() {
   cube.querySelector('.face')?.classList.add('on');
 }
 
+// ------------------------------------------------------------------ create an account from the website
+function signupModal() {
+  const t = C.trialDays;
+  const perks = ['Invoices, POS and stock', 'Works offline, syncs later', 'Phone, Windows and web', 'English and Urdu'];
+  return `<div class="su" id="signup" role="dialog" aria-modal="true" aria-labelledby="suTitle" hidden>
+    <div class="su-back" data-close></div>
+    <div class="su-card">
+      <div class="su-side">
+        <div class="su-mark">${markSvg('su-logo')}</div>
+        <div class="su-badge">${t ? `<b>${t}</b><span>days of Pro<br/>free</span>` : '<b>Free</b><span>plan to<br/>start</span>'}</div>
+        <ul>${perks.map((p) => `<li>${ICON.check}${p}</li>`).join('')}</ul>
+        <p class="su-note">${t ? `No card needed. After ${t} days you move to the Free plan unless you choose one.` : 'Upgrade any time from inside the app.'}</p>
+      </div>
+      <form class="su-form" id="suForm" novalidate>
+        <button type="button" class="su-x" data-close aria-label="Close">×</button>
+        <h2 id="suTitle">Create your account</h2>
+        <p class="sub" style="font-size:15px">Ready in a minute. You land straight in the app.</p>
+        <label>Business name<input name="businessName" required maxlength="200" autocomplete="organization" placeholder="e.g. Al-Noor Traders"></label>
+        <label>Your name<input name="name" required maxlength="200" autocomplete="name"></label>
+        <label>Email<input name="email" type="email" required maxlength="200" autocomplete="email" placeholder="you@business.com"></label>
+        <label>WhatsApp <small>(optional)</small><input name="phone" inputmode="tel" maxlength="30" autocomplete="tel" placeholder="0300 1234567"></label>
+        <label>Password<span class="pw"><input name="password" type="password" required minlength="8" maxlength="200" autocomplete="new-password" placeholder="At least 8 characters"><button type="button" class="eye" aria-label="Show password">${ICON.eye}</button></span></label>
+        <input type="hidden" name="plan">
+        <div class="msg" id="suMsg" role="status"></div>
+        <button class="btn primary full" type="submit">${t ? `Start my ${t}-day free trial` : 'Create my account'} ${ICON.arrow}</button>
+        <p class="su-alt">Already have an account? <a href="/app/login">Log in</a></p>
+      </form>
+    </div>
+  </div>`;
+}
+
+/** Open the sign-up window for any "#signup" link; on success the new owner is signed in to the web app. */
+function signup() {
+  const box = document.getElementById('signup');
+  const form = document.getElementById('suForm');
+  if (!box || !form) return;
+  const msg = document.getElementById('suMsg');
+  const open = (plan) => {
+    box.hidden = false;
+    requestAnimationFrame(() => box.classList.add('on'));
+    document.body.style.overflow = 'hidden';
+    form.plan.value = plan || '';
+    setTimeout(() => form.businessName.focus(), 350);
+  };
+  const close = () => {
+    box.classList.remove('on');
+    document.body.style.overflow = '';
+    setTimeout(() => (box.hidden = true), 350);
+    if (location.hash === '#signup') history.replaceState(null, '', location.pathname);
+  };
+  document.addEventListener('click', (e) => {
+    const a = e.target.closest('a[href="#signup"]');
+    if (!a) return;
+    e.preventDefault();
+    document.getElementById('nav')?.classList.remove('open');
+    open(a.dataset.plan);
+  });
+  box.querySelectorAll('[data-close]').forEach((x) => x.addEventListener('click', close));
+  addEventListener('keydown', (e) => e.key === 'Escape' && !box.hidden && close());
+  box.querySelector('.eye').addEventListener('click', () => (form.password.type = form.password.type === 'password' ? 'text' : 'password'));
+  if (location.hash === '#signup') open();
+  form.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const b = Object.fromEntries(new FormData(form).entries());
+    const say = (k, t) => ((msg.className = `msg ${k}`), (msg.textContent = t));
+    if (String(b.businessName).trim().length < 2) return say('err', 'Enter your business name.');
+    if (String(b.name).trim().length < 2) return say('err', 'Enter your name.');
+    if (!/^\S+@\S+\.\S+$/.test(String(b.email).trim())) return say('err', 'Enter a valid email.');
+    if (String(b.password).length < 8) return say('err', 'Choose a password of at least 8 characters.');
+    const btn = form.querySelector('button[type=submit]');
+    btn.disabled = true;
+    say('ok', 'Creating your account…');
+    try {
+      const r = await fetch('/auth/register', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ businessName: b.businessName, name: b.name, email: String(b.email).trim(), phone: b.phone, password: b.password, deviceName: 'website' }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(j.error || 'Could not create the account. Please try again.');
+      // the web app on this same site reads its session from here, so it opens already signed in
+      try {
+        localStorage.setItem('kaarobarly.refresh', j.refreshToken);
+        localStorage.setItem('kaarobarly.user', JSON.stringify(j.user));
+        localStorage.setItem('kaarobarly.onboarded', 'true');
+      } catch {}
+      say('ok', 'Welcome to Tijar! Opening your app…');
+      setTimeout(() => (location.href = j.verify && (j.verify.email || j.verify.whatsapp) ? '/app/verify' : '/app/'), 700);
+    } catch (err) {
+      say('err', err.message);
+      btn.disabled = false;
+    }
+  });
+}
+
 // ------------------------------------------------------------------ page
 function page() {
   const h = C.hero;
@@ -135,8 +231,9 @@ function page() {
 
   parts.push(`<header class="nav" id="nav"><div class="wrap">
     <a class="brand" href="#top" aria-label="Tijar home">${markSvg()}${wordSvg()}</a>
-    <nav class="links" id="links">${navLinks.map(([href, t]) => `<a href="${href}">${t}</a>`).join('')}</nav>
-    <a class="btn primary small cta-nav" href="${safe(h.primary.href || '#download')}"${ext(h.primary.href)}>${esc(h.primary.label || 'Start free')}</a>
+    <nav class="links" id="links">${navLinks.map(([href, t]) => `<a href="${href}">${t}</a>`).join('')}<a class="m-only" href="/app/login">Log in</a><a class="m-only m-cta" href="#signup">Create account</a></nav>
+    <a class="btn ghost small nav-login" href="/app/login">Log in</a>
+    <a class="btn primary small cta-nav" href="#signup">Create account</a>
     <button class="burger" id="burger" aria-label="Menu" aria-expanded="false" aria-controls="links"><span></span><span></span><span></span></button>
   </div></header>`);
 
@@ -227,7 +324,7 @@ function page() {
           <div class="price">${p.price ? money(p.price) : 'Free'}${p.price ? '<small> /month</small>' : ''}</div>
           <div class="hint">${esc(p.hint)}</div>
           <ul>${lim(p.limits).map(([t, ok]) => `<li class="${ok ? '' : 'off'}">${ok ? ICON.check : ICON.x}${esc(t)}</li>`).join('')}</ul>
-          <a class="btn ${hot ? 'primary' : 'ghost'}" href="#contact" data-plan="${esc(p.id)}">${p.price ? 'Choose ' + esc(p.name) : 'Start free'}</a>
+          <a class="btn ${hot ? 'primary' : 'ghost'}" href="#signup" data-plan="${esc(p.id)}">${p.price ? (C.trialDays ? 'Try ' + esc(p.name) + ' free' : 'Choose ' + esc(p.name)) : 'Start free'}</a>
         </article>`;
       }).join('')}</div>
       ${C.pricing.note ? `<p class="note">${esc(C.pricing.note)}</p>` : ''}
@@ -300,6 +397,7 @@ function page() {
     <div class="copy"><span>© ${new Date().getFullYear()} Tijar. All rights reserved.</span><span>Every Business Move, <b class="grad">Made Smarter</b></span></div>
   </div></footer>`);
 
+  parts.push(signupModal());
   document.getElementById('app').innerHTML = parts.join('');
 }
 
@@ -355,6 +453,7 @@ function interactions() {
   );
 
   announceMotion();
+  signup();
   leadForm();
   showcase();
   ring('ringStage', 'ring', 0.12);

@@ -2,7 +2,7 @@ import { Stack, router } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { ClientRow, useDebounced } from '@/components/rows';
-import { Btn, Empty, Loading, SearchBar, styles } from '@/components/ui';
+import { Btn, Empty, Loading, SearchBar, styles, listContent } from '@/components/ui';
 import { qs, usePaged } from '@/lib/api';
 import { useAuth, useTheme } from '@/lib/app-context';
 import type { Client } from '@/lib/shared';
@@ -20,7 +20,7 @@ export default function Clients() {
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
       <Stack.Screen options={{ title: term('clients') }} />
-      <View style={[styles.content, { paddingBottom: 10 }]}>
+      <View style={[listContent(), { paddingBottom: 10 }]}>
         <SearchBar value={q} onChange={setQ} placeholder="Search name, phone or city" />
         {can('clients.manage') && <Btn icon="person-add-outline" title={`Add ${lower(term('client'))}`} onPress={add} />}
       </View>
@@ -28,7 +28,7 @@ export default function Clients() {
         data={list.items}
         keyExtractor={(c) => c.id}
         renderItem={({ item }) => <ClientRow client={item} />}
-        contentContainerStyle={[styles.content, { paddingTop: 4, gap: 10 }]}
+        contentContainerStyle={[listContent(), { paddingTop: 4, gap: 10 }]}
         onEndReached={list.more}
         onEndReachedThreshold={0.4}
         onRefresh={list.reload}

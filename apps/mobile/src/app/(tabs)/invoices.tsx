@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { FlatList, Pressable, View } from 'react-native';
 import { Hero, HeroStylePicker, heroInk, useScreenStyle } from '@/components/styles-kit';
 import { InvoiceRow, useDebounced } from '@/components/rows';
-import { Btn, Chips, Empty, FadeIn, IconBtn, Loading, Row, SearchBar, Txt, fm, styles } from '@/components/ui';
+import { Btn, Chips, Empty, FadeIn, IconBtn, Loading, Row, SearchBar, Txt, fm, styles, listContent } from '@/components/ui';
 import { qs, useApi, usePaged } from '@/lib/api';
 import { useAuth, useTheme } from '@/lib/app-context';
 import type { DashboardSummary, Invoice } from '@/lib/shared';
@@ -109,7 +109,7 @@ export default function Invoices() {
         data={list.items}
         keyExtractor={(i) => i.id}
         renderItem={({ item }) => <InvoiceRow invoice={item} />}
-        contentContainerStyle={[styles.content, { paddingTop: 16, gap: 10 }]}
+        contentContainerStyle={[listContent(), { paddingTop: 16, gap: 10 }]}
         onEndReached={list.more}
         onEndReachedThreshold={0.4}
         onRefresh={() => (list.reload(), summary.reload())}

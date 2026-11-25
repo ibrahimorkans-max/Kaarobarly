@@ -2,7 +2,7 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { FlatList, View } from 'react-native';
 import { useDebounced } from '@/components/rows';
-import { Badge, Btn, Card, Chips, Empty, Loading, Row, SearchBar, Txt, fd, fm, styles } from '@/components/ui';
+import { Badge, Btn, Card, Chips, Empty, Loading, Row, SearchBar, Txt, fd, fm, styles, listContent } from '@/components/ui';
 import { qs, usePaged } from '@/lib/api';
 import { useAuth, useTheme } from '@/lib/app-context';
 import type { Quotation } from '@/lib/shared';
@@ -55,7 +55,7 @@ export default function Quotations() {
 
   return (
     <View style={{ flex: 1, backgroundColor: t.bg }}>
-      <View style={[styles.content, { paddingBottom: 10 }]}>
+      <View style={[listContent(), { paddingBottom: 10 }]}>
         <SearchBar value={q} onChange={setQ} placeholder="Search number, client or reference" />
         <Chips value={status} onChange={setStatus} options={FILTERS} />
         {can('invoices.create') && <Btn icon="add" title="New quotation" onPress={() => router.push('/quotation/new')} />}
@@ -64,7 +64,7 @@ export default function Quotations() {
         data={list.items}
         keyExtractor={(x) => x.id}
         renderItem={({ item }) => <QuotationRow q={item} />}
-        contentContainerStyle={[styles.content, { paddingTop: 4, gap: 10 }]}
+        contentContainerStyle={[listContent(), { paddingTop: 4, gap: 10 }]}
         onEndReached={list.more}
         onEndReachedThreshold={0.4}
         onRefresh={list.reload}

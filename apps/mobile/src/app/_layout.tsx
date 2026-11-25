@@ -4,6 +4,8 @@ import { useState } from 'react';
 import { View } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { SplashReveal } from '@/components/splash';
+import { Sidebar } from '@/components/sidebar';
+import { useWide } from '@/components/responsive';
 import { NavBar, NavTracker } from '@/components/nav-bar';
 import { SyncBanner } from '@/components/sync-ui';
 import { Loading } from '@/components/ui';
@@ -15,6 +17,7 @@ import { usePush } from '@/lib/push';
 function Navigation() {
   const { user, ready } = useAuth();
   const t = useTheme();
+  const wide = useWide();
   usePush(!!user);
   if (!ready) {
     return (
@@ -29,6 +32,9 @@ function Navigation() {
       <StatusBar style={t.dark ? 'light' : 'dark'} />
       {!user && <SyncBanner />}
       <NavTracker />
+      <View style={{ flex: 1, flexDirection: 'row' }}>
+      {wide && !!user && <Sidebar />}
+      <View style={{ flex: 1 }}>
       <Stack
         screenOptions={{
           header: ({ options }) => <NavBar title={typeof options.title === 'string' ? options.title : undefined} />,
@@ -141,6 +147,8 @@ function Navigation() {
           <Stack.Screen name="onboarding" options={{ headerShown: false, animation: 'fade' }} />
         </Stack.Protected>
       </Stack>
+      </View>
+      </View>
     </ThemeProvider>
   );
 }

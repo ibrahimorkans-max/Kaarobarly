@@ -1,4 +1,6 @@
 import cors from 'cors';
+import { existsSync } from 'node:fs';
+import { resolve } from 'node:path';
 import express, { type NextFunction, type Request, type Response } from 'express';
 import { z } from 'zod';
 import { ROLES, type User } from '../../../packages/shared/src/index';
@@ -107,6 +109,22 @@ export function createApp(db: Db) {
   });
   app.use('/site', express.static(site.SITE_DIR + '/assets', { maxAge: '1h', index: false }));
 
+  // The full web app (the phone app built for browsers; deploy/push-web.sh uploads it) at /app.
+  // Its offline database needs a cross-origin-isolated page, hence the two headers.
+  const WEB_APP = process.env.WEB_APP_DIR || resolve(import.meta.dirname, '../../../web-app');
+  const isolate = (res: Response) => {
+    res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+    res.setHeader('Cross-Origin-Embedder-Policy', 'credentialless');
+  };
+  app.use('/app', (_req, res, next) => (isolate(res), next()), express.static(WEB_APP, { index: false, maxAge: '7d' }));
+  app.get(/^\/app(\/.*)?$/, (_req, res) => {
+    const page = resolve(WEB_APP, 'index.html');
+    if (!existsSync(page)) return res.status(404).type('html').send('<p style="font-family:sans-serif">The web app is not installed on this server yet.</p>');
+    isolate(res);
+    res.setHeader('Cache-Control', 'no-cache');
+    res.sendFile(page);
+  });
+
   const requireAuth = makeRequireAuth((sid) => !!db.get("select 1 from auth_session where id = ? and revoked_at is null and expires_at > ?", sid, now()));
 
   const page = (req: Request) => ({
@@ -192,7 +210,7 @@ export function createApp(db: Db) {
   // ------------------------------------------------------------ codes by email or WhatsApp
 
   /** Which ways of receiving a code this service offers. */
-  app.get('/auth/channels', (_req, res) => res.json(msg.channels(db)));
+  app.get('/auth/channels', (_req, res) => res.json({ ...msg.channels(db), trialDays: saas.trialSettings(db).days }));
 
   const loginOrPhone = z.string().trim().min(3, 'Enter your email or WhatsApp number').max(200);
   /** Forgot password or sign in with a code. The answer is the same whether or not the account exists. */
@@ -372,6 +390,15 @@ export function createApp(db: Db) {
   app.get('/platform/tenants', (req, res) => {
     platformOnly(req);
     res.json(saas.listTenants(db));
+  });
+  // SaaS owner: how long new accounts try Pro for free (0 = start on Free)
+  app.get('/platform/trial', (req, res) => {
+    platformOnly(req);
+    res.json(saas.trialSettings(db));
+  });
+  app.put('/platform/trial', (req, res) => {
+    platformOnly(req);
+    res.json(saas.saveTrialSettings(db, saas.trialSchema.parse(req.body)));
   });
   app.get('/platform/overview', (req, res) => {
     platformOnly(req);

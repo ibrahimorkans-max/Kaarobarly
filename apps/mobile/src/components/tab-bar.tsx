@@ -6,6 +6,7 @@ import { Animated, Pressable, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '@/lib/app-context';
 import { softInset, softShadow, useNavStyle } from './styles-kit';
+import { useWide } from './responsive';
 import { GRADIENT, usePressScale, type IconName } from './ui';
 
 /** Icons for each tab: [outline, filled]. */
@@ -42,6 +43,12 @@ function Fab({ size, raised, disabled, ring, label }: { size: number; raised: bo
  * Classic, Dock, Floating, Glassmorphism or Neumorphism.
  */
 export function StyledTabBar({ state, descriptors, emitter, navigateToTab, canCreate }: any) {
+  const wide = useWide();
+  if (wide) return null; // the sidebar takes over on wide screens
+  return <PhoneTabBar state={state} descriptors={descriptors} emitter={emitter} navigateToTab={navigateToTab} canCreate={canCreate} />;
+}
+
+function PhoneTabBar({ state, descriptors, emitter, navigateToTab, canCreate }: any) {
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const [, style] = useNavStyle();

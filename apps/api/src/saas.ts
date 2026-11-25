@@ -67,9 +67,29 @@ export function countAi(db: Db, tenantId: string) {
   db.run('insert into ai_usage (tenant_id, month, count) values (?,?,1) on conflict (tenant_id, month) do update set count = count + 1', tenantId, month());
 }
 
-/** New accounts start a free Pro trial. */
+/** How long new accounts try Pro for free; set by the SaaS owner. 0 = no trial, start on Free. */
+export const trialSchema = z.object({ days: z.number().int().min(0).max(365) });
+export function trialSettings(db: Db): { days: number } {
+  const r = db.get("select value from platform_setting where key = 'trial'");
+  try {
+    return r ? trialSchema.parse(JSON.parse(r.value)) : { days: TRIAL_DAYS };
+  } catch {
+    return { days: TRIAL_DAYS };
+  }
+}
+export function saveTrialSettings(db: Db, body: z.infer<typeof trialSchema>) {
+  db.run("insert into platform_setting (key, value, updated_at) values ('trial', ?, ?) on conflict (key) do update set value = excluded.value, updated_at = excluded.updated_at", JSON.stringify(body), now());
+  return trialSettings(db);
+}
+
+/** New accounts start a free Pro trial of the length the owner set (or on Free when it is 0). */
 export function startTrial(db: Db, tenantId: string) {
-  const ends = new Date(Date.now() + TRIAL_DAYS * 86_400_000).toISOString().slice(0, 10);
+  const { days } = trialSettings(db);
+  if (days <= 0) {
+    db.run("update tenant set plan = 'free', trial_ends_at = null where id = ?", tenantId);
+    return;
+  }
+  const ends = new Date(Date.now() + days * 86_400_000).toISOString().slice(0, 10);
   db.run("update tenant set plan = 'trial', trial_ends_at = ? where id = ?", ends, tenantId);
 }
 

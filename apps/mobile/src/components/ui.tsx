@@ -5,6 +5,7 @@ import {
   ActivityIndicator,
   Alert,
   Animated,
+  Dimensions,
   Easing,
   FlatList,
   Keyboard,
@@ -25,6 +26,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ToastView, useTheme, type Theme } from '@/lib/app-context';
 import { tr } from '@/lib/i18n';
+import { WIDE_BREAK, WIDE_CONTENT, useWide } from './responsive';
 import { formatMoney, type InvoiceDisplayStatus } from '@/lib/shared';
 
 export type IconName = ComponentProps<typeof Ionicons>['name'];
@@ -120,6 +122,8 @@ export function Screen({
   const t = useTheme();
   const insets = useSafeAreaInsets();
   const kb = useKeyboardScroll();
+  const wide = useWide();
+  const wideBox = wide ? { maxWidth: WIDE_CONTENT, paddingHorizontal: 28, paddingTop: 22 } : null;
   const body = scroll ? (
     <View ref={kb.boxRef} style={{ flex: 1 }}>
       <ScrollView
@@ -129,7 +133,7 @@ export function Screen({
         scrollEventThrottle={16}
         style={{ flex: 1 }}
         keyboardShouldPersistTaps="handled"
-        contentContainerStyle={[styles.content, { paddingBottom: padBottom }]}
+        contentContainerStyle={[styles.content, wideBox, { paddingBottom: padBottom }]}
         refreshControl={onRefresh ? <RefreshControl refreshing={refreshing} onRefresh={onRefresh} tintColor={t.primary} /> : undefined}>
         {children}
       </ScrollView>
@@ -143,7 +147,7 @@ export function Screen({
         {body}
         {footer && (
           <View style={[styles.footer, { backgroundColor: t.card, borderTopColor: t.border, paddingBottom: kb.overlap ? 10 : Math.max(insets.bottom, 12) }]}>
-            <View style={styles.footerInner}>{footer}</View>
+            <View style={[styles.footerInner, wide && { maxWidth: WIDE_CONTENT - 56 }]}>{footer}</View>
           </View>
         )}
       </View>
@@ -868,6 +872,9 @@ export function Loader({ loading, error, onRetry, children }: { loading: boolean
   if (error) return <Empty icon="cloud-offline-outline" title="Could not load" hint={error} action={<Btn small kind="secondary" title="Try again" onPress={onRetry} />} />;
   return <>{children}</>;
 }
+
+/** Content style for screens with their own list: wider on the desktop layout. */
+export const listContent = () => (Dimensions.get('window').width >= WIDE_BREAK ? [styles.content, { maxWidth: WIDE_CONTENT, paddingHorizontal: 28 }] : styles.content);
 
 export const styles = StyleSheet.create({
   content: { padding: 16, gap: 14, width: '100%', maxWidth: MAX_WIDTH, alignSelf: 'center' },

@@ -76,3 +76,27 @@ test('website: public page, content, leads; owner edits and manages leads', asyn
   // back to the starting text
   assert.equal((await call(owner, 'POST', '/platform/site/reset', {})).body.seo.title, 'Tijar · Every Business Move, Made Smarter');
 });
+
+test('trial length is set by the SaaS owner and used for new accounts and on the website', async () => {
+  const owner = (await call('', 'POST', '/auth/login', { email: 'owner@site.dev', password: 'test-pass-123' })).body.accessToken;
+  const other = (await call('', 'POST', '/auth/login', { email: 'shop@site.dev', password: 'test-pass-123' })).body.accessToken;
+  assert.equal((await call(owner, 'GET', '/platform/trial')).body.days, 30);
+  assert.equal((await call(other, 'PUT', '/platform/trial', { days: 5 })).status, 403);
+  assert.equal((await call(owner, 'PUT', '/platform/trial', { days: 400 })).status, 422);
+  assert.equal((await call(owner, 'PUT', '/platform/trial', { days: 14 })).body.days, 14);
+  assert.equal((await call('', 'GET', '/auth/channels')).body.trialDays, 14);
+  const site = (await call('', 'GET', '/site/content')).body;
+  assert.equal(site.trialDays, 14);
+  assert.match(site.announcement.text, /14 days/);
+  const reg14 = await call('', 'POST', '/auth/register', { businessName: 'Trial Co', name: 'Trial Owner', email: 't14@site.dev', password: 'test-pass-123' });
+  assert.equal(reg14.status, 201, JSON.stringify(reg14.body));
+  const t14 = reg14.body.accessToken;
+  const plan14 = (await call(t14, 'GET', '/plan')).body;
+  assert.equal(plan14.plan, 'pro');
+  assert.ok(plan14.daysLeft >= 14 && plan14.daysLeft <= 15, String(plan14.daysLeft));
+  // no trial: new accounts start on Free
+  await call(owner, 'PUT', '/platform/trial', { days: 0 });
+  const t0 = (await call('', 'POST', '/auth/register', { businessName: 'Free Co', name: 'Free Owner', email: 'f0@site.dev', password: 'test-pass-123' })).body.accessToken;
+  assert.equal((await call(t0, 'GET', '/plan')).body.plan, 'free');
+  await call(owner, 'PUT', '/platform/trial', { days: 30 });
+});

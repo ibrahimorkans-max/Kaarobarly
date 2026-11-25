@@ -28,3 +28,8 @@ apps/mobile/credentials/
 
 # Firebase app config: added locally for push builds
 apps/mobile/google-services.json
+
+# Web app export (uploaded to the server by deploy/push-web.sh)
+web-app/
+apps/mobile/dist-web/
+web-app.tgz

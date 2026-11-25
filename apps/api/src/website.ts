@@ -1,7 +1,8 @@
 import { readFileSync, statSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { z } from 'zod';
-import { PLANS, PLAN_IDS, TRIAL_DAYS } from '../../../packages/shared/src/index';
+import { PLANS, PLAN_IDS } from '../../../packages/shared/src/index';
+import { trialSettings } from './saas';
 import { now, uid, type Db } from './core';
 import { HttpError } from './perm';
 
@@ -58,20 +59,20 @@ export const DEFAULT_SITE: SiteContent = {
     title: 'Tijar · Every Business Move, Made Smarter',
     description: 'Invoices, point of sale, stock, payments, staff and reports in one app for Pakistani businesses. Works offline, prints to any printer, and grows with you.',
   },
-  announcement: { show: true, text: `New: restaurant POS, loyalty and Bluetooth label printing. Try Pro free for ${TRIAL_DAYS} days.`, href: '#pricing' },
+  announcement: { show: true, text: `New: restaurant POS, loyalty and Bluetooth label printing. Try Pro free for {trialDays} days.`, href: '#pricing' },
   hero: {
     eyebrow: 'Business app for Pakistan',
     title: 'Every business move,',
     highlight: 'made smarter.',
     subtitle: 'Bill customers, run the counter, track stock and staff, and see your profit, all in one app that keeps working without internet.',
-    primary: { label: 'Start free', href: '#download' },
+    primary: { label: 'Start free trial', href: '#signup' },
     secondary: { label: 'See features', href: '#features' },
   },
   stats: [
     { value: '30+', label: 'Modules in one app' },
     { value: '100%', label: 'Works offline' },
     { value: '2', label: 'Languages: English and Urdu' },
-    { value: `${TRIAL_DAYS} days`, label: 'Free Pro trial' },
+    { value: '{trialDays} days', label: 'Free Pro trial' },
   ],
   features: [
     { icon: 'invoice', title: 'Invoices and quotations', text: 'Professional invoices, quotes and receipts with your logo. Share as PDF or WhatsApp in a tap.' },
@@ -97,7 +98,7 @@ export const DEFAULT_SITE: SiteContent = {
     { title: 'Pick your business type', text: 'Tijar switches on the right modules and uses your words.' },
     { title: 'Sell, track and grow', text: 'Bill your first customer today and watch the reports fill in.' },
   ],
-  pricing: { title: 'Simple plans that grow with you', subtitle: `Start with ${TRIAL_DAYS} days of Pro, free. Change plans any time.`, note: 'Prices in Pakistani rupees per month.', highlight: 'pro' },
+  pricing: { title: 'Simple plans that grow with you', subtitle: 'Start with {trialDays} days of Pro, free. Change plans any time.', note: 'Prices in Pakistani rupees per month.', highlight: 'pro' },
   testimonials: [
     { name: 'Ahmed R.', role: 'Grocery store, Lahore', quote: 'Billing at the counter went from minutes to seconds, and I finally know my real profit every evening.' },
     { name: 'Sana K.', role: 'Boutique owner, Karachi', quote: 'Stock alerts and WhatsApp invoices changed how we work. My staff learned it in one day.' },
@@ -142,10 +143,13 @@ export function resetSite(db: Db): SiteContent {
 
 /** What the page needs: the editable content plus the live plan prices. */
 export function publicContent(db: Db) {
+  const trialDays = trialSettings(db).days;
+  // "{trialDays}" anywhere in the words becomes the trial length the owner set
+  const site = JSON.parse(JSON.stringify(getSite(db)).replace(/\{trialDays\}/g, String(trialDays))) as SiteContent;
   return {
-    ...getSite(db),
+    ...site,
     plans: PLAN_IDS.map((id) => ({ id, name: PLANS[id].name, price: PLANS[id].price, hint: PLANS[id].hint, limits: PLANS[id].limits })),
-    trialDays: TRIAL_DAYS,
+    trialDays,
   };
 }
 
