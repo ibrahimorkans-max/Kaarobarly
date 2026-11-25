@@ -70,6 +70,53 @@ const ICON = {
   tiktok: I('<path d="M14 3v11a4 4 0 1 1-4-4"/><path d="M14 3c.5 2.8 2.4 4.6 5 5"/>'),
 };
 
+// ------------------------------------------------------------------ announcement bar
+/**
+ * The bar at the very top: a spinning 3D "NEW" coin, the message on a cube that rolls to the next
+ * sentence every few seconds, a glowing call-to-action and a close button (remembered for the visit).
+ */
+function announceBar(a) {
+  const msgs = String(a.text).split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean).slice(0, 4);
+  const href = safe(a.href || '#');
+  const sparks = Array.from({ length: 14 }, (_, i) => `<i style="left:${(i * 7.3 + 3) % 100}%;animation-delay:${(i * 0.37) % 4}s;animation-duration:${3 + (i % 4)}s"></i>`).join('');
+  return `<div class="ann3d" id="ann3d" role="region" aria-label="Announcement">
+    <div class="ann-sparks" aria-hidden="true">${sparks}</div>
+    <a class="ann-in" href="${href}"${ext(a.href)}>
+      <span class="coin" aria-hidden="true"><span class="cf">NEW</span><span class="cf cb">✦</span></span>
+      <span class="cube-win"><span class="cube3" id="annCube" data-n="${msgs.length}">${msgs.map((m, i) => `<span class="face${i ? "" : " on"}" style="--i:${i}">${esc(m)}</span>`).join('')}</span></span>
+      <span class="ann-cta">Try it<span class="ar">→</span></span>
+    </a>
+    <button class="ann-x" id="annX" aria-label="Close announcement">×</button>
+  </div>`;
+}
+
+function announceMotion() {
+  const bar = document.getElementById('ann3d');
+  if (!bar) return;
+  const key = 'tijar.ann.' + C.announcement.text.length + C.announcement.text.slice(0, 20);
+  try {
+    if (sessionStorage.getItem(key)) bar.remove();
+  } catch {}
+  document.getElementById('annX')?.addEventListener('click', () => {
+    bar.classList.add('gone');
+    try {
+      sessionStorage.setItem(key, '1');
+    } catch {}
+    setTimeout(() => bar.remove(), 600);
+  });
+  const cube = document.getElementById('annCube');
+  const n = Number(cube?.dataset.n || 1);
+  if (!cube || n < 2 || reduceMotion) return;
+  let k = 0;
+  setInterval(() => {
+    if (document.hidden) return;
+    k += 1;
+    cube.style.setProperty('--k', String(k));
+    cube.querySelectorAll('.face').forEach((f, i) => f.classList.toggle('on', i === k % n));
+  }, 3400);
+  cube.querySelector('.face')?.classList.add('on');
+}
+
 // ------------------------------------------------------------------ page
 function page() {
   const h = C.hero;
@@ -84,7 +131,7 @@ function page() {
   const parts = [];
 
   if (C.announcement?.show && C.announcement.text)
-    parts.push(`<a class="announce" href="${safe(C.announcement.href || '#')}"${ext(C.announcement.href)}><b>NEW</b><span>${esc(C.announcement.text)}</span></a>`);
+    parts.push(announceBar(C.announcement));
 
   parts.push(`<header class="nav" id="nav"><div class="wrap">
     <a class="brand" href="#top" aria-label="Tijar home">${markSvg()}${wordSvg()}</a>
@@ -307,6 +354,7 @@ function interactions() {
     }),
   );
 
+  announceMotion();
   leadForm();
   showcase();
   ring('ringStage', 'ring', 0.12);
