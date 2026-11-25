@@ -75,6 +75,8 @@ function Navigation() {
           <Stack.Screen name="supplier/[id]" options={{ title: 'Supplier' }} />
           <Stack.Screen name="verify" options={{ headerShown: false }} />
           <Stack.Screen name="admin/integrations" options={{ title: 'Integrations' }} />
+          <Stack.Screen name="admin/website" options={{ title: 'Website' }} />
+          <Stack.Screen name="admin/leads" options={{ title: 'Website leads' }} />
           <Stack.Screen name="notifications" options={{ title: 'Notifications' }} />
           <Stack.Screen name="printers" options={{ title: 'Printers' }} />
           <Stack.Screen name="admin/push" options={{ title: 'Push notifications' }} />
@@ -122,12 +124,12 @@ function Navigation() {
           <Stack.Screen name="payroll/[id]" options={{ title: 'Payroll' }} />
           <Stack.Screen name="claims" options={{ title: 'Expense claims' }} />
           <Stack.Screen name="approvals" options={{ title: 'Approvals' }} />
-          <Stack.Screen name="assistant" options={{ title: 'Ask Kaarobarly' }} />
+          <Stack.Screen name="assistant" options={{ title: 'Ask Tijar' }} />
           <Stack.Screen name="quick-entry" options={{ title: 'Quick entry' }} />
           <Stack.Screen name="automation" options={{ title: 'Automation' }} />
           <Stack.Screen name="alerts" options={{ title: 'Alerts' }} />
           <Stack.Screen name="plan" options={{ title: 'Plan & usage' }} />
-          <Stack.Screen name="admin/index" options={{ title: 'Kaarobarly SaaS' }} />
+          <Stack.Screen name="admin/index" options={{ title: 'Tijar SaaS' }} />
           <Stack.Screen name="admin/accounts" options={{ title: 'Accounts & plans' }} />
           <Stack.Screen name="admin/ai" options={{ title: 'AI service' }} />
         </Stack.Protected>

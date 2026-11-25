@@ -230,8 +230,8 @@ export function Card({ children, style, onPress, label }: { children: ReactNode;
 }
 
 const NATIVE = Platform.OS !== 'web';
-/** Brand blue, kept nearly flat to match the clean POS look. */
-export const GRADIENT = ['#3552EE', '#3D5AF1', '#4A66F5'] as const;
+/** Brand navy to green, kept nearly flat to match the clean POS look. */
+export const GRADIENT = ['#0F2A3B', '#0F8A6F', '#14A383'] as const;
 
 /** Springy press feedback shared by cards and buttons. */
 export function usePressScale(to = 0.96) {

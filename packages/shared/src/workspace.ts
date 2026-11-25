@@ -85,7 +85,7 @@ export const TERM_PAIRS: { one: TermKey; many: TermKey; label: string; examples:
   { one: 'invoice', many: 'invoices', label: 'Your bills', examples: 'Bill, Sale, Fee voucher, Challan' },
   { one: 'quotation', many: 'quotations', label: 'Price quotes', examples: 'Estimate, Proposal, Offer' },
   { one: 'purchase', many: 'purchases', label: 'Things you buy', examples: 'Purchase bill, Expense bill' },
-  { one: 'supplier', many: 'suppliers', label: 'People you buy from', examples: 'Vendor, Distributor, Mill' },
+  { one: 'supplier', many: 'suppliers', label: 'People you buy from', examples: 'Vendor, Distributor, Wholesaler' },
 ];
 
 // ---------------------------------------------------------------- custom fields
@@ -207,7 +207,7 @@ export const PRESETS: Record<BusinessType, Preset> = {
   },
   manufacturing: {
     name: 'Manufacturing',
-    hint: 'Factories, mills, workshops',
+    hint: 'Factories, workshops, makers',
     icon: 'construct-outline',
     modules: ALL,
     terms: { client: 'Customer', clients: 'Customers', item: 'Product', items: 'Products' },

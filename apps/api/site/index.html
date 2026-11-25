@@ -1,0 +1,48 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <title>{{TITLE}}</title>
+    <meta name="description" content="{{DESCRIPTION}}" />
+    <meta name="theme-color" content="#071621" />
+    <meta property="og:type" content="website" />
+    <meta property="og:title" content="{{TITLE}}" />
+    <meta property="og:description" content="{{DESCRIPTION}}" />
+    <meta property="og:image" content="{{ORIGIN}}/site/img/icon-512.png" />
+    <meta name="twitter:card" content="summary" />
+    <link rel="icon" type="image/png" href="/site/img/favicon.png" />
+    <link rel="apple-touch-icon" href="/site/img/icon-512.png" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet" />
+    <link rel="stylesheet" href="/site/site.css?v={{V}}" />
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.170.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.170.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="loader" aria-hidden="true">
+      <svg viewBox="-8 -12 282 282" class="loader-mark">
+        <path class="lm s" d="M80 113 C132 112 178 96 236 58 L244 68 C200 104 162 120 160 160 L160 200 C160 226 142 242 114 242 L80 242 Z" />
+        <path class="lm l" d="M18 106 C30 78 52 57 84 56 L158 56 C180 56 194 46 208 30 L232 52 C192 90 150 104 96 106 Z" />
+        <path class="lm a" d="M266 0 L252 74 L192 20 Z" />
+      </svg>
+    </div>
+    <div id="cursor-glow" aria-hidden="true"></div>
+    <div id="app"></div>
+    <noscript>
+      <main style="max-width: 720px; margin: 80px auto; padding: 0 20px; font-family: sans-serif; color: #fff">
+        <h1>{{TITLE}}</h1>
+        <p>{{DESCRIPTION}}</p>
+      </main>
+    </noscript>
+    <script id="content" type="application/json">{{CONTENT}}</script>
+    <script type="module" src="/site/site.js?v={{V}}"></script>
+  </body>
+</html>

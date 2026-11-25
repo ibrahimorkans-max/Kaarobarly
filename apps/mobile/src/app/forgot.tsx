@@ -84,7 +84,7 @@ export default function Forgot() {
     return (
       <AuthShell pose="key" title={mode === 'reset' ? 'Forgot Password?' : 'Sign in with a code'} subtitle={mode === 'reset' ? "No worries! We'll send you a code to reset it" : "We'll send a one-time code, no password needed"}>
         {none ? (
-          <Text style={{ color: AUTH.sub, textAlign: 'center', lineHeight: 20 }}>{tr('Codes by email or WhatsApp are not switched on yet. Ask the Kaarobarly team, or your business owner, to reset your password.')}</Text>
+          <Text style={{ color: AUTH.sub, textAlign: 'center', lineHeight: 20 }}>{tr('Codes by email or WhatsApp are not switched on yet. Ask the Tijar team, or your business owner, to reset your password.')}</Text>
         ) : (
           <>
             {channels.email && channels.whatsapp && (

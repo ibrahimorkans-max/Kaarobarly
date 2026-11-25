@@ -1,4 +1,4 @@
-// Kaarobarly for Windows: the same app as the phone, from a local copy of the web build,
+// Tijar for Windows: the same app as the phone, from a local copy of the web build,
 // with silent printing to installed Windows printers (receipt, label and A4).
 const { app, BrowserWindow, Menu, ipcMain, net, protocol, shell } = require('electron');
 const path = require('node:path');
@@ -18,7 +18,7 @@ function createWindow() {
     height: 820,
     minWidth: 900,
     minHeight: 600,
-    title: 'Kaarobarly',
+    title: 'Tijar',
     backgroundColor: '#EEF1FB',
     icon: path.join(__dirname, 'build', 'icon.png'),
     autoHideMenuBar: true,
@@ -56,7 +56,7 @@ app.whenReady().then(() => {
   Menu.setApplicationMenu(
     Menu.buildFromTemplate([
       {
-        label: 'Kaarobarly',
+        label: 'Tijar',
         submenu: [
           { role: 'reload' },
           { role: 'togglefullscreen', label: 'Full screen (counter mode)' },
@@ -97,7 +97,7 @@ app.whenReady().then(() => {
 
   createWindow();
 
-  // "Kaarobarly.exe --smoke": load the app, report what it sees, then quit (checks a build)
+  // "Tijar.exe --smoke": load the app, report what it sees, then quit (checks a build)
   if (process.argv.includes('--smoke')) {
     win.webContents.once('did-finish-load', () =>
       setTimeout(async () => {

@@ -23,6 +23,7 @@ import { reportFileName, reportWorkbook } from './excel';
 import { shopOrder, shopOrderSchema, shopPage } from './growth';
 import * as saas2 from './saas2';
 import * as push from './push';
+import * as site from './website';
 import * as msg from './messaging';
 import { MiniApp } from './mini';
 import { portalInvoice, portalPage } from './portal';
@@ -80,6 +81,31 @@ export function createApp(db: Db) {
     res.setHeader('Cache-Control', 'no-store');
     res.status(html ? 200 : 404).type('html').send(html ?? '<p style="font-family:sans-serif">Not found.</p>');
   });
+
+  // Public website: the page, its files, its content and the contact form
+  app.get('/', (req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.type('html').send(site.sitePage(db, `${req.protocol}://${req.get('host')}`));
+  });
+  app.get('/site/content', (_req, res) => {
+    res.setHeader('Cache-Control', 'no-cache');
+    res.json(site.publicContent(db));
+  });
+  app.post('/site/lead', (req, res, next) => {
+    try {
+      const r = site.addLead(db, req.body, req.ip ?? '');
+      res.status(201).json(r);
+      // tell the owner by email when that is connected
+      const to = site.getSite(db).contact.email;
+      if (r.id && to && msg.channels(db).email) {
+        const b = req.body ?? {};
+        void msg.sendEmail(db, to, `New website lead: ${String(b.name ?? '').slice(0, 80)}`, ['name', 'business', 'phone', 'email', 'plan', 'message'].map((k) => `${k}: ${String(b[k] ?? '').slice(0, 1000)}`).join('\n')).catch(() => {});
+      }
+    } catch (e) {
+      next(e);
+    }
+  });
+  app.use('/site', express.static(site.SITE_DIR + '/assets', { maxAge: '1h', index: false }));
 
   const requireAuth = makeRequireAuth((sid) => !!db.get("select 1 from auth_session where id = ? and revoked_at is null and expires_at > ?", sid, now()));
 
@@ -340,7 +366,7 @@ export function createApp(db: Db) {
   app.post('/plan/request', need('businesses.manage'), (req, res) => res.status(201).json(saas.requestUpgrade(db, req.auth, saas.requestSchema.parse(req.body))));
   const platformOnly = (req: Request) => {
     const u = db.get('select email from app_user where id = ?', req.auth.userId);
-    if (!u || !saas.isPlatformAdmin(u.email)) throw new HttpError(403, 'Only Kaarobarly administrators can do this.');
+    if (!u || !saas.isPlatformAdmin(u.email)) throw new HttpError(403, 'Only Tijar administrators can do this.');
     return u.email as string;
   };
   app.get('/platform/tenants', (req, res) => {
@@ -429,7 +455,7 @@ export function createApp(db: Db) {
     try {
       platformOnly(req);
       const b = z.object({ channel: z.enum(['email', 'whatsapp']), to: z.string().trim().min(5).max(200) }).parse(req.body);
-      if (b.channel === 'email') await msg.sendEmail(db, b.to, 'Kaarobarly email works', 'This test email from Kaarobarly arrived, so codes and notices can be sent by email.');
+      if (b.channel === 'email') await msg.sendEmail(db, b.to, 'Tijar email works', 'This test email from Tijar arrived, so codes and notices can be sent by email.');
       else await msg.sendWhatsAppCode(db, b.to, '123456');
       res.json({ ok: true });
     } catch (e) {
@@ -448,7 +474,7 @@ export function createApp(db: Db) {
   });
   app.post('/push/test', async (req, res, next) => {
     try {
-      const n = await push.notify(db, T(req), { title: 'Kaarobarly notifications work', body: 'You will be told about payments, orders and alerts here.', url: '/' }, [req.auth.userId]);
+      const n = await push.notify(db, T(req), { title: 'Tijar notifications work', body: 'You will be told about payments, orders and alerts here.', url: '/' }, [req.auth.userId]);
       res.json({ sent: n });
     } catch (e) {
       next(e);
@@ -469,6 +495,31 @@ export function createApp(db: Db) {
   app.delete('/platform/push/client', (req, res) => {
     platformOnly(req);
     res.json(push.clearClient(db));
+  });
+  // SaaS owner: the public website's words and the people who asked to be contacted
+  app.get('/platform/site', (req, res) => {
+    platformOnly(req);
+    res.json({ content: site.getSite(db), icons: site.ICONS, leads: db.get("select count(*) as n from site_lead where status = 'new'")!.n });
+  });
+  app.put('/platform/site', (req, res) => {
+    platformOnly(req);
+    res.json(site.saveSite(db, req.body));
+  });
+  app.post('/platform/site/reset', (req, res) => {
+    platformOnly(req);
+    res.json(site.resetSite(db));
+  });
+  app.get('/platform/site/leads', (req, res) => {
+    platformOnly(req);
+    res.json(site.listLeads(db, typeof req.query.status === 'string' && req.query.status ? req.query.status : undefined));
+  });
+  app.put('/platform/site/leads/:id', (req, res) => {
+    platformOnly(req);
+    res.json(site.setLeadStatus(db, String(req.params.id), site.leadStatusSchema.parse(req.body).status));
+  });
+  app.delete('/platform/site/leads/:id', (req, res) => {
+    platformOnly(req);
+    res.json(site.deleteLead(db, String(req.params.id)));
   });
   app.get('/platform/partners', (req, res) => {
     platformOnly(req);

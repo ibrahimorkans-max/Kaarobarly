@@ -14,7 +14,7 @@ const KEY = 'kaarobarly.lock';
 export const PIN_LENGTH = 4;
 const MAX_TRIES = 5;
 const RELOCK_AFTER_MS = 60_000;
-export const GRADIENT = ['#060F2E', '#0B1B4D', '#0E2C72'] as const;
+export const GRADIENT = ['#06141D', '#0C2433', '#0F3444'] as const;
 
 interface LockConfig {
   salt: string;
@@ -130,7 +130,7 @@ function LockScreen({ config, onUnlock, onPasswordReset }: { config: LockConfig;
 
   const fingerprint = useCallback(async () => {
     try {
-      const r = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock Kaarobarly', cancelLabel: 'Use PIN', disableDeviceFallback: true });
+      const r = await LocalAuthentication.authenticateAsync({ promptMessage: 'Unlock Tijar', cancelLabel: 'Use PIN', disableDeviceFallback: true });
       if (r.success) onUnlock();
     } catch {
       setMessage('Fingerprint is not available right now. Enter your PIN.');
@@ -177,7 +177,7 @@ function LockScreen({ config, onUnlock, onPasswordReset }: { config: LockConfig;
         </View>
       </View>
       <View style={{ alignItems: 'center', gap: 4 }}>
-        <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>Kaarobarly is locked</Text>
+        <Text style={{ color: '#fff', fontSize: 24, fontWeight: '800' }}>Tijar is locked</Text>
         <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 15 }}>{user?.name}</Text>
       </View>
       <Text accessibilityLiveRegion="polite" style={{ color: '#FFD98A', fontSize: 14, fontWeight: '600', minHeight: 20, textAlign: 'center' }}>
@@ -205,7 +205,7 @@ function LockScreen({ config, onUnlock, onPasswordReset }: { config: LockConfig;
             style={{ minHeight: 52, borderRadius: 14, paddingHorizontal: 16, fontSize: 16, color: '#fff', backgroundColor: 'rgba(255,255,255,0.14)', borderWidth: 1, borderColor: 'rgba(255,255,255,0.4)' }}
           />
           <Pressable accessibilityRole="button" disabled={busy} onPress={tryPassword} style={{ minHeight: 52, borderRadius: 14, backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center', opacity: busy ? 0.6 : 1 }}>
-            <Text style={{ color: '#0B1B4D', fontSize: 16, fontWeight: '800' }}>{busy ? 'Checking…' : 'Unlock with password'}</Text>
+            <Text style={{ color: '#0F2A3B', fontSize: 16, fontWeight: '800' }}>{busy ? 'Checking…' : 'Unlock with password'}</Text>
           </Pressable>
           {errors < MAX_TRIES && (
             <Pressable accessibilityRole="button" onPress={() => (setMode('pin'), setMessage(''))} hitSlop={10} style={{ alignSelf: 'center' }}>

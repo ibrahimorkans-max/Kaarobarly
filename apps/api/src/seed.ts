@@ -59,7 +59,7 @@ try {
       services.push(await call('POST', '/services', s));
     const clients: any[] = [];
     for (const c of [
-      { name: 'Rehman Rice Mills', contactPerson: 'Abdul Rehman', phone: '+92 301 5550101', whatsapp: '+92 301 5550101', city: 'Gujranwala', province: 'Punjab', country: 'Pakistan', category: 'Mill' },
+      { name: 'Rehman Traders', contactPerson: 'Abdul Rehman', phone: '+92 301 5550101', whatsapp: '+92 301 5550101', city: 'Gujranwala', province: 'Punjab', country: 'Pakistan', category: 'Wholesale' },
       { name: 'City Diagnostics', contactPerson: 'Dr. Sana', phone: '+92 321 5550102', email: 'accounts@citydiag.test', city: 'Lahore', province: 'Punjab', country: 'Pakistan', category: 'Lab' },
       { name: 'Indus Traders', contactPerson: 'Bilal Ahmed', phone: '+92 333 5550103', city: 'Karachi', province: 'Sindh', country: 'Pakistan', category: 'Trading', openingBalance: 2500000 },
     ])

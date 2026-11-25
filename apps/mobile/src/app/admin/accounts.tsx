@@ -16,7 +16,7 @@ type Tenant = PlanState & {
   request: { plan: PlanId; created_at: string } | null;
 };
 
-/** For the people running Kaarobarly: every account, its plan, usage and upgrade requests. */
+/** For the people running Tijar: every account, its plan, usage and upgrade requests. */
 export default function Platform() {
   const toast = useToast();
   const { user } = useAuth();

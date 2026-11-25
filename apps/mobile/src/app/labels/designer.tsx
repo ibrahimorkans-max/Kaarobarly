@@ -87,7 +87,7 @@ export default function LabelDesignerScreen() {
       <Section title="Code">
         <Chips value={d.code} onChange={(v) => upd({ code: v })} options={[{ value: 'barcode', label: 'Barcode' }, { value: 'qr', label: 'QR code' }, { value: 'none', label: 'None' }]} />
         {d.code === 'qr' && <Chips<LabelQrContent> value={d.qrContent} onChange={(v) => upd({ qrContent: v })} options={(Object.keys(LABEL_QR_LABELS) as LabelQrContent[]).map((k) => ({ value: k, label: LABEL_QR_LABELS[k] }))} />}
-        <Txt v="small">{d.code === 'barcode' ? 'Prints the item barcode (EAN-13), or its SKU as Code 128 when it has no barcode.' : d.code === 'qr' ? 'Any phone camera can read it; the Kaarobarly scanner adds the item to a bill.' : 'Text only.'}</Txt>
+        <Txt v="small">{d.code === 'barcode' ? 'Prints the item barcode (EAN-13), or its SKU as Code 128 when it has no barcode.' : d.code === 'qr' ? 'Any phone camera can read it; the Tijar scanner adds the item to a bill.' : 'Text only.'}</Txt>
       </Section>
       <Section title="What the label shows">
         <Card style={{ gap: 2, paddingVertical: 6 }}>

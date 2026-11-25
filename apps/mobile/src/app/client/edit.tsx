@@ -79,7 +79,7 @@ export default function ClientEdit() {
         <Field label="Phone number" value={f.phone} onChangeText={(v) => set({ phone: v })} keyboardType="phone-pad" autoComplete="tel" />
         <Field label="WhatsApp number" value={f.whatsapp} onChangeText={(v) => set({ whatsapp: v })} keyboardType="phone-pad" hint="Leave empty to use the phone number" />
         <Field label="Email" value={f.email} onChangeText={(v) => set({ email: v })} keyboardType="email-address" autoCapitalize="none" />
-        <Field label="Category" value={f.category} onChangeText={(v) => set({ category: v })} placeholder="e.g. Mill, Retail, Corporate" />
+        <Field label="Category" value={f.category} onChangeText={(v) => set({ category: v })} placeholder="e.g. Retail, Wholesale, Corporate" />
       </Section>
 
       {fields('client').length > 0 && (

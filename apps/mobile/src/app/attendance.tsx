@@ -74,7 +74,7 @@ export default function AttendanceScreen() {
     }
   }
   const buildQr = useCallback(
-    () => `<!doctype html><html><head><meta charset="utf-8"/><style>body{font-family:Arial;text-align:center;padding:40px}h1{font-size:28px}</style></head><body><h1>Staff attendance</h1><p>Open Kaarobarly → Attendance → Check in / out, and scan this code.</p>${qrSvg(settings.data?.code ?? '', 320)}<p style="color:#666">${settings.data?.code ?? ''}</p></body></html>`,
+    () => `<!doctype html><html><head><meta charset="utf-8"/><style>body{font-family:Arial;text-align:center;padding:40px}h1{font-size:28px}</style></head><body><h1>Staff attendance</h1><p>Open Tijar → Attendance → Check in / out, and scan this code.</p>${qrSvg(settings.data?.code ?? '', 320)}<p style="color:#666">${settings.data?.code ?? ''}</p></body></html>`,
     [settings.data],
   );
 

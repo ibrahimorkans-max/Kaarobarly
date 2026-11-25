@@ -6,7 +6,7 @@ import { HttpError } from './perm';
 import { rateLimit } from './saas';
 
 /**
- * How Kaarobarly reaches people outside the app: email (any SMTP service) and WhatsApp
+ * How Tijar reaches people outside the app: email (any SMTP service) and WhatsApp
  * (Meta WhatsApp Business Cloud API). Set once by the SaaS owner; used for sign-up
  * verification, password resets and sign-in codes. Server only.
  */
@@ -68,7 +68,7 @@ export const emailSchema = z.object({
   user: z.string().trim().max(200).default(''),
   /** empty = keep the saved password */
   pass: z.string().max(500).default(''),
-  fromName: z.string().trim().max(100).default('Kaarobarly'),
+  fromName: z.string().trim().max(100).default('Tijar'),
   fromEmail: z.string().trim().email('Enter the sender email'),
 });
 export function saveEmail(db: Db, body: z.infer<typeof emailSchema>) {
@@ -157,8 +157,8 @@ export async function issueCode(db: Db, user: Row, purpose: CodePurpose, channel
   db.run("update auth_code set used_at = ? where user_id = ? and purpose = ? and used_at is null", now(), user.id, purpose);
   db.run('insert into auth_code (id, user_id, purpose, channel, target, code_hash, attempts, expires_at, created_at) values (?,?,?,?,?,?,0,?,?)', id, user.id, purpose, channel, target, hash(id, code), new Date(Date.now() + 10 * 60_000).toISOString(), now());
   if (channel === 'email') {
-    const text = `Your Kaarobarly code is ${code}\n\nIt works for 10 minutes. If you did not ask for it, you can ignore this email.`;
-    const html = `<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;padding:24px;border-radius:16px;background:#FFF6EE"><h2 style="color:#1A1D2E;margin:0 0 8px">${subject[purpose]}</h2><p style="color:#555">Your Kaarobarly code:</p><div style="font-size:34px;font-weight:800;letter-spacing:8px;color:#FF7A2F;margin:12px 0">${code}</div><p style="color:#888;font-size:13px">It works for 10 minutes. If you did not ask for it, ignore this email.</p></div>`;
+    const text = `Your Tijar code is ${code}\n\nIt works for 10 minutes. If you did not ask for it, you can ignore this email.`;
+    const html = `<div style="font-family:Arial,sans-serif;max-width:420px;margin:auto;padding:24px;border-radius:16px;background:#EEF7F4"><h2 style="color:#1A1D2E;margin:0 0 8px">${subject[purpose]}</h2><p style="color:#555">Your Tijar code:</p><div style="font-size:34px;font-weight:800;letter-spacing:8px;color:#0F8A6F;margin:12px 0">${code}</div><p style="color:#888;font-size:13px">It works for 10 minutes. If you did not ask for it, ignore this email.</p></div>`;
     await sendEmail(db, target, `${subject[purpose]}: ${code}`, text, html);
   } else await sendWhatsAppCode(db, target, code);
   return { sentTo: mask(target, channel) };

@@ -14,7 +14,7 @@ interface Parsed {
   date: string;
   note: string;
 }
-const EXAMPLES = ['Received 25,000 from Rehman Rice Mills by bank', 'Paid 3,500 for petrol', 'Bijli ka bill 12000 cash diya', 'Ali se 5000 mile Easypaisa par'];
+const EXAMPLES = ['Received 25,000 from Rehman Traders by bank', 'Paid 3,500 for petrol', 'Bijli ka bill 12000 cash diya', 'Ali se 5000 mile Easypaisa par'];
 
 /**
  * Say it or type it: one sentence becomes a payment, expense or income for you to check and save.
@@ -74,8 +74,8 @@ export default function QuickEntry() {
   const client = (clients.data ?? []).find((c) => c.id === p?.clientId);
   return (
     <Screen>
-      <Txt v="sub">Type or speak one sentence (tap the mic on your keyboard). Kaarobarly fills in the record; you check it and save.</Txt>
-      <Field label="What happened?" value={text} onChangeText={setText} multiline placeholder="e.g. Received 25,000 from Rehman Rice Mills by bank" />
+      <Txt v="sub">Type or speak one sentence (tap the mic on your keyboard). Tijar fills in the record; you check it and save.</Txt>
+      <Field label="What happened?" value={text} onChangeText={setText} multiline placeholder="e.g. Received 25,000 from Rehman Traders by bank" />
       <Btn icon="sparkles-outline" title="Understand" onPress={() => understand()} loading={busy === 'parse'} disabled={text.trim().length < 3} />
       {!p && (
         <Card>

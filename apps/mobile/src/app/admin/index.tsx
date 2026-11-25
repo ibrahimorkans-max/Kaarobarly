@@ -42,7 +42,7 @@ export default function AdminHome() {
   return (
     <Screen onRefresh={reload} refreshing={refreshing}>
       <View>
-        <Txt v="title">Kaarobarly SaaS</Txt>
+        <Txt v="title">Tijar SaaS</Txt>
         <Txt v="sub">Signed in as {user.email} · service owner</Txt>
       </View>
       <Loader loading={loading && !o} error={o ? '' : error} onRetry={reload}>
@@ -75,6 +75,8 @@ export default function AdminHome() {
       </Loader>
       <Section title="Manage">
         <MenuRow icon="business-outline" title="Accounts & plans" sub="Every customer account, usage, upgrade requests" onPress={() => router.push('/admin/accounts')} />
+        <MenuRow icon="globe-outline" title="Website" sub="Edit the public 3D website: words, sections, links" onPress={() => router.push('/admin/website')} />
+        <MenuRow icon="mail-unread-outline" title="Website leads" sub="People who asked to be contacted" onPress={() => router.push('/admin/leads')} />
         <MenuRow icon="git-network-outline" title="Integrations" sub="Email, WhatsApp and Firebase" onPress={() => router.push('/admin/integrations')} />
         <MenuRow icon="notifications-outline" title="Push notifications" sub="Firebase key for sending notifications" onPress={() => router.push('/admin/push')} />
         <MenuRow icon="people-outline" title="Partners" sub="Resellers and the sign-ups they bring" onPress={() => router.push('/admin/partners')} />

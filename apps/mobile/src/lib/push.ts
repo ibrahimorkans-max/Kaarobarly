@@ -44,7 +44,7 @@ if (Platform.OS !== 'web') {
 export async function registerPush(ask = true): Promise<PushState> {
   if (Platform.OS === 'web') return 'unavailable';
   try {
-    await Notifications.setNotificationChannelAsync('default', { name: 'Kaarobarly', importance: Notifications.AndroidImportance.HIGH, lightColor: '#3D5AF1' });
+    await Notifications.setNotificationChannelAsync('default', { name: 'Tijar', importance: Notifications.AndroidImportance.HIGH, lightColor: '#19B892' });
     let granted = (await Notifications.getPermissionsAsync()).granted;
     if (!granted && ask) granted = (await Notifications.requestPermissionsAsync()).granted;
     if (!granted) return 'denied';

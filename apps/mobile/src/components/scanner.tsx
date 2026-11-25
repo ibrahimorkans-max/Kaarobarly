@@ -57,7 +57,7 @@ export function BarcodeScanner({ visible, onCode, onClose, title = 'Scan barcode
           ) : (
             <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', padding: 24, gap: 12 }}>
               <Txt color="#fff" style={{ textAlign: 'center' }}>
-                {permission && !permission.canAskAgain ? 'Camera access is off for Kaarobarly. Allow it in your phone settings, or type the code below.' : 'Allow the camera to scan barcodes.'}
+                {permission && !permission.canAskAgain ? 'Camera access is off for Tijar. Allow it in your phone settings, or type the code below.' : 'Allow the camera to scan barcodes.'}
               </Txt>
               {(!permission || permission.canAskAgain) && <Btn icon="camera-outline" title="Allow camera" onPress={() => void request()} />}
             </View>

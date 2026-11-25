@@ -43,7 +43,7 @@ export default function Setup() {
     try {
       const saved = await api<Workspace>('/workspace', { method: 'PUT', body: { businessType: ws.businessType, modules: ws.modules, terms: ws.terms, customFields: ws.customFields, itemTypes: ws.itemTypes } });
       setWorkspace(saved);
-      toast('Kaarobarly is set up for your business');
+      toast('Tijar is set up for your business');
       if (router.canGoBack()) router.back();
       else router.replace('/');
     } catch (e: any) {
@@ -58,7 +58,7 @@ export default function Setup() {
       <Screen>
         <View style={{ gap: 4 }}>
           <Txt v="title">What kind of business is this?</Txt>
-          <Txt v="sub">Kaarobarly switches on the right modules, uses your words and adds useful fields. You can change all of it later.</Txt>
+          <Txt v="sub">Tijar switches on the right modules, uses your words and adds useful fields. You can change all of it later.</Txt>
         </View>
         <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 10 }}>
           {BUSINESS_TYPES.map((type) => {

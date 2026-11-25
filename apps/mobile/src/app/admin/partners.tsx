@@ -48,7 +48,7 @@ export default function PartnersScreen() {
               </View>
             </Row>
             <Row gap={8}>
-              <Btn small style={{ flex: 1 }} kind="secondary" title="Share code" onPress={() => Share.share({ message: `Sign up for Kaarobarly with partner code ${p.referralCode}` })} />
+              <Btn small style={{ flex: 1 }} kind="secondary" title="Share code" onPress={() => Share.share({ message: `Sign up for Tijar with partner code ${p.referralCode}` })} />
               <Btn small style={{ flex: 1 }} kind="ghost" title="Remove partner" onPress={() => set(p.tenantId, false)} />
             </Row>
           </Card>

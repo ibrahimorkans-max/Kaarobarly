@@ -510,12 +510,12 @@ export function shopPage(db: Db, token: string): string | null {
   const data = items.map((i) => ({ id: i.id, n: i.name, p: i.default_price, u: i.unit, c: i.category || 'Other', out: !!i.track_stock && i.on_hand <= 0 }));
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/><title>${esc(title)}</title>
 <style>
-*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#EEF1FB;color:#1A1D2E}
-header{background:#3D5AF1;color:#fff;padding:20px 16px 26px}header h1{margin:0;font-size:22px}header p{margin:6px 0 0;opacity:.9;font-size:14px}
+*{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:#EEF4F3;color:#1A1D2E}
+header{background:#0F8A6F;color:#fff;padding:20px 16px 26px}header h1{margin:0;font-size:22px}header p{margin:6px 0 0;opacity:.9;font-size:14px}
 main{max-width:720px;margin:-14px auto 120px;padding:0 12px}h2{font-size:15px;margin:18px 4px 8px;color:#7A7F96}
 .it{background:#fff;border-radius:16px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;box-shadow:0 4px 14px rgba(41,52,110,.06)}
-.it .n{flex:1;font-weight:600}.it .p{color:#3D5AF1;font-weight:800;font-size:14px}.q{display:flex;align-items:center;gap:6px}
-button{border:0;border-radius:12px;font-weight:700;cursor:pointer}.q button{width:34px;height:34px;background:#E8ECFE;color:#3D5AF1;font-size:18px}.q b{min-width:20px;text-align:center}
+.it .n{flex:1;font-weight:600}.it .p{color:#0F8A6F;font-weight:800;font-size:14px}.q{display:flex;align-items:center;gap:6px}
+button{border:0;border-radius:12px;font-weight:700;cursor:pointer}.q button{width:34px;height:34px;background:#DDF3EC;color:#0F8A6F;font-size:18px}.q b{min-width:20px;text-align:center}
 .out{opacity:.5}.bar{position:fixed;left:0;right:0;bottom:0;background:#fff;padding:12px 16px;box-shadow:0 -6px 20px rgba(0,0,0,.08)}
 .bar .in{max-width:720px;margin:0 auto}input,textarea{width:100%;padding:11px 12px;border:1px solid #E6E9F4;border-radius:12px;font:inherit;margin-top:6px;background:#F5F6FB}
 .go{width:100%;padding:14px;background:#1E9E55;color:#fff;font-size:16px;margin-top:8px}.tot{display:flex;justify-content:space-between;font-weight:800}

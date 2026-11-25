@@ -90,7 +90,7 @@ async function deliver(db: Db, hook: Row, payload: object) {
   const sig = createHmac('sha256', hook.secret).update(body).digest('hex');
   let status = '';
   try {
-    const res = await fetch(hook.url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-kaarobarly-signature': `sha256=${sig}`, 'user-agent': 'Kaarobarly-Webhooks/1' }, body, signal: AbortSignal.timeout(5000) });
+    const res = await fetch(hook.url, { method: 'POST', headers: { 'content-type': 'application/json', 'x-kaarobarly-signature': `sha256=${sig}`, 'user-agent': 'Tijar-Webhooks/1' }, body, signal: AbortSignal.timeout(5000) });
     status = String(res.status);
   } catch (e: any) {
     status = e?.name === 'TimeoutError' ? 'timeout' : 'failed';
@@ -123,7 +123,7 @@ export function webhookDispatcher(db: Db) {
 export async function testWebhook(db: Db, auth: AuthContext, id: string) {
   const h = db.get('select * from webhook where id = ? and tenant_id = ?', id, auth.tenantId);
   if (!h) throw new HttpError(404, 'Webhook not found.');
-  return { status: await deliver(db, h, { event: 'test', entity: 'webhook', id, detail: { hello: 'from Kaarobarly' }, at: new Date().toISOString() }) };
+  return { status: await deliver(db, h, { event: 'test', entity: 'webhook', id, detail: { hello: 'from Tijar' }, at: new Date().toISOString() }) };
 }
 
 // ================================================================ partners (resellers)

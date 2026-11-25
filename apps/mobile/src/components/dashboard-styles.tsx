@@ -40,8 +40,8 @@ export function StylePreview({ style, selected }: { style: DashboardStyle; selec
   const line = (w: string, c: string, h = 5) => <View style={{ width: w as any, height: h, borderRadius: 3, backgroundColor: c }} />;
   if (style === 'classic')
     return (
-      <View style={[box, { backgroundColor: '#F3F6FC' }]}>
-        <LinearGradient colors={['#0B46D6', '#0E9E8A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 46, borderRadius: 10, padding: 7, gap: 5 }}>
+      <View style={[box, { backgroundColor: '#EEF4F3' }]}>
+        <LinearGradient colors={['#0F2A3B', '#14A383']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ height: 46, borderRadius: 10, padding: 7, gap: 5 }}>
           {line('50%', 'rgba(255,255,255,0.7)', 4)}
           {line('70%', '#fff', 8)}
         </LinearGradient>
@@ -282,7 +282,7 @@ function ClassicStyle({ d, pending, variant }: { d: DashboardSummary; pending: n
         </FadeIn>
       )}
       {!variant && <FadeIn>
-        <LinearGradient colors={['#0B46D6', '#0A6FD0', '#0E9E8A']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18, overflow: 'hidden' }}>
+        <LinearGradient colors={['#0F2A3B', '#0F6A5E', '#14A383']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={{ borderRadius: 22, padding: 18, overflow: 'hidden' }}>
           <View pointerEvents="none" style={{ position: 'absolute', right: -40, top: -50, width: 170, height: 170, borderRadius: 85, backgroundColor: 'rgba(255,255,255,0.10)' }} />
           <Text style={{ color: 'rgba(255,255,255,0.85)', fontSize: 13, fontWeight: '700', letterSpacing: 0.6 }}>OUTSTANDING BALANCE</Text>
           <CountUp value={d.outstanding} format={money} style={{ color: '#fff', fontSize: 36, fontWeight: '800', letterSpacing: -0.6, marginTop: 2 }} />

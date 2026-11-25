@@ -36,11 +36,11 @@ const balance = async (token: string, id: string) => (await call(token, 'GET', `
 
 test('a received cheque that clears becomes a payment; a bounce cancels it', async () => {
   const { token, businessId, bank } = await setup('adv1@test.dev');
-  const client = (await call(token, 'POST', '/clients', { name: 'Rice Mill' })).body;
+  const client = (await call(token, 'POST', '/clients', { name: 'Rehman Traders' })).body;
   const inv = (await call(token, 'POST', '/invoices', { businessId, clientId: client.id, issueDate: day, dueDate: day, finalize: true, lines: [{ name: 'Work', qty: 1000, unitPrice: 5_000_000 }] })).body;
   const ch = await call(token, 'POST', '/cheques', { businessId, direction: 'in', number: '000123', bank: 'HBL', clientId: client.id, amount: 5_000_000, chequeDate: plus(10), accountId: bank.id });
   assert.equal(ch.status, 201, JSON.stringify(ch.body));
-  assert.equal(ch.body.party, 'Rice Mill');
+  assert.equal(ch.body.party, 'Rehman Traders');
   assert.equal(ch.body.status, 'pending');
   // a post-dated cheque shows on the calendar and in the forecast as money coming in
   const cal = (await call(token, 'GET', `/calendar?from=${day}&to=${plus(30)}`)).body;
@@ -137,7 +137,7 @@ test('forecast starts from cash in hand and adds what is due', async () => {
   await call(token, 'POST', '/finance/entries', { businessId, type: 'income', category: 'Owner investment', amount: 2_000_000, date: day, method: 'cash', accountId: cash.id });
   const client = (await call(token, 'POST', '/clients', { name: 'Shop' })).body;
   await call(token, 'POST', '/invoices', { businessId, clientId: client.id, issueDate: day, dueDate: plus(3), finalize: true, lines: [{ name: 'Goods', qty: 1000, unitPrice: 500_000 }] });
-  await call(token, 'POST', '/purchases', { businessId, supplier: 'Mill', date: day, method: 'cash', lines: [{ name: 'Paddy', qty: 1000, unitPrice: 300_000 }], installments: [{ dueDate: plus(10), amount: 300_000 }] });
+  await call(token, 'POST', '/purchases', { businessId, supplier: 'Al-Noor Wholesale', date: day, method: 'cash', lines: [{ name: 'Cooking oil', qty: 1000, unitPrice: 300_000 }], installments: [{ dueDate: plus(10), amount: 300_000 }] });
   const f = (await call(token, 'GET', '/forecast?days=28')).body;
   assert.equal(f.opening, 2_000_000);
   assert.equal(f.weeks.length, 4);

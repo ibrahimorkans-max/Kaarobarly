@@ -213,7 +213,7 @@ export async function notify(db: Db, tenantId: string, msg: PushMessage, users?:
             token: d.token,
             notification: { title: msg.title.slice(0, 120), body: msg.body.slice(0, 400) },
             data: { title: msg.title.slice(0, 120), body: msg.body.slice(0, 400), url: msg.url ?? '' },
-            android: { priority: 'high', notification: { channel_id: 'default', color: '#3D5AF1' } },
+            android: { priority: 'high', notification: { channel_id: 'default', color: '#19B892' } },
           },
         }),
         signal: AbortSignal.timeout(10_000),

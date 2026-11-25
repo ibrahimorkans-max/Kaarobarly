@@ -23,13 +23,13 @@ export default function More() {
         </Txt>
       </View>
       {user?.isPlatformAdmin && (
-        <Section title="Kaarobarly SaaS (owner only)">
+        <Section title="Tijar SaaS (owner only)">
           <MenuRow icon="shield-checkmark-outline" title="SaaS dashboard" sub="Accounts, plans, revenue and the AI service" onPress={() => router.push('/admin')} />
         </Section>
       )}
       <Section title="Smart tools">
         <MenuRow icon="notifications-outline" title="Alerts" sub={alerts.data?.length ? `${alerts.data.length} need attention` : 'Nothing needs attention'} onPress={() => router.push('/alerts')} />
-        {aiOn && <MenuRow icon="chatbubbles-outline" title="Ask Kaarobarly" sub="Questions about your business, in English or Urdu" onPress={() => router.push('/assistant')} />}
+        {aiOn && <MenuRow icon="chatbubbles-outline" title="Ask Tijar" sub="Questions about your business, in English or Urdu" onPress={() => router.push('/assistant')} />}
         {aiOn && <MenuRow icon="mic-outline" title="Quick entry" sub="Say or type it: “Paid 3,500 for petrol”" onPress={() => router.push('/quick-entry')} />}
         <MenuRow icon="flash-outline" title="Automation" sub="Alert rules and filing rules" onPress={() => router.push('/automation')} />
       </Section>

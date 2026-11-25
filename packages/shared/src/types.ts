@@ -183,7 +183,7 @@ export interface User {
   permissions: Permission[];
   tenantName: string;
   tenantId: string;
-  /** runs the Kaarobarly service itself (sees every account) */
+  /** runs the Tijar service itself (sees every account) */
   isPlatformAdmin?: boolean;
   /** WhatsApp number, digits with country code */
   phone?: string;

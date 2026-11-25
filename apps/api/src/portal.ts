@@ -16,7 +16,7 @@ function page(title: string, body: string): string {
   return `<!doctype html><html lang="en"><head><meta charset="utf-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
 <meta name="robots" content="noindex,nofollow"/><title>${esc(title)}</title>
 <style>
-:root{--ink:#0B1B4D;--sub:#5B6472;--line:#DCE3F1;--bg:#F3F6FC;--card:#fff;--ok:#11703A;--bad:#B42318;--warn:#9A5B00;--a:#1257E6}
+:root{--ink:#0F2A3B;--sub:#5B6472;--line:#DCE8E6;--bg:#F2F7F6;--card:#fff;--ok:#11703A;--bad:#B42318;--warn:#9A5B00;--a:#1257E6}
 @media (prefers-color-scheme:dark){:root{--ink:#E8EDF8;--sub:#9AA6BC;--line:#26324A;--bg:#0B1220;--card:#121B2E}}
 *{box-sizing:border-box}body{margin:0;font-family:system-ui,-apple-system,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--ink)}
 .wrap{max-width:720px;margin:0 auto;padding:16px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:16px;margin-bottom:12px}
@@ -25,7 +25,7 @@ h1{font-size:20px;margin:0 0 4px}h2{font-size:16px;margin:18px 0 8px}.sub{color:
 .r{text-align:right}.tag{font-size:12px;font-weight:700;padding:2px 8px;border-radius:99px;background:var(--bg)}.overdue{color:var(--bad)}.paid{color:var(--ok)}.partially_paid{color:var(--warn)}
 a{color:var(--a);text-decoration:none}table{width:100%;border-collapse:collapse;font-size:14px}td,th{padding:8px 4px;border-bottom:1px solid var(--line);text-align:left}th{color:var(--sub);font-weight:600}
 .foot{color:var(--sub);font-size:12px;text-align:center;margin:20px 0}
-</style></head><body><div class="wrap">${body}<div class="foot">Shared securely with Kaarobarly</div></div></body></html>`;
+</style></head><body><div class="wrap">${body}<div class="foot">Shared securely with Tijar</div></div></body></html>`;
 }
 
 const clientByToken = (db: Db, token: string) => (/^[0-9a-f]{20,80}$/i.test(token) ? db.get('select * from client where portal_token = ?', token) : undefined);

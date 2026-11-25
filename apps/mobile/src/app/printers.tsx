@@ -149,7 +149,7 @@ export default function PrintersScreen() {
 
       {s && desktop && (
         <>
-          <Txt v="small">Kaarobarly prints straight to these Windows printers, without the print dialog.</Txt>
+          <Txt v="small">Tijar prints straight to these Windows printers, without the print dialog.</Txt>
           {(['desktopReceipt', 'desktopLabel', 'desktopDocument'] as const).map((k) => (
             <Select<{ name: string; isDefault: boolean }>
               key={k}
@@ -169,7 +169,7 @@ export default function PrintersScreen() {
 
       {s && !bt && !desktop && (
         <Notice kind="info">
-          {Platform.OS === 'web' ? 'In the browser, printing uses the print dialog. Install the Kaarobarly Windows app to print silently, or use the Android app for Bluetooth printers.' : 'This build has no Bluetooth printing. Update the app.'}
+          {Platform.OS === 'web' ? 'In the browser, printing uses the print dialog. Install the Tijar Windows app to print silently, or use the Android app for Bluetooth printers.' : 'This build has no Bluetooth printing. Update the app.'}
         </Notice>
       )}
       <View style={{ height: 20 }} />

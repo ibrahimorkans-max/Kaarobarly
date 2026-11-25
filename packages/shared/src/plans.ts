@@ -14,7 +14,7 @@ export interface PlanLimits {
 }
 
 export const PLANS: Record<PlanId, { name: string; price: number; hint: string; limits: PlanLimits }> = {
-  free: { name: 'Free', price: 0, hint: 'For trying Kaarobarly and very small shops', limits: { users: 1, businesses: 1, invoicesPerMonth: 30, aiPerMonth: 0, payroll: false } },
+  free: { name: 'Free', price: 0, hint: 'For trying Tijar and very small shops', limits: { users: 1, businesses: 1, invoicesPerMonth: 30, aiPerMonth: 0, payroll: false } },
   starter: { name: 'Starter', price: 150_000, hint: 'A growing business with a helper', limits: { users: 3, businesses: 1, invoicesPerMonth: 300, aiPerMonth: 50, payroll: false } },
   pro: { name: 'Pro', price: 350_000, hint: 'Teams, stock, payroll and AI', limits: { users: 10, businesses: 3, invoicesPerMonth: 2000, aiPerMonth: 500, payroll: true } },
   business: { name: 'Business', price: 900_000, hint: 'Several branches and large teams', limits: { users: 50, businesses: 20, invoicesPerMonth: 100_000, aiPerMonth: 3000, payroll: true } },

@@ -18,7 +18,7 @@ export default function IntegrationsScreen() {
   const toast = useToast();
   const { user } = useAuth();
   const { data, loading, error, reload } = useApi<Integrations>(user?.isPlatformAdmin ? '/platform/integrations' : null);
-  const [email, setEmail] = useState({ host: '', port: '587', secure: false, user: '', pass: '', fromName: 'Kaarobarly', fromEmail: '' });
+  const [email, setEmail] = useState({ host: '', port: '587', secure: false, user: '', pass: '', fromName: 'Tijar', fromEmail: '' });
   const [wa, setWa] = useState({ phoneNumberId: '', accessToken: '', template: '', language: 'en', copyButton: true });
   const [testTo, setTestTo] = useState({ email: '', whatsapp: '' });
   const [busy, setBusy] = useState('');

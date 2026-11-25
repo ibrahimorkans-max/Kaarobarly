@@ -93,7 +93,7 @@ export default function Reports() {
   const { data: r, loading, error, reload, refreshing } = useApi<ReportData>(valid ? `/reports${query}` : null);
   const business = businesses.data?.find((b) => b.id === businessId) ?? businesses.data?.[0];
   const money = (v: number) => fm(v, r);
-  const buildDoc = useCallback((paper: Paper) => (r && business ? reportHtml(r, business, `${user?.tenantName ?? 'Kaarobarly'} report`, paper) : ''), [r, business, user]);
+  const buildDoc = useCallback((paper: Paper) => (r && business ? reportHtml(r, business, `${user?.tenantName ?? 'Tijar'} report`, paper) : ''), [r, business, user]);
 
   async function excel() {
     setBusy(true);

@@ -1,8 +1,8 @@
 {
   "name": "kaarobarly-desktop",
-  "productName": "Kaarobarly",
+  "productName": "Tijar",
   "version": "2.0.0",
-  "description": "Kaarobarly for Windows: counter, invoices and reports with silent printing",
+  "description": "Tijar for Windows: counter, invoices and reports with silent printing",
   "author": "ZH Trader",
   "private": true,
   "main": "main.js",
@@ -13,7 +13,7 @@
   },
   "build": {
     "appId": "com.zhtrader.kaarobarly.desktop",
-    "productName": "Kaarobarly",
+    "productName": "Tijar",
     "copyright": "ZH Trader",
     "directories": {
       "output": "dist",
@@ -35,13 +35,13 @@
         }
       ],
       "icon": "build/icon.png",
-      "artifactName": "Kaarobarly-Setup-${version}.${ext}"
+      "artifactName": "Tijar-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
       "allowToChangeInstallationDirectory": true,
       "createDesktopShortcut": true,
-      "shortcutName": "Kaarobarly",
+      "shortcutName": "Tijar",
       "perMachine": false
     }
   },

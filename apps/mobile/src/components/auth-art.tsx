@@ -6,16 +6,16 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Defs, Ellipse, G, LinearGradient, Path, Rect, Stop } from 'react-native-svg';
 import { tr } from '@/lib/i18n';
 
-/** The friendly illustration style of the sign-in pages: warm peach, orange accent, a waving character. */
+/** The friendly illustration style of the sign-in pages: soft mint, Tijar green accent, a waving character. */
 export const AUTH = {
-  bg: '#FFF6EE',
+  bg: '#EEF7F4',
   card: '#FFFFFF',
-  accent: '#FF7A2F',
-  accentDark: '#E8621A',
-  accentSoft: '#FFE7D6',
-  text: '#1F1B2D',
-  sub: '#8A8296',
-  border: '#F3E3D6',
+  accent: '#0F8A6F',
+  accentDark: '#0B6F59',
+  accentSoft: '#D8F1E8',
+  text: '#132430',
+  sub: '#6E7F88',
+  border: '#D7E8E3',
   input: '#FFFFFF',
   danger: '#D92D20',
   success: '#12A15E',
@@ -27,7 +27,7 @@ export type Pose = 'wave' | 'star' | 'mail' | 'key';
 export function AuthArt({ pose = 'wave', size = 240 }: { pose?: Pose; size?: number }) {
   const skin = '#F7C9A6';
   const hair = '#2A2238';
-  const shirt = '#FFC23D';
+  const shirt = '#19B892';
   // gradient ids must be unique: several pages can be mounted at once
   const uid = useId().replace(/[^a-zA-Z0-9]/g, '');
   const ball = `ball${uid}`;
@@ -40,8 +40,8 @@ export function AuthArt({ pose = 'wave', size = 240 }: { pose?: Pose; size?: num
           <Stop offset="1" stopColor="#6E4BF2" />
         </LinearGradient>
         <LinearGradient id={blob} x1="0" y1="0" x2="1" y2="1">
-          <Stop offset="0" stopColor="#FFE2CC" />
-          <Stop offset="1" stopColor="#FFF1E5" />
+          <Stop offset="0" stopColor="#D6F2E8" />
+          <Stop offset="1" stopColor="#ECF8F4" />
         </LinearGradient>
       </Defs>
       {/* soft backdrop */}
@@ -50,12 +50,12 @@ export function AuthArt({ pose = 'wave', size = 240 }: { pose?: Pose; size?: num
       <Circle cx="62" cy="58" r="11" stroke="#F2A33A" strokeWidth="5" fill="none" />
       <Path d="M246 52 q8 -10 16 0 t16 0 t16 0" stroke="#5B7CFA" strokeWidth="5" fill="none" strokeLinecap="round" />
       <Path d="M40 140 q10 -16 22 -6 q-6 14 -22 6z" fill="#46B37A" />
-      <Path d="M270 180 l8 -14 l8 14z" fill="#FF8C5A" />
+      <Path d="M270 180 l8 -14 l8 14z" fill="#19B892" />
       <Circle cx="266" cy="128" r="15" fill={`url(#${ball})`} />
       <Circle cx="92" cy="30" r="4" fill="#5B7CFA" />
       <Circle cx="240" cy="96" r="3.5" fill="#F2A33A" />
       <Circle cx="70" cy="190" r="4" fill="#B69CFF" />
-      <Rect x="226" y="20" width="8" height="8" rx="2" fill="#FF8C5A" transform="rotate(20 230 24)" />
+      <Rect x="226" y="20" width="8" height="8" rx="2" fill="#19B892" transform="rotate(20 230 24)" />
 
       {/* body */}
       <Path d="M100 230 C100 170 118 148 160 148 C202 148 220 170 220 230 Z" fill={shirt} />
@@ -68,7 +68,7 @@ export function AuthArt({ pose = 'wave', size = 240 }: { pose?: Pose; size?: num
           <Path d="M206 170 C226 150 232 120 236 96" stroke={skin} strokeWidth="15" strokeLinecap="round" fill="none" />
           <Circle cx="238" cy="88" r="12" fill={skin} />
           <Path d="M232 76 v-10 M239 74 v-12 M246 77 v-10" stroke={skin} strokeWidth="5" strokeLinecap="round" />
-          <Path d="M252 70 q8 4 8 14 M256 60 q12 6 12 22" stroke="#FF8C5A" strokeWidth="3" fill="none" strokeLinecap="round" />
+          <Path d="M252 70 q8 4 8 14 M256 60 q12 6 12 22" stroke="#19B892" strokeWidth="3" fill="none" strokeLinecap="round" />
         </G>
       ) : (
         <Path d="M208 176 C224 186 222 200 206 206" stroke={skin} strokeWidth="15" strokeLinecap="round" fill="none" />
@@ -92,8 +92,8 @@ export function AuthArt({ pose = 'wave', size = 240 }: { pose?: Pose; size?: num
       {/* what they hold */}
       {pose === 'mail' && (
         <G>
-          <Rect x="132" y="178" width="58" height="40" rx="6" fill="#fff" stroke="#FF7A2F" strokeWidth="3" />
-          <Path d="M134 182 l27 20 l27 -20" stroke="#FF7A2F" strokeWidth="3" fill="none" strokeLinejoin="round" />
+          <Rect x="132" y="178" width="58" height="40" rx="6" fill="#fff" stroke="#0F8A6F" strokeWidth="3" />
+          <Path d="M134 182 l27 20 l27 -20" stroke="#0F8A6F" strokeWidth="3" fill="none" strokeLinejoin="round" />
           <Circle cx="190" cy="180" r="9" fill="#12A15E" />
           <Path d="M186 180 l3 3 l5 -6" stroke="#fff" strokeWidth="2.5" fill="none" strokeLinecap="round" />
         </G>
@@ -142,8 +142,8 @@ export function AuthField({ icon, label, password, error, ...rest }: TextInputPr
   const [show, setShow] = useState(false);
   return (
     <View>
-      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: AUTH.input, borderRadius: 14, borderWidth: 1.5, borderColor: error ? AUTH.danger : focus ? AUTH.accent : AUTH.border, paddingHorizontal: 14, minHeight: 54, boxShadow: '0 2px 10px rgba(232,98,26,0.06)' } as any}>
-        <Ionicons name={icon} size={20} color={focus ? AUTH.accent : '#C9875F'} />
+      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10, backgroundColor: AUTH.input, borderRadius: 14, borderWidth: 1.5, borderColor: error ? AUTH.danger : focus ? AUTH.accent : AUTH.border, paddingHorizontal: 14, minHeight: 54, boxShadow: '0 2px 10px rgba(15,42,59,0.06)' } as any}>
+        <Ionicons name={icon} size={20} color={focus ? AUTH.accent : '#6E9A8E'} />
         <TextInput
           accessibilityLabel={label}
           placeholder={tr(label)}
@@ -173,7 +173,7 @@ export function AuthButton({ title, onPress, loading, disabled, kind = 'primary'
       accessibilityState={{ disabled: !!off }}
       disabled={off}
       onPress={onPress}
-      style={({ pressed }) => ({ height: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: kind === 'primary' ? (pressed ? AUTH.accentDark : AUTH.accent) : 'transparent', opacity: off ? 0.6 : 1, boxShadow: kind === 'primary' ? '0 8px 18px rgba(255,122,47,0.32)' : undefined }) as any}>
+      style={({ pressed }) => ({ height: 54, borderRadius: 14, alignItems: 'center', justifyContent: 'center', backgroundColor: kind === 'primary' ? (pressed ? AUTH.accentDark : AUTH.accent) : 'transparent', opacity: off ? 0.6 : 1, boxShadow: kind === 'primary' ? '0 8px 18px rgba(15,138,111,0.3)' : undefined }) as any}>
       <Text style={{ color: kind === 'primary' ? '#fff' : AUTH.accent, fontSize: 16, fontWeight: '800' }}>{loading ? tr('Please wait…') : tr(title)}</Text>
     </Pressable>
   );
@@ -227,7 +227,7 @@ export function CodeBoxes({ value, onChange, onDone }: { value: string; onChange
         {Array.from({ length: 6 }, (_, i) => {
           const active = focus && i === Math.min(value.length, 5);
           return (
-            <View key={i} style={{ flex: 1, maxWidth: 54, height: 60, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: active ? AUTH.accent : value[i] ? '#F4B48D' : AUTH.border, alignItems: 'center', justifyContent: 'center' }}>
+            <View key={i} style={{ flex: 1, maxWidth: 54, height: 60, borderRadius: 14, backgroundColor: '#fff', borderWidth: 1.5, borderColor: active ? AUTH.accent : value[i] ? '#8FD8C3' : AUTH.border, alignItems: 'center', justifyContent: 'center' }}>
               <Text style={{ fontSize: 24, fontWeight: '800', color: AUTH.text }}>{value[i] ?? ''}</Text>
             </View>
           );

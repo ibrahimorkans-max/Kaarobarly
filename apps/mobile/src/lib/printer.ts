@@ -47,7 +47,7 @@ export async function askBluetooth(): Promise<boolean> {
 
 export async function pairedPrinters(): Promise<PairedPrinter[]> {
   if (!KbPrinter) throw new Error('Bluetooth printing needs the Android app.');
-  if (!(await askBluetooth())) throw new Error('Allow "Nearby devices" for Kaarobarly to use Bluetooth printers.');
+  if (!(await askBluetooth())) throw new Error('Allow "Nearby devices" for Tijar to use Bluetooth printers.');
   const list = await KbPrinter.bondedDevices();
   // printers first (imaging class), then the rest
   return list.sort((a, b) => Number(b.major === 0x600) - Number(a.major === 0x600) || a.name.localeCompare(b.name));
@@ -55,7 +55,7 @@ export async function pairedPrinters(): Promise<PairedPrinter[]> {
 
 export async function sendBytes(address: string, bytes: Uint8Array) {
   if (!KbPrinter) throw new Error('Bluetooth printing needs the Android app.');
-  if (!(await askBluetooth())) throw new Error('Allow "Nearby devices" for Kaarobarly to use Bluetooth printers.');
+  if (!(await askBluetooth())) throw new Error('Allow "Nearby devices" for Tijar to use Bluetooth printers.');
   await KbPrinter.write(address, toBase64(bytes));
 }
 

@@ -151,7 +151,7 @@ async function callChatCompletions(cfg: AiConfig, a: Ask): Promise<string> {
   if (a.schema) body.response_format = { type: 'json_schema', json_schema: { name: 'result', schema: a.schema, strict: true } };
   const res = await fetch(`${base}/chat/completions`, {
     method: 'POST',
-    headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.apiKey}`, ...(cfg.provider === 'openrouter' ? { 'X-Title': 'Kaarobarly' } : {}) },
+    headers: { 'content-type': 'application/json', authorization: `Bearer ${cfg.apiKey}`, ...(cfg.provider === 'openrouter' ? { 'X-Title': 'Tijar' } : {}) },
     body: JSON.stringify(body),
     signal: AbortSignal.timeout(120_000),
   }).catch(() => {
@@ -214,7 +214,7 @@ export function businessBrief(db: Db, tenantId: string): string {
   return lines.join('\n');
 }
 
-const ASSISTANT_SYSTEM = `You are the assistant inside Kaarobarly, a business app for small and medium businesses in Pakistan.
+const ASSISTANT_SYSTEM = `You are the assistant inside Tijar, a business app for small and medium businesses in Pakistan.
 Answer questions about this business using only the figures in the business summary you are given. If the summary does not contain what is needed, say what is missing and where in the app to look.
 Keep answers short and practical: a direct answer first, then at most a few bullet points. Use the business's currency formatting as given.
 Reply in the language of the question: English, Urdu, or Roman Urdu.

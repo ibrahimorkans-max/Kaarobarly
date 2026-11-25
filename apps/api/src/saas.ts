@@ -88,7 +88,7 @@ export function openRequest(db: Db, tenantId: string) {
   return db.get("select id, plan, created_at from plan_request where tenant_id = ? and status = 'open' order by created_at desc limit 1", tenantId) ?? null;
 }
 
-// ---------------------------------------------------------------- platform admin (the people running Kaarobarly)
+// ---------------------------------------------------------------- platform admin (the people running Tijar)
 
 export const isPlatformAdmin = (email: string) =>
   (process.env.PLATFORM_ADMINS ?? '')

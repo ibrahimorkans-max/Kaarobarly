@@ -326,6 +326,10 @@ create table if not exists auth_code (
   code_hash text not null, attempts integer not null default 0, expires_at text not null, used_at text, created_at text not null
 );
 create index if not exists auth_code_user on auth_code (user_id, purpose);
+create table if not exists site_lead (
+  id text primary key, name text not null, business text not null default '', phone text not null default '', email text not null default '',
+  plan text not null default '', message text not null default '', status text not null default 'new', ip text not null default '', created_at text not null
+);
 create table if not exists push_device (
   id text primary key, tenant_id text not null, user_id text not null, token text not null unique, platform text not null default 'android',
   created_at text not null, last_seen text not null

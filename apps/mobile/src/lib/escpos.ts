@@ -162,7 +162,7 @@ export function zReportEscPos(z: ZReport, b: BusinessProfile, widthMm: 58 | 80):
 /** A one-line test page. */
 export function testEscPos(widthMm: 58 | 80): Uint8Array {
   const p = new EscPos(colsFor(widthMm));
-  return p.align('center').bold(true).size(2).line('Kaarobarly').size(1).bold(false).line('Printer test').rule().pair('Width', `${widthMm} mm`).qr('KAAROBARLY', 5).cut().bytes();
+  return p.align('center').bold(true).size(2).line('Tijar').size(1).bold(false).line('Printer test').rule().pair('Width', `${widthMm} mm`).qr('KAAROBARLY', 5).cut().bytes();
 }
 
 // ================================================================ labels: TSPL and ZPL

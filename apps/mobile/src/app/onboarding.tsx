@@ -1,6 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useRef, useState } from 'react';
+import { LogoReveal } from '@/components/logo-reveal';
 import { Animated, Pressable, StyleSheet, Text, View, useWindowDimensions } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Circle, Path, Polygon } from 'react-native-svg';
@@ -10,11 +11,12 @@ import { local } from '@/lib/storage';
 
 const ONBOARDED_KEY = 'kaarobarly.onboarded';
 
-const PEACH = '#FF9E6E';
-const PEACH_SOFT = '#FFE3D3';
-const INK = '#161A2B';
-const MUTED = '#7A7F96';
-const RING = '#22B8A7';
+const PEACH = '#9FE6D2';
+const PEACH_SOFT = '#E3F7F0';
+const INK = '#0F2A3B';
+const MUTED = '#6E7F88';
+const RING = '#19B892';
+const ACCENT = '#0F8A6F';
 
 interface Slide {
   title: string;
@@ -26,7 +28,7 @@ interface Slide {
 const SLIDES: Slide[] = [
   { title: 'Start your\nBusiness Online', text: 'Invoices, stock, payments and staff in one app, set up for your kind of business in minutes.', shape: 'diagonal', icon: 'storefront', props: ['receipt-outline', 'cube-outline'] },
   { title: 'Sell faster,\nanywhere', text: 'Scan, bill and print at the counter. It keeps working without internet and syncs when you are back online.', shape: 'arch', icon: 'scan', props: ['chatbubble-ellipses-outline', 'wifi-outline'] },
-  { title: 'Choose\nYour plan', text: 'Start with a free 30-day Pro trial, then pick the plan that fits. You can upgrade any time.', shape: 'corner', icon: 'diamond', props: ['bulb-outline', 'sparkles-outline'] },
+  { title: 'Every Business Move,\nMade Smarter', text: 'Start with a free 30-day Pro trial, then pick the plan that fits. You can upgrade any time.', shape: 'corner', icon: 'diamond', props: ['bulb-outline', 'sparkles-outline'] },
 ];
 
 /** The peach background shape and the drawn illustration of one slide. */
@@ -48,7 +50,7 @@ function Art({ slide, w, h }: { slide: Slide; w: number; h: number }) {
         {slide.shape === 'diagonal' ? <LogoMark size={r * 0.8} /> : <Ionicons name={slide.icon} size={r * 0.7} color={INK} />}
       </View>
       <View style={[styles.prop, { left: cx + r * 0.55, top: cy - r * 1.05 }]}>
-        <Ionicons name={slide.props[0]} size={26} color={PEACH} />
+        <Ionicons name={slide.props[0]} size={26} color={ACCENT} />
       </View>
       <View style={[styles.prop, { left: cx - r * 1.1, top: cy + r * 0.45 }]}>
         <Ionicons name={slide.props[1]} size={26} color={RING} />
@@ -71,7 +73,7 @@ function NextButton({ step, total, onPress, last }: { step: number; total: numbe
           cx={size / 2}
           cy={size / 2}
           r={rad}
-          stroke={last ? PEACH : RING}
+          stroke={last ? ACCENT : RING}
           strokeWidth={stroke}
           fill="none"
           strokeDasharray={`${(len * (step + 1)) / total} ${len}`}
@@ -79,7 +81,7 @@ function NextButton({ step, total, onPress, last }: { step: number; total: numbe
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
       </Svg>
-      <View style={{ width: size - 20, height: size - 20, borderRadius: (size - 20) / 2, backgroundColor: last ? PEACH : INK, alignItems: 'center', justifyContent: 'center' }}>
+      <View style={{ width: size - 20, height: size - 20, borderRadius: (size - 20) / 2, backgroundColor: last ? ACCENT : INK, alignItems: 'center', justifyContent: 'center' }}>
         <Ionicons name="arrow-forward" size={24} color="#FFFFFF" />
       </View>
     </Pressable>
@@ -126,7 +128,7 @@ export default function Onboarding() {
           )}
         </View>
         <Animated.View style={{ flex: 1, opacity: fade, alignItems: 'center' }}>
-          <Art slide={slide} w={cardW} h={artH} />
+          {last ? <LogoReveal w={cardW} h={artH} /> : <Art slide={slide} w={cardW} h={artH} />}
           <View style={styles.copy}>
             <Text style={styles.title}>{tr(slide.title)}</Text>
             <Text style={styles.text}>{tr(slide.text)}</Text>
@@ -142,15 +144,15 @@ export default function Onboarding() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: '#E5E8FB', alignItems: 'center', justifyContent: 'center' },
-  card: { backgroundColor: '#FFFFFF', borderRadius: 32, overflow: 'hidden', boxShadow: '0 12px 32px rgba(41, 52, 110, 0.12)' } as any,
+  screen: { flex: 1, backgroundColor: '#E4F0ED', alignItems: 'center', justifyContent: 'center' },
+  card: { backgroundColor: '#FFFFFF', borderRadius: 32, overflow: 'hidden', boxShadow: '0 12px 32px rgba(15, 42, 59, 0.12)' } as any,
   top: { position: 'absolute', zIndex: 2, top: 18, left: 22, right: 22, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   dots: { flexDirection: 'row', gap: 6 },
-  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(22,26,43,0.18)' },
+  dot: { width: 7, height: 7, borderRadius: 4, backgroundColor: 'rgba(15,42,59,0.18)' },
   dotOn: { width: 22, backgroundColor: INK },
   skip: { fontSize: 15, fontWeight: '700', color: MUTED },
   center: { position: 'absolute', alignItems: 'center', justifyContent: 'center' },
-  prop: { position: 'absolute', width: 48, height: 48, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 14px rgba(22, 26, 43, 0.12)' } as any,
+  prop: { position: 'absolute', width: 48, height: 48, borderRadius: 14, backgroundColor: '#FFFFFF', alignItems: 'center', justifyContent: 'center', boxShadow: '0 6px 14px rgba(15, 42, 59, 0.12)' } as any,
   copy: { flex: 1, paddingHorizontal: 28, paddingTop: 28, alignItems: 'center', justifyContent: 'flex-start', gap: 12 },
   title: { fontSize: 30, lineHeight: 36, fontWeight: '800', color: INK, textAlign: 'center', letterSpacing: -0.5 },
   text: { fontSize: 15, lineHeight: 22, color: MUTED, textAlign: 'center' },

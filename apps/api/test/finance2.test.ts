@@ -35,7 +35,7 @@ test('tax centre: output tax on sales, input tax on purchases, customers without
   const client = (await call(token, 'POST', '/clients', { name: 'No NTN Co' })).body;
   const inv = await call(token, 'POST', '/invoices', { businessId, clientId: client.id, issueDate: today(), dueDate: today(), lines: [{ name: 'Goods', qty: 1000, unitPrice: 100_000, taxRateBp: 1800 }], finalize: true });
   assert.equal(inv.status, 201, JSON.stringify(inv.body));
-  await call(token, 'POST', '/purchases', { businessId, supplier: 'Mill', date: today(), lines: [{ name: 'Stock', qty: 1000, unitPrice: 59_000 }], taxAmount: 9_000 });
+  await call(token, 'POST', '/purchases', { businessId, supplier: 'Al-Noor Wholesale', date: today(), lines: [{ name: 'Stock', qty: 1000, unitPrice: 59_000 }], taxAmount: 9_000 });
   await call(token, 'POST', '/finance/entries', { businessId, type: 'expense', category: 'Taxes & fees', amount: 5_000, date: today() });
   const t = (await call(token, 'GET', '/tax/summary')).body;
   assert.equal(t.totals.outputTax, 18_000);
