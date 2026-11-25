@@ -23,7 +23,7 @@ function markSvg(cls = 'mark') {
     <linearGradient id="${id}l" x1="18" y1="0" x2="222" y2="0" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#2BD8B0"/><stop offset="1" stop-color="#14AE8B"/></linearGradient>
     <linearGradient id="${id}s" x1="92" y1="240" x2="214" y2="96" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#fff"/><stop offset=".55" stop-color="#BFF3E5"/><stop offset="1" stop-color="#19B892"/></linearGradient>
     <linearGradient id="${id}a" x1="200" y1="66" x2="264" y2="2" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#19B892"/><stop offset="1" stop-color="#2BD8B0"/></linearGradient></defs>
-    <path d="${MARK.stem}" fill="url(#${id}s)"/><path d="${MARK.leaf}" fill="url(#${id}l)"/><path d="${MARK.arrow}" fill="url(#${id}a)"/></svg>`;
+    <path class="p-s" d="${MARK.stem}" fill="url(#${id}s)"/><path class="p-l" d="${MARK.leaf}" fill="url(#${id}l)"/><path class="p-a" d="${MARK.arrow}" fill="url(#${id}a)"/></svg>`;
 }
 const wordSvg = (cls = 'word') => `<svg class="${cls}" viewBox="0 0 446 100" aria-label="Tijar"><g fill="#fff">${WORD.map((d) => `<path fill-rule="evenodd" d="${d}"/>`).join('')}</g><path d="M280 60 L296 100 H264 Z" fill="#19B892"/></svg>`;
 
