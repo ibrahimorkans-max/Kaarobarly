@@ -176,6 +176,13 @@ function signup() {
     open(a.dataset.plan);
   });
   box.querySelectorAll('[data-close]').forEach((x) => x.addEventListener('click', close));
+  // people coming from the website have already seen what Tijar does: skip the app's intro slides
+  document.addEventListener('click', (e) => {
+    if (!e.target.closest('a[href^="/app"]')) return;
+    try {
+      localStorage.setItem('kaarobarly.onboarded', 'true');
+    } catch {}
+  });
   addEventListener('keydown', (e) => e.key === 'Escape' && !box.hidden && close());
   box.querySelector('.eye').addEventListener('click', () => (form.password.type = form.password.type === 'password' ? 'text' : 'password'));
   if (location.hash === '#signup') open();
