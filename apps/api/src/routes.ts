@@ -619,6 +619,10 @@ export function registerRoutes(app: AppLike, db: Db) {
     return { businessId: s('businessId'), from: s('from'), to: s('to'), q: s('q') };
   };
   app.get('/purchases/summary', need('reports.view'), (req: Req, res: Res) => res.json(pur.purchaseSummary(db, T(req), purchaseFilter(req))));
+  app.get('/purchases/unpaid', need('reports.view'), (req: Req, res: Res) =>
+    res.json(pur.unpaidPurchases(db, T(req), { businessId: req.query.businessId ? String(req.query.businessId) : undefined, supplier: req.query.supplier ? String(req.query.supplier) : undefined })),
+  );
+  app.post('/purchases/:id/pay', need('finance.manage'), (req: Req, res: Res) => res.json(pur.payPurchase(db, req.auth, String(req.params.id), pur.payPurchaseSchema.parse(req.body ?? {}))));
   app.get('/purchases/suppliers', need('reports.view'), (req: Req, res: Res) => res.json(pur.suppliers(db, T(req))));
   app.get('/purchases', need('reports.view'), (req: Req, res: Res) => {
     const { limit, offset } = page(req);

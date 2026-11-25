@@ -66,6 +66,7 @@ function Navigation() {
           <Stack.Screen name="rates" options={{ title: 'Exchange Rates' }} />
           <Stack.Screen name="purchase/new" options={{ title: 'New Purchase' }} />
           <Stack.Screen name="purchase/[id]" options={{ title: 'Purchase' }} />
+          <Stack.Screen name="payables" options={{ title: 'Unpaid purchases' }} />
           <Stack.Screen name="sync" options={{ title: 'Sync & Offline' }} />
           <Stack.Screen name="setup" options={{ title: 'Set up your business' }} />
           <Stack.Screen name="workspace" options={{ title: 'Business setup' }} />

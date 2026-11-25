@@ -336,3 +336,133 @@ export function purchaseSummary(db: Db, tenantId: string, f: PurchaseFilter): Pu
     currencyPrecision: biz?.currency_precision ?? 2,
   };
 }
+
+// ---------------------------------------------------------------- unpaid purchase bills (what you owe suppliers)
+
+const addDays = (d: string, n: number) => new Date(Date.parse(`${d}T00:00:00Z`) + n * 86400_000).toISOString().slice(0, 10);
+const daysBetween = (a: string, b: string) => Math.round((Date.parse(`${b}T00:00:00Z`) - Date.parse(`${a}T00:00:00Z`)) / 86400_000);
+
+export interface UnpaidFilter {
+  businessId?: string;
+  supplier?: string;
+}
+
+/**
+ * Every purchase bill that still has money to pay: how much, what is overdue, what is due soon,
+ * grouped by supplier and by age (days past the due date of each unpaid installment).
+ */
+export function unpaidPurchases(db: Db, tenantId: string, f: UnpaidFilter) {
+  const t = today();
+  const soon = addDays(t, 7);
+  const [w, args] = where(tenantId, { businessId: f.businessId });
+  const aging = { notDue: 0, d1_30: 0, d31_60: 0, d61_90: 0, d90plus: 0 };
+  const totals = { unpaid: 0, overdue: 0, dueSoon: 0, bills: 0 };
+  const bySupplier = new Map<string, { supplier: string; unpaid: number; overdue: number; bills: number; oldestDue: string }>();
+  const bills = [];
+  for (const r of db.all(`${SELECT} where ${w} order by p.date`, ...args)) {
+    const plan = planOf(r);
+    const open = plan.map((x, i) => ({ ...x, index: i })).filter((x) => !x.paid);
+    if (!open.length) continue;
+    if (f.supplier && r.supplier.toLowerCase() !== f.supplier.toLowerCase()) continue;
+    const balance = open.reduce((a, x) => a + x.amount, 0);
+    let overdue = 0, dueSoon = 0;
+    for (const x of open) {
+      const late = daysBetween(x.dueDate, t);
+      if (late <= 0) aging.notDue += x.amount;
+      else if (late <= 30) aging.d1_30 += x.amount;
+      else if (late <= 60) aging.d31_60 += x.amount;
+      else if (late <= 90) aging.d61_90 += x.amount;
+      else aging.d90plus += x.amount;
+      if (x.dueDate < t) overdue += x.amount;
+      else if (x.dueDate <= soon) dueSoon += x.amount;
+    }
+    const next = [...open].sort((a, b) => a.dueDate.localeCompare(b.dueDate))[0];
+    totals.unpaid += balance;
+    totals.overdue += overdue;
+    totals.dueSoon += dueSoon;
+    totals.bills += 1;
+    const key = r.supplier.toLowerCase();
+    const s = bySupplier.get(key) ?? { supplier: r.supplier, unpaid: 0, overdue: 0, bills: 0, oldestDue: next.dueDate };
+    s.unpaid += balance;
+    s.overdue += overdue;
+    s.bills += 1;
+    if (next.dueDate < s.oldestDue) s.oldestDue = next.dueDate;
+    bySupplier.set(key, s);
+    bills.push({
+      id: r.id,
+      number: r.number,
+      supplier: r.supplier,
+      billNo: r.bill_no,
+      date: r.date,
+      businessId: r.business_id,
+      total: r.total,
+      paid: r.total - balance,
+      balance,
+      overdue,
+      nextDue: next.dueDate,
+      nextAmount: next.amount,
+      daysOverdue: Math.max(0, daysBetween(next.dueDate, t)),
+      status: overdue > 0 ? 'overdue' : next.dueDate <= soon ? 'due_soon' : 'upcoming',
+      openInstallments: open.length,
+      currency: r.currency,
+      currencyPrecision: r.currency_precision,
+    });
+  }
+  // most urgent first: overdue (oldest first), then by next due date
+  bills.sort((a, b) => a.nextDue.localeCompare(b.nextDue));
+  return {
+    totals,
+    aging,
+    suppliers: [...bySupplier.values()].sort((a, b) => b.overdue - a.overdue || b.unpaid - a.unpaid),
+    bills,
+  };
+}
+
+export const payPurchaseSchema = z.object({
+  /** minor units; leave out (or set all) to pay everything still owed */
+  amount: z.number().int().positive().optional(),
+  all: z.boolean().default(false),
+  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Use YYYY-MM-DD').optional(),
+});
+
+/**
+ * Pay a supplier bill, in full or in part. The payment clears unpaid installments in due-date
+ * order; a part payment that does not cover an installment splits it into a paid and an unpaid part.
+ * The bill's Money out entry follows, from the bill's own account.
+ */
+export function payPurchase(db: Db, auth: AuthContext, id: string, body: z.infer<typeof payPurchaseSchema>): Purchase {
+  return db.tx(() => {
+    const p = db.get('select * from purchase where id = ? and tenant_id = ?', id, auth.tenantId);
+    if (!p) throw new HttpError(404, 'Purchase not found.');
+    const date = body.date ?? today();
+    if (date > today()) throw new HttpError(422, 'The payment date cannot be in the future.');
+    assertDayOpen(db, auth.tenantId, p.business_id, date);
+    const plan = planOf(p);
+    const owed = plan.filter((x) => !x.paid).reduce((a, x) => a + x.amount, 0);
+    if (!plan.length || owed <= 0) throw new HttpError(422, 'This bill is already paid in full.');
+    let left = body.all || body.amount === undefined ? owed : body.amount;
+    if (left > owed) throw new HttpError(422, 'That is more than is still owed on this bill.');
+    const paidAmount = left;
+    const order = plan.map((x, i) => i).filter((i) => !plan[i].paid).sort((a, b) => plan[a].dueDate.localeCompare(plan[b].dueDate));
+    const out: typeof plan = [...plan];
+    const splits: { at: number; rest: number }[] = [];
+    for (const i of order) {
+      if (left <= 0) break;
+      const x = plan[i];
+      if (left >= x.amount) {
+        out[i] = { dueDate: x.dueDate, amount: x.amount, paid: true, paidDate: date };
+        left -= x.amount;
+      } else {
+        out[i] = { dueDate: x.dueDate, amount: left, paid: true, paidDate: date };
+        splits.push({ at: i, rest: x.amount - left });
+        left = 0;
+      }
+    }
+    // put the unpaid remainder of a split installment right after its paid part
+    for (const s of splits.sort((a, b) => b.at - a.at)) out.splice(s.at + 1, 0, { dueDate: plan[s.at].dueDate, amount: s.rest, paid: false });
+    db.run('update purchase set installments = ?, updated_at = ? where id = ?', JSON.stringify(out), now(), id);
+    syncEntry(db, auth, id);
+    db.audit(auth.tenantId, auth.userId, 'purchase.pay', 'purchase', id, { number: p.number, amount: paidAmount, supplier: p.supplier, rest: owed - paidAmount });
+    return getPurchase(db, auth.tenantId, id);
+  });
+}

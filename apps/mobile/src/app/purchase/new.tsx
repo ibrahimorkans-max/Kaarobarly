@@ -302,6 +302,18 @@ export default function NewPurchase() {
               />
             </Row>
           </Card>
+          {!onPlan && total > 0 && (
+            <Btn
+              small
+              kind="secondary"
+              icon="time-outline"
+              title="Pay later (unpaid, due in 30 days)"
+              onPress={() => {
+                setOnPlan(true);
+                setPlan([{ key: newKey(), dueDate: addDays(isDate(date) ? date : todayStr(), 30), amount: moneyToInput(total, precision), paid: false }]);
+              }}
+            />
+          )}
           {onPlan && (
             <>
               <Row style={{ flexWrap: 'wrap' }}>

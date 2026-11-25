@@ -52,6 +52,7 @@ export default function More() {
         <MenuRow icon="people-outline" title={t('clients')} sub="Profiles, ledgers and statements" onPress={() => router.push('/clients')} />
         {on('finance') && <MenuRow icon="stats-chart-outline" title="Finance" sub="Money in, money out and expenses" onPress={() => router.push('/finance')} />}
         {on('purchases') && <MenuRow icon="bag-handle-outline" title={t('purchases')} sub={`Bills from ${lower(t('suppliers'))}, paid as money out`} onPress={() => router.push('/purchases')} />}
+        {on('purchases') && <MenuRow icon="time-outline" title="Unpaid purchases" sub={`Bills you still owe ${lower(t('suppliers'))}, overdue first`} onPress={() => router.push('/payables')} />}
         {on('purchases') && <MenuRow icon="cart-outline" title="Buying" sub="Requests, purchase orders and goods received" onPress={() => router.push('/buying')} />}
         {on('purchases') && <MenuRow icon="storefront-outline" title={t('suppliers')} sub="Who you buy from and what you owe them" onPress={() => router.push('/suppliers')} />}
         {on('inventory') && <MenuRow icon="cube-outline" title="Stock" sub="In hand, value, low stock and counts" onPress={() => router.push('/stock')} />}

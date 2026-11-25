@@ -117,6 +117,16 @@ export default function Purchases() {
         <IconBtn icon="color-palette-outline" label="Change purchases dashboard style" onPress={() => setPicker(true)} />
       </Row>
       {can('finance.manage') && <Btn icon="add" title="New purchase" onPress={() => router.push('/purchase/new')} />}
+      {!!s?.unpaid && (
+        <Card onPress={() => router.push('/payables')} label="Unpaid purchases" style={{ flexDirection: 'row', alignItems: 'center', gap: 12 }}>
+          <Ionicons name="time-outline" size={22} color={t.danger} />
+          <View style={{ flex: 1 }}>
+            <Txt style={{ fontWeight: '800' }}>Unpaid purchases</Txt>
+            <Txt v="small">{money(s.unpaid)} still to pay suppliers · see what is overdue</Txt>
+          </View>
+          <Ionicons name="chevron-forward" size={18} color={t.sub} />
+        </Card>
+      )}
       <Row gap={8}>
         <Btn style={{ flex: 1 }} small kind="secondary" icon="cart-outline" title="Buying" onPress={() => router.push('/buying')} />
         <Btn style={{ flex: 1 }} small kind="secondary" icon="storefront-outline" title="Suppliers" onPress={() => router.push('/suppliers')} />
