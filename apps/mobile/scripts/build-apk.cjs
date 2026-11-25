@@ -62,18 +62,26 @@ gradle = gradle.replace(/(release\s*\{[^}]*?)signingConfig signingConfigs\.debug
 if (!gradle.includes('signingConfig signingConfigs.release')) throw new Error('Could not switch the release build to the release key; check android/app/build.gradle');
 fs.writeFileSync(gradleFile, gradle);
 
-// 4. Phones only (skip x86 emulator code: smaller APK, faster build)
+// 4. Phones only (skip x86 emulator code: smaller APK, faster build).
+//    FAST=1 builds 64-bit phones only (about half the native work) for quick test builds;
+//    releases keep 32-bit too, because many low-cost phones still run 32-bit Android.
+const fast = process.env.FAST === '1';
 const gp = path.join(root, 'android/gradle.properties');
-let props2 = fs.readFileSync(gp, 'utf8').replace(/^reactNativeArchitectures=.*$/m, 'reactNativeArchitectures=armeabi-v7a,arm64-v8a');
-// fewer parallel native compiles: keeps memory use low enough for an 8 GB machine / WSL
-if (!/^org\.gradle\.workers\.max=/m.test(props2)) props2 = `${props2.replace(/\n*$/, '\n')}org.gradle.workers.max=2\n`;
+const setProp = (text, key, value) => (new RegExp(`^${key.replace(/\./g, '\\.')}=`, 'm').test(text) ? text.replace(new RegExp(`^${key.replace(/\./g, '\\.')}=.*$`, 'm'), `${key}=${value}`) : `${text.replace(/\n*$/, '\n')}${key}=${value}\n`);
+let props2 = fs.readFileSync(gp, 'utf8');
+props2 = setProp(props2, 'reactNativeArchitectures', fast ? 'arm64-v8a' : 'armeabi-v7a,arm64-v8a');
+// half the cores in parallel: much faster than 2, still inside 8 GB of memory
+props2 = setProp(props2, 'org.gradle.workers.max', String(Math.max(2, Math.min(4, Math.floor(require('node:os').cpus().length / 2)))));
+// reuse outputs of earlier builds when inputs did not change
+props2 = setProp(props2, 'org.gradle.caching', 'true');
 fs.writeFileSync(gp, props2);
+if (fast) console.log('==> FAST build: 64-bit phones only');
 
 // 5. Build
 console.log('==> Building the release APK (first build takes 10-30 minutes)');
 const androidDir = path.join(root, 'android');
 const gradlew = path.join(androidDir, process.platform === 'win32' ? 'gradlew.bat' : 'gradlew');
-run(`"${gradlew}" assembleRelease --no-daemon`, { cwd: androidDir, env: { ...process.env, NODE_ENV: 'production' } });
+run(`"${gradlew}" assembleRelease --no-daemon --build-cache -x lintVitalAnalyzeRelease -x lintVitalReportRelease -x lintVitalRelease`, { cwd: androidDir, env: { ...process.env, NODE_ENV: 'production' } });
 
 // 6. Copy out
 const built = path.join(root, 'android/app/build/outputs/apk/release/app-release.apk');
