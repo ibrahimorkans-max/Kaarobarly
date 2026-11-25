@@ -2,11 +2,32 @@ import * as Notifications from 'expo-notifications';
 import { router } from 'expo-router';
 import { useEffect } from 'react';
 import { Platform } from 'react-native';
+import { KbFirebase } from '../../modules/kb-firebase';
 import { api } from './api';
 import { local } from './storage';
 
 const TOKEN_KEY = 'kaarobarly.pushToken';
-export type PushState = 'ok' | 'denied' | 'unavailable';
+export type PushState = 'ok' | 'denied' | 'unavailable' | 'restart';
+
+interface ClientConfig {
+  projectId: string;
+  senderId: string;
+  appId: string;
+  apiKey: string;
+  storageBucket: string;
+}
+
+/**
+ * Start Firebase with the values the SaaS owner entered (admin → Push notifications), so the app
+ * needs no google-services.json at build time. 'restart' = a different project was already running.
+ */
+async function connectFirebase(): Promise<'ok' | 'restart' | 'none'> {
+  if (!KbFirebase) return 'ok'; // older build: relies on google-services.json
+  const { client } = await api<{ client: ClientConfig | null }>('/push/config').catch(() => ({ client: null }));
+  if (!client) return KbFirebase.currentAppId() ? 'ok' : 'none';
+  const r = KbFirebase.configure(client.projectId, client.appId, client.apiKey, client.senderId, client.storageBucket ?? '');
+  return r === 'restart' ? 'restart' : r === 'failed' ? 'none' : 'ok';
+}
 
 if (Platform.OS !== 'web') {
   // show notifications that arrive while the app is open too
@@ -27,6 +48,9 @@ export async function registerPush(ask = true): Promise<PushState> {
     let granted = (await Notifications.getPermissionsAsync()).granted;
     if (!granted && ask) granted = (await Notifications.requestPermissionsAsync()).granted;
     if (!granted) return 'denied';
+    const fb = await connectFirebase();
+    if (fb === 'none') return 'unavailable';
+    if (fb === 'restart') return 'restart';
     const t = await Notifications.getDevicePushTokenAsync();
     const token = String(t.data);
     await api('/push/register', { body: { token, platform: Platform.OS === 'ios' ? 'ios' : 'android' } });

@@ -93,3 +93,29 @@ test('push: platform key, device tokens, event notifications, settings, dead tok
   assert.equal(sent.length, 0);
   assert.deepEqual((await call(owner, 'GET', '/push/settings')).body.off, ['payment']);
 });
+
+test('push: phone-side Firebase values from google-services.json or typed fields', async () => {
+  const admin = (await call('', 'POST', '/auth/login', { email: 'admin@push.dev', password: 'test-pass-123' })).body.accessToken;
+  const gs = {
+    project_info: { project_number: '123456789012', project_id: 'kb-test', storage_bucket: 'kb-test.appspot.com' },
+    client: [
+      { client_info: { mobilesdk_app_id: '1:123456789012:android:aaaa1111', android_client_info: { package_name: 'com.other.app' } }, api_key: [{ current_key: 'AIzaOtherOtherOtherOtherOther' }] },
+      { client_info: { mobilesdk_app_id: '1:123456789012:android:bbbb2222', android_client_info: { package_name: 'com.zhtrader.kaarobarly' } }, api_key: [{ current_key: 'AIzaSyTestTestTestTestTestTest' }] },
+    ],
+  };
+  assert.equal((await call(admin, 'GET', '/push/config')).body.client, null);
+  const wrong = { ...gs, client: [gs.client[0]] };
+  assert.equal((await call(admin, 'PUT', '/platform/push/client', { googleServices: JSON.stringify(wrong) })).status, 422);
+  const ok = await call(admin, 'PUT', '/platform/push/client', { googleServices: JSON.stringify(gs) });
+  assert.equal(ok.status, 200, JSON.stringify(ok.body));
+  assert.equal(ok.body.clientReady, true);
+  assert.equal(ok.body.sameProject, true);
+  const cfg = (await call(admin, 'GET', '/push/config')).body.client;
+  assert.deepEqual(cfg, { projectId: 'kb-test', senderId: '123456789012', appId: '1:123456789012:android:bbbb2222', apiKey: 'AIzaSyTestTestTestTestTestTest', storageBucket: 'kb-test.appspot.com' });
+  // typed by hand, with a bad app ID first
+  assert.equal((await call(admin, 'PUT', '/platform/push/client', { projectId: 'other-proj', senderId: '999999', appId: 'nope', apiKey: 'AIzaSyTestTestTestTestTestTest' })).status, 422);
+  const typed = await call(admin, 'PUT', '/platform/push/client', { projectId: 'other-proj', senderId: '999999', appId: '1:999999:android:cafe01', apiKey: 'AIzaSyTestTestTestTestTestTest' });
+  assert.equal(typed.status, 200);
+  assert.equal(typed.body.sameProject, false);
+  assert.equal((await call(admin, 'DELETE', '/platform/push/client')).body.clientReady, false);
+});

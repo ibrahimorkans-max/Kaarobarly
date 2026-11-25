@@ -9,7 +9,7 @@ import { useAuth, useTheme, useToast } from '@/lib/app-context';
 interface Integrations {
   email: { host: string; port: number; secure: boolean; user: string; fromName: string; fromEmail: string; hasPass: boolean; ready: boolean } | null;
   whatsapp: { phoneNumberId: string; template: string; language: string; copyButton: boolean; hasToken: boolean; ready: boolean } | null;
-  firebase: { ready: boolean; projectId: string; clientEmail: string; devices: number };
+  firebase: { ready: boolean; projectId: string; clientEmail: string; devices: number; clientReady: boolean; client: { projectId: string } | null; sameProject: boolean };
 }
 
 /** SaaS owner: connect email (SMTP), WhatsApp (Meta Cloud API) and Firebase. Secrets stay on the server. */
@@ -95,18 +95,19 @@ export default function IntegrationsScreen() {
           </Card>
         </Section>
 
-        <Section title="Firebase" action={status(data?.firebase.ready)}>
+        <Section title="Firebase" action={status(data?.firebase.ready && data?.firebase.clientReady)}>
           <Card style={{ gap: 8 }}>
             <Row>
               <Ionicons name="logo-firebase" size={22} color="#F5820D" />
               <View style={{ flex: 1 }}>
                 <Txt style={{ fontWeight: '700' }}>{data?.firebase.ready ? `Project ${data.firebase.projectId}` : 'Push notifications'}</Txt>
-                <Txt v="small">{data?.firebase.ready ? `${data.firebase.devices} phones registered` : 'Paste the Firebase service-account key to send notifications'}</Txt>
+                <Txt v="small">Phone connection: {data?.firebase.clientReady ? 'set' : 'not set'} · Server key: {data?.firebase.ready ? 'set' : 'not set'}</Txt>
+                {!!data?.firebase.ready && <Txt v="small">{data.firebase.devices} phones registered</Txt>}
               </View>
             </Row>
-            <Btn small kind="secondary" title={data?.firebase.ready ? 'Change key' : 'Set up'} onPress={() => router.push('/admin/push')} />
+            <Btn small kind="secondary" title={data?.firebase.ready && data?.firebase.clientReady ? 'Change' : 'Set up'} onPress={() => router.push('/admin/push')} />
             <Txt v="small" color={th.sub}>
-              The app also needs google-services.json from the same Firebase project when it is built.
+              Paste google-services.json (or its IDs and key) and the service-account key there. No app rebuild needed.
             </Txt>
           </Card>
         </Section>

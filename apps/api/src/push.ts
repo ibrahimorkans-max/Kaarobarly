@@ -33,7 +33,87 @@ function account(db: Db): ServiceAccount | null {
 
 export function fcmStatus(db: Db) {
   const a = account(db);
-  return { ready: !!a, projectId: a?.project_id ?? '', clientEmail: a?.client_email ?? '', devices: db.get('select count(*) as n from push_device')!.n };
+  const c = clientConfig(db);
+  return {
+    ready: !!a,
+    projectId: a?.project_id ?? '',
+    clientEmail: a?.client_email ?? '',
+    devices: db.get('select count(*) as n from push_device')!.n,
+    // what phones use to connect to Firebase (from google-services.json); not secret
+    client: c,
+    clientReady: !!c,
+    sameProject: !a || !c || a.project_id === c.projectId,
+  };
+}
+
+// ================================================================ phone side (google-services.json values)
+
+/** The Android package the values must belong to. */
+export const ANDROID_PACKAGE = 'com.zhtrader.kaarobarly';
+
+export interface ClientConfig {
+  projectId: string;
+  /** project number, a.k.a. sender ID */
+  senderId: string;
+  /** mobilesdk_app_id, e.g. 1:1234567890:android:abc123 */
+  appId: string;
+  apiKey: string;
+  storageBucket: string;
+}
+
+export const clientSchema = z.object({
+  googleServices: z.string().max(50_000).optional(),
+  projectId: z.string().trim().max(100).optional(),
+  senderId: z.string().trim().max(40).optional(),
+  appId: z.string().trim().max(200).optional(),
+  apiKey: z.string().trim().max(200).optional(),
+  storageBucket: z.string().trim().max(200).optional(),
+});
+
+export function clientConfig(db: Db): ClientConfig | null {
+  const r = db.get("select value from platform_setting where key = 'fcm_client'");
+  if (!r) return null;
+  try {
+    return JSON.parse(r.value);
+  } catch {
+    return null;
+  }
+}
+
+/** Save the phone-side Firebase values: either the whole google-services.json, or the four fields typed in. */
+export function saveClient(db: Db, body: z.infer<typeof clientSchema>) {
+  let c: ClientConfig;
+  if (body.googleServices?.trim()) {
+    let g: any;
+    try {
+      g = JSON.parse(body.googleServices);
+    } catch {
+      throw new HttpError(422, 'That is not valid JSON. Paste the whole google-services.json file.');
+    }
+    if (!g?.project_info || !Array.isArray(g.client)) throw new HttpError(422, 'This is not a google-services.json file.');
+    const client = g.client.find((x: any) => x?.client_info?.android_client_info?.package_name === ANDROID_PACKAGE);
+    if (!client) throw new HttpError(422, `This file has no Android app with package ${ANDROID_PACKAGE}. In Firebase add an Android app with that package name and download the file again.`);
+    c = {
+      projectId: String(g.project_info.project_id ?? ''),
+      senderId: String(g.project_info.project_number ?? ''),
+      appId: String(client.client_info?.mobilesdk_app_id ?? ''),
+      apiKey: String(client.api_key?.[0]?.current_key ?? ''),
+      storageBucket: String(g.project_info.storage_bucket ?? ''),
+    };
+  } else {
+    c = { projectId: body.projectId ?? '', senderId: body.senderId ?? '', appId: body.appId ?? '', apiKey: body.apiKey ?? '', storageBucket: body.storageBucket ?? '' };
+  }
+  if (!/^[a-z0-9-]{4,}$/.test(c.projectId)) throw new HttpError(422, 'Project ID looks wrong (e.g. kaarobarly-12345).');
+  if (!/^\d{6,}$/.test(c.senderId)) throw new HttpError(422, 'Sender ID (project number) must be digits only.');
+  if (!/^1:\d+:android:[0-9a-f]+$/.test(c.appId)) throw new HttpError(422, 'App ID must look like 1:123456789012:android:abc123def456.');
+  if (!/^AIza[0-9A-Za-z_-]{20,}$/.test(c.apiKey)) throw new HttpError(422, 'API key must start with AIza.');
+  db.run("insert into platform_setting (key, value, updated_at) values ('fcm_client', ?, ?) on conflict (key) do update set value = excluded.value, updated_at = excluded.updated_at", JSON.stringify(c), now());
+  return fcmStatus(db);
+}
+
+export function clearClient(db: Db) {
+  db.run("delete from platform_setting where key = 'fcm_client'");
+  return fcmStatus(db);
 }
 
 export function saveFcm(db: Db, body: z.infer<typeof fcmSchema>) {

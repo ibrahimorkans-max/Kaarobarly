@@ -61,7 +61,7 @@ export default function NotificationsScreen() {
             {!data.ready && <Notice kind="warn">Push notifications are not switched on for Kaarobarly yet. The service owner adds the Firebase key in the admin area.</Notice>}
             {Platform.OS === 'web' && <Notice kind="info">Push notifications work in the Android app.</Notice>}
             <Card style={{ gap: 6 }}>
-              <KV k="This phone" v={data.devices ? 'Registered' : state === 'denied' ? 'Blocked in phone settings' : state === 'unavailable' ? 'Not available in this build' : 'Not registered'} bold color={data.devices ? th.success : th.warn} />
+              <KV k="This phone" v={data.devices ? 'Registered' : state === 'denied' ? 'Blocked in phone settings' : state === 'unavailable' ? 'Firebase not connected yet' : state === 'restart' ? 'Close and reopen the app' : 'Not registered'} bold color={data.devices ? th.success : th.warn} />
               <Row gap={8}>
                 <Btn style={{ flex: 1 }} small icon="notifications-outline" title={data.devices ? 'Register again' : 'Turn on'} onPress={turnOn} loading={busy === 'on'} disabled={Platform.OS === 'web'} />
                 <Btn style={{ flex: 1 }} small kind="secondary" title="Send a test" onPress={test} loading={busy === 'test'} disabled={!data.devices} />

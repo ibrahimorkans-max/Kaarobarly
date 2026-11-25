@@ -1,0 +1,10 @@
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+  <application>
+    <!-- starts Firebase from saved values before any notification service runs (after Firebase's own provider) -->
+    <provider
+      android:name="expo.modules.kbfirebase.KbFirebaseInitProvider"
+      android:authorities="${applicationId}.kbfirebaseinit"
+      android:exported="false"
+      android:initOrder="99" />
+  </application>
+</manifest>

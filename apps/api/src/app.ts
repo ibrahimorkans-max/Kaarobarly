@@ -437,6 +437,8 @@ export function createApp(db: Db) {
     }
   });
 
+  // phones fetch the Firebase connection values here, so a new Firebase project needs no app rebuild
+  app.get('/push/config', (_req, res) => res.json({ client: push.clientConfig(db) }));
   app.post('/push/register', (req, res) => res.json(push.registerDevice(db, req.auth, push.registerSchema.parse(req.body))));
   app.post('/push/unregister', (req, res) => res.json(push.unregisterDevice(db, req.auth, z.object({ token: z.string().min(1) }).parse(req.body).token)));
   app.get('/push/settings', (req, res) => res.json({ ...push.getPushSettings(db, T(req)), ready: push.fcmStatus(db).ready, devices: db.get('select count(*) as n from push_device where user_id = ?', req.auth.userId)!.n }));
@@ -459,6 +461,14 @@ export function createApp(db: Db) {
   app.put('/platform/push', (req, res) => {
     platformOnly(req);
     res.json(push.saveFcm(db, push.fcmSchema.parse(req.body)));
+  });
+  app.put('/platform/push/client', (req, res) => {
+    platformOnly(req);
+    res.json(push.saveClient(db, push.clientSchema.parse(req.body)));
+  });
+  app.delete('/platform/push/client', (req, res) => {
+    platformOnly(req);
+    res.json(push.clearClient(db));
   });
   app.get('/platform/partners', (req, res) => {
     platformOnly(req);
