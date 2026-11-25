@@ -33,6 +33,8 @@ const safe = (u) => (/^(https?:\/\/|mailto:|tel:|\/|#)/i.test(String(u || '').tr
 const ext = (u) => (/^https?:\/\//i.test(u || '') ? ' target="_blank" rel="noopener"' : '');
 const money = (minor) => `Rs ${Math.round(minor / 100).toLocaleString('en-PK')}`;
 const on = (k) => C.sections?.[k] !== false;
+/** Repeat a short list so a 3D ring has cards all the way round. */
+const fill = (list, min) => { const out = [...list]; while (out.length < min && list.length) out.push(...list); return out.length > min && list.length < min ? out.slice(0, Math.max(min, list.length)) : out; };
 
 const I = (p) => `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p}</svg>`;
 const ICON = {
@@ -150,9 +152,9 @@ function page() {
 
   if (on('businessTypes') && C.businessTypes?.length)
     parts.push(`<section class="block" id="types"><div class="wrap">
-      <div class="head center reveal"><span class="kicker">Made for your kind of business</span><h2 class="title">One app, <span class="grad">shaped to fit.</span></h2><p class="sub">Pick your business type and Tijar switches on the right tools and uses your words. Drag to spin.</p></div>
-      <div class="ring-stage reveal" id="ringStage"><div class="ring-floor"></div><div class="ring" id="ring">${C.businessTypes.map((b, i) => `<div class="rc"><span class="big">0${i + 1}</span><h3>${esc(b.name)}</h3><p>${esc(b.text)}</p></div>`).join('')}</div></div>
-    </div></section>`);
+      <div class="head center reveal"><span class="kicker">Made for your kind of business</span><h2 class="title">One app, <span class="grad">shaped to fit.</span></h2><p class="sub">Pick your business type and Tijar switches on the right tools and uses your words. Drag to spin.</p></div></div>
+      <div class="ring-stage full reveal" id="ringStage"><div class="ring-floor"></div><div class="ring" id="ring">${fill(C.businessTypes, 16).map((b, i) => `<div class="rc"><span class="big">${String((i % C.businessTypes.length) + 1).padStart(2, '0')}</span><h3>${esc(b.name)}</h3><p>${esc(b.text)}</p></div>`).join('')}</div></div>
+    </section>`);
 
   if (on('steps') && C.steps?.length)
     parts.push(`<section class="block" id="start"><div class="wrap">
@@ -187,9 +189,9 @@ function page() {
 
   if (on('testimonials') && C.testimonials?.length) {
     const q = (t) => `<figure class="quote-in"><div class="stars">★★★★★</div><p>“${esc(t.quote)}”</p><figcaption class="who"><span class="av">${esc((t.name || '?').trim()[0] || '?')}</span><span><b>${esc(t.name)}</b><span>${esc(t.role)}</span></span></figcaption></figure>`;
-    const list = C.testimonials.length < 5 ? [...C.testimonials, ...C.testimonials].slice(0, Math.max(6, C.testimonials.length)) : C.testimonials;
+    const list = fill(C.testimonials, 16);
     parts.push(`<section class="block" id="love"><div class="wrap"><div class="head center reveal"><span class="kicker">Loved by owners</span><h2 class="title">Businesses that <span class="grad">moved smarter.</span></h2></div></div>
-      <div class="wrap"><div class="ring-stage quotes reveal" id="quoteStage"><div class="ring-floor"></div><div class="ring" id="quoteRing">${list.map((t) => `<div class="rc">${q(t)}</div>`).join('')}</div></div></div>
+      <div class="ring-stage full quotes reveal" id="quoteStage"><div class="ring-floor"></div><div class="ring" id="quoteRing">${list.map((t) => `<div class="rc">${q(t)}</div>`).join('')}</div></div>
     </section>`);
   }
 
@@ -420,10 +422,11 @@ function ring(stageId, ringId, speed) {
   const n = cards.length;
   const place = () => {
     const w = cards[0].offsetWidth;
-    const radius = Math.max(260, (w / 2 / Math.tan(Math.PI / n)) * 1.12);
+    const sw = stage.clientWidth;
+    const radius = Math.max(260, (w / 2 / Math.tan(Math.PI / n)) * 1.08, sw * (sw > 760 ? 0.9 : 0.75));
     cards.forEach((c, i) => (c.style.transform = `rotateY(${(360 / n) * i}deg) translateZ(${radius}px)`));
     el.style.setProperty('--r', radius);
-    stage.style.perspective = `${radius * 3.2}px`;
+    stage.style.perspective = `${radius * 2.2}px`;
   };
   place();
   addEventListener('resize', place);
@@ -439,7 +442,13 @@ function ring(stageId, ringId, speed) {
   const loop = () => {
     if (visible) {
       if (!drag) { vel += (cruise - vel) * 0.03; angle += vel; }
-      el.style.transform = `translateZ(calc(var(--r) * -1px)) rotateX(-8deg) rotateY(${angle}deg)`;
+      el.style.transform = `translateZ(calc(var(--r) * -1px)) rotateX(-7deg) rotateY(${angle}deg)`;
+      // cards facing away fade so the far side of the ring reads as depth, not clutter
+      cards.forEach((c, i) => {
+        const a = (((angle + (360 / n) * i) % 360) + 360) % 360;
+        const facing = Math.cos((a * Math.PI) / 180);
+        c.style.opacity = String(Math.max(0.25, 0.35 + facing * 0.65));
+      });
     }
     requestAnimationFrame(loop);
   };

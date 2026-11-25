@@ -428,3 +428,18 @@ h2.title, .hero h1 { filter: drop-shadow(0 2px 0 #0b5f4d) drop-shadow(0 2px 0 #0
 @keyframes arrowShoot { 0%, 45% { transform: translate(0, 0) scale(1); opacity: 1; } 62% { transform: translate(60%, -60%) scale(0.7); opacity: 0; } 63% { transform: translate(-60%, 60%) scale(0.6); opacity: 0; } 80%, 100% { transform: translate(0, 0) scale(1); opacity: 1; } }
 @keyframes leafSway { 0%, 100% { transform: rotate(0deg); } 50% { transform: rotate(-6deg) translateY(-2%); } }
 @keyframes stemPulse { 50% { opacity: 0.82; } }
+
+/* full-width 3D rings: the ring reaches both edges of the screen */
+.ring-stage.full { width: 100%; height: 360px; margin-top: 0; }
+#types .head, #love .head { margin-bottom: 18px; }
+.ring-stage.full .ring-floor { width: min(1400px, 96vw); margin-left: calc(min(1400px, 96vw) / -2); height: 160px; }
+.ring-stage.full .ring .rc { width: 280px; height: 250px; left: -140px; top: -125px; transition: opacity 0.2s linear; }
+.ring-stage.full.quotes { height: 400px; }
+.ring-stage.full.quotes .ring .rc { width: 340px; height: auto; min-height: 260px; left: -170px; top: -130px; }
+.ring-stage.full::before, .ring-stage.full::after { content: ''; position: absolute; top: 0; bottom: 0; width: 8vw; z-index: 2; pointer-events: none; }
+.ring-stage.full::before { left: 0; background: linear-gradient(90deg, var(--bg), transparent); }
+.ring-stage.full::after { right: 0; background: linear-gradient(-90deg, var(--bg), transparent); }
+@media (max-width: 560px) {
+  .ring-stage.full .ring .rc { width: 220px; height: 220px; left: -110px; top: -110px; }
+  .ring-stage.full.quotes .ring .rc { width: 260px; left: -130px; }
+}

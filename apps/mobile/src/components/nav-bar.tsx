@@ -7,6 +7,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useAuth, useTheme } from '@/lib/app-context';
 import type { ModuleKey, TermKey } from '@/lib/shared';
 import { useWorkspace } from '@/lib/workspace';
+import { AnimatedMark } from './animated-mark';
 import { SyncBanner } from './sync-ui';
 import { MAX_WIDTH, Sheet, Txt, type IconName } from './ui';
 
@@ -162,7 +163,10 @@ export function NavBar({ title }: { title?: string }) {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, maxWidth: MAX_WIDTH, width: '100%', alignSelf: 'center' }}>
           <NavBtn icon="chevron-back" label="Back" onPress={navHistory.back} disabled={!navHistory.canBack() && isHome} />
           <NavBtn icon="chevron-forward" label="Forward" onPress={navHistory.forward} disabled={!navHistory.canForward()} />
-          <Text accessibilityRole="header" numberOfLines={1} style={{ flex: 1, color: t.text, fontSize: 17, fontWeight: '800', marginLeft: 4 }}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Tijar home" onPress={() => go('/')} hitSlop={6} style={{ marginLeft: 4 }}>
+            <AnimatedMark size={30} />
+          </Pressable>
+          <Text accessibilityRole="header" numberOfLines={1} style={{ flex: 1, color: t.text, fontSize: 17, fontWeight: '800', marginLeft: 2 }}>
             {title ? tr(title) : 'Tijar'}
           </Text>
           <NavBtn icon={isHome ? 'home' : 'home-outline'} label="Home" onPress={() => go('/')} disabled={isHome} />
