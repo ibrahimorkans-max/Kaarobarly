@@ -54,9 +54,9 @@ export const ROLE_PERMISSIONS: Record<Role, readonly Permission[]> = {
   viewer: ['invoices.view', 'expenses.claim'],
 };
 
-export const INVOICE_TEMPLATES = ['amber', 'ocean', 'violet', 'crimson', 'classic'] as const;
+export const INVOICE_TEMPLATES = ['tijar', 'royal', 'amber', 'ocean', 'violet', 'crimson', 'classic'] as const;
 export type InvoiceTemplate = (typeof INVOICE_TEMPLATES)[number];
-export const INVOICE_TEMPLATE_LABELS: Record<InvoiceTemplate, string> = { amber: 'Amber Edge', ocean: 'Ocean Shapes', violet: 'Violet Clean', crimson: 'Crimson Corporate', classic: 'Classic Mono' };
+export const INVOICE_TEMPLATE_LABELS: Record<InvoiceTemplate, string> = { tijar: 'Tijar Emerald', royal: 'Royal Gold', amber: 'Amber Edge', ocean: 'Ocean Shapes', violet: 'Violet Clean', crimson: 'Crimson Corporate', classic: 'Classic Mono' };
 
 export const DASHBOARD_STYLES = ['classic', 'minimal', 'emerald', 'wallet', 'glass', 'soft', 'midnight'] as const;
 export type DashboardStyle = (typeof DASHBOARD_STYLES)[number];

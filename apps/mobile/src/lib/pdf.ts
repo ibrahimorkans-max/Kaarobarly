@@ -53,6 +53,8 @@ export const PAPER_SIZE: Record<Paper, { width: number; height: number; css: str
 
 /** Default accent and dark colour of each design. */
 export const TEMPLATE_COLORS: Record<InvoiceTemplate, { accent: string; dark: string }> = {
+  tijar: { accent: '#14A383', dark: '#0F2A3B' },
+  royal: { accent: '#B8893B', dark: '#1B2A4A' },
   amber: { accent: '#E9A23B', dark: '#4A4A4D' },
   ocean: { accent: '#1F3A8A', dark: '#14275F' },
   violet: { accent: '#4B3F9E', dark: '#2A2360' },
@@ -475,17 +477,220 @@ function classic(p: Parts): [string, string] {
   return [css, body];
 }
 
-const DESIGNS: Record<InvoiceTemplate, (p: Parts) => [string, string]> = { amber, ocean, violet, crimson, classic };
+const oneLine = (html: string) => html.replace(/<br\/>/g, ' · ');
+
+/** Tijar Emerald: a deep gradient header, three floating info cards and a gradient grand total. */
+function tijar(p: Parts): [string, string] {
+  const due = p.i.status === 'final' && p.i.paid > 0;
+  const css = `
+.hero { position: relative; background: linear-gradient(118deg, var(--d) 0%, var(--d) 48%, var(--a) 135%); color: #fff; padding: 30px 40px 66px; overflow: hidden; }
+.hero i { position: absolute; display: block; }
+.c1 { right: -60px; top: -90px; width: 270px; height: 270px; border-radius: 50%; background: rgba(255,255,255,.07); }
+.c2 { right: 140px; bottom: -100px; width: 190px; height: 190px; border-radius: 50%; border: 18px solid rgba(255,255,255,.06); }
+.c3 { left: -50px; bottom: -70px; width: 150px; height: 150px; transform: rotate(45deg); background: rgba(255,255,255,.05); }
+.hrow { position: relative; display: flex; justify-content: space-between; align-items: flex-start; gap: 20px; }
+.tile { width: 58px; height: 58px; flex: none; border-radius: 16px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--d); font-weight: 900; font-size: 1.8em; box-shadow: 0 6px 18px rgba(0,0,0,.25); }
+.tile .logo { max-width: 50px; max-height: 50px; }
+.bn { font-size: 1.45em; font-weight: 800; letter-spacing: .3px; }
+.bc { opacity: .8; font-size: .88em; margin-top: 3px; max-width: 330px; }
+.ttl { text-align: right; }
+.ttl h1 { font-size: 2.7em; font-weight: 900; letter-spacing: 6px; line-height: 1; }
+.pill { display: inline-block; margin-top: 9px; padding: 4px 13px; border-radius: 20px; background: rgba(255,255,255,.14); border: 1px solid rgba(255,255,255,.28); font-weight: 700; }
+.cards { display: flex; gap: 12px; margin: -44px 30px 0; position: relative; }
+.cd { flex: 1; background: #fff; border-radius: 14px; padding: 13px 16px; box-shadow: 0 8px 24px rgba(15,42,59,.13); border: 1px solid #edf0f2; min-width: 0; }
+.cd.to { border-top: 4px solid var(--a); flex: 1.25; }
+.cd.amt { background: linear-gradient(135deg, var(--a), var(--d)); color: #fff; border: 0; }
+.cd.amt .label { color: rgba(255,255,255,.85); }
+.cd.amt .big { font-size: 1.7em; font-weight: 900; margin-top: 2px; white-space: nowrap; }
+.kvs { display: grid; grid-template-columns: auto 1fr; gap: 3px 10px; font-size: .95em; }
+.kvs span { color: #777; }
+.kvs b { text-align: right; }
+.label { color: var(--a); }
+.body { padding: 22px 30px 0; }
+.items { border-radius: 12px; overflow: hidden; }
+.items th { background: var(--l3); color: var(--d); border-bottom: 2px solid var(--a); }
+.items tr:nth-child(odd) td { background: #f7faf9; }
+.items td:first-child { color: var(--a); font-weight: 800; }
+.lower { display: flex; gap: 18px; margin-top: 16px; align-items: flex-start; }
+.lower > div { flex: 1; min-width: 0; }
+.box { background: var(--l3); border-radius: 12px; padding: 11px 14px; margin-bottom: 10px; }
+.box .label { margin-bottom: 4px; }
+.tcard { border-radius: 14px; border: 1px solid #e6ecea; overflow: hidden; }
+.tot td { padding: 7px 14px; }
+.tot .grand td { background: linear-gradient(90deg, var(--d), var(--a)); color: #fff; font-size: 1.2em; padding: 12px 14px; }
+.tot .due td { color: var(--a); }
+.wm { position: absolute; top: 46%; left: 50%; transform: translate(-50%, -50%) rotate(-22deg); font-size: 8em; font-weight: 900; color: var(--a); opacity: .07; letter-spacing: 12px; pointer-events: none; z-index: 0; }
+.ftr { margin-top: 18px; position: relative; background: var(--d); color: #fff; padding: 16px 30px; display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; font-size: .9em; overflow: hidden; }
+.ftr::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, var(--a), transparent); }
+.thanks { font-weight: 800; color: var(--l1); font-size: 1.12em; }`;
+  const box = (label: string, html: string) => (html ? `<div class="box"><div class="label">${label}</div><div class="muted">${html}</div></div>` : '');
+  const body = `<div class="page">${p.status === 'PAID' ? '<div class="wm">PAID</div>' : ''}
+    <div class="hero"><i class="c1"></i><i class="c2"></i><i class="c3"></i>
+      <div class="hrow"><div style="display:flex;gap:14px;align-items:center"><div class="tile">${p.logo || p.initial}</div><div><div class="bn">${p.name}</div><div class="bc">${[oneLine(p.issuerLines), ...p.contacts].filter(Boolean).join(' · ')}</div></div></div>
+        <div class="ttl"><h1>${p.L.title}</h1><div class="pill">#${p.number}</div></div></div></div>
+    <div class="cards">
+      <div class="cd to"><div class="label">${p.L.to}</div><b style="font-size:1.12em">${esc(p.c.name)}</b><div class="muted" style="font-size:.92em">${p.clientLines}</div></div>
+      <div class="cd"><div class="label">Details</div><div class="kvs"><span>Date</span><b>${fd(p.i.issueDate)}</b><span>${p.L.due}</span><b>${fd(p.i.dueDate)}</b>${p.i.reference ? `<span>Ref</span><b>${esc(p.i.reference)}</b>` : ''}</div></div>
+      <div class="cd amt"><div class="label">${due ? 'Balance due' : 'Total amount'}</div><div class="big">${p.m(due ? p.i.balance : p.i.total)}</div><div style="opacity:.9;font-size:.85em;font-weight:700;letter-spacing:1px">${p.status}</div></div>
+    </div>
+    <div class="body"><table class="items">${p.head}${p.rows}</table>
+      <div class="lower"><div>${box('Payment information', p.bank || p.payFallback)}${box('Terms and conditions', p.terms)}</div>
+        <div><div class="tcard"><table class="tot">${p.sub}${p.grand}${p.paidRows}</table></div><div style="display:flex;justify-content:flex-end;margin-top:16px">${p.sig}</div></div></div>
+      ${p.extras}</div>
+    <div class="grow"></div>
+    <div class="ftr"><span class="thanks">${p.footer}</span><span>${p.contacts.join(' &#160;·&#160; ')}</span></div></div>`;
+  return [css, body];
+}
+
+/** Royal Gold: a framed letterhead with serif titles, gold rules and a "paid" seal. */
+function royal(p: Parts): [string, string] {
+  const css = `
+.page { padding: 38px 44px 30px; }
+.frame { position: absolute; inset: 14px; border: 1.5px solid var(--a); pointer-events: none; }
+.frame::after { content: ''; position: absolute; inset: 5px; border: .5px solid var(--a); }
+.hd { text-align: center; position: relative; }
+.hd .logo { margin: 0 auto 6px; }
+.hd .bn { font-family: Georgia, 'Times New Roman', serif; font-size: 2em; color: var(--d); letter-spacing: 1px; }
+.hd .sub { color: #777; font-size: .9em; margin-top: 3px; }
+.orn { display: flex; align-items: center; gap: 14px; margin: 16px 0 18px; }
+.orn::before, .orn::after { content: ''; flex: 1; height: 1px; background: linear-gradient(90deg, transparent, var(--a)); }
+.orn::after { background: linear-gradient(90deg, var(--a), transparent); }
+.orn h1 { font-family: Georgia, serif; font-size: 1.7em; letter-spacing: 8px; color: var(--d); font-weight: 400; }
+.orn .dia { width: 8px; height: 8px; background: var(--a); transform: rotate(45deg); }
+.meta { display: flex; justify-content: space-between; gap: 20px; margin-bottom: 18px; }
+.label { color: var(--a); font-family: Georgia, serif; text-transform: none; letter-spacing: .5px; font-size: .98em; }
+.items th { border-top: 1.5px solid var(--a); border-bottom: 1.5px solid var(--a); color: var(--d); font-family: Georgia, serif; text-transform: none; font-size: .95em; letter-spacing: .3px; }
+.items td { border-bottom: 1px solid #ece6da; }
+.tot .grand td { border-top: 1.5px solid var(--a); border-bottom: 3px double var(--a); color: var(--d); font-family: Georgia, serif; font-size: 1.22em; }
+.seal { width: 82px; height: 82px; border-radius: 50%; border: 2px solid var(--a); outline: 1px solid var(--a); outline-offset: 3px; color: var(--a); display: flex; align-items: center; justify-content: center; text-align: center; font-family: Georgia, serif; font-size: .8em; letter-spacing: 1px; transform: rotate(-12deg); margin-left: 8px; }
+.ft { text-align: center; margin-top: 18px; color: #777; font-size: .9em; }
+.ft .thanks { font-family: Georgia, serif; font-style: italic; color: var(--d); font-size: 1.2em; margin-bottom: 4px; }`;
+  const body = `<div class="page"><div class="frame"></div>
+    <div class="hd">${p.logo}<div class="bn">${p.name}</div><div class="sub">${[oneLine(p.issuerLines), ...p.contacts].filter(Boolean).join(' · ')}</div></div>
+    <div class="orn"><span class="dia"></span><h1>${p.L.title}</h1><span class="dia"></span></div>
+    <div class="meta"><div><div class="label">${p.L.to}</div><b style="font-size:1.1em">${esc(p.c.name)}</b><div class="muted">${p.clientLines}</div></div>
+      <div class="r" style="white-space:normal;line-height:1.7"><div><span class="muted">${p.L.short} No.</span> <b>${p.number}</b></div><div><span class="muted">Date</span> ${fd(p.i.issueDate)}</div><div><span class="muted">${p.L.due}</span> ${fd(p.i.dueDate)}</div>${p.i.reference ? `<div><span class="muted">Reference</span> ${esc(p.i.reference)}</div>` : ''}${p.status ? `<span class="badge" style="color:var(--a)">${p.status}</span>` : ''}</div></div>
+    <table class="items">${p.head}${p.rows}</table>
+    <div class="two" style="margin-top:14px"><div>${block('Payment information', p.bank || p.payFallback)}${block('Terms and conditions', p.terms)}</div><div><table class="tot">${p.sub}${p.grand}${p.paidRows}</table></div></div>
+    ${p.extras}
+    <div class="two" style="margin-top:22px;align-items:flex-end"><div>${p.status === 'PAID' ? '<div class="seal">PAID<br/>IN FULL</div>' : ''}</div><div style="display:flex;justify-content:flex-end">${p.sig}</div></div>
+    <div class="grow"></div><div class="ft"><div class="thanks">${p.footer}</div></div></div>`;
+  return [css, body];
+}
+
+// ---------------------------------------------------------------- thermal rolls: always plain
+
+const isThermal = (paper: Paper) => paper === 'thermal' || paper === 'thermal58';
+const thermalCss = (paper: Paper) => `.page{font-family:'Courier New',monospace;font-size:${paper === 'thermal58' ? 10 : 11.5}px;color:#000}.c{text-align:center}.shop{font-size:1.35em;font-weight:800}
+  .ttl{font-weight:800;letter-spacing:2px;margin-top:3px}.rule{border-top:1px dashed #000;margin:6px 0}table{width:100%;border-collapse:collapse}td{padding:1px 0;vertical-align:top}
+  .r{text-align:right;white-space:nowrap}.big td{font-weight:800;font-size:1.15em}.muted{color:#000;font-size:.92em}.logo{max-height:40px;display:block;margin:0 auto 4px;filter:grayscale(1)}svg{display:block;margin:4px auto}`;
+const trow = (k: string, v: string, cls = '') => `<tr class="${cls}"><td>${k}</td><td class="r">${v}</td></tr>`;
+function thermalTop(b: BusinessProfile, title: string) {
+  return `<div class="c">${b.logo ? `<img class="logo" src="${esc(b.logo)}" alt=""/>` : ''}<div class="shop">${esc(b.tradingName || b.legalName)}</div>
+    <div class="muted">${[b.address, b.phone].filter(Boolean).map(nl).join('<br/>')}</div>${b.ntn ? `<div class="muted">NTN ${esc(b.ntn)}</div>` : ''}<div class="ttl">${title}</div></div><div class="rule"></div>`;
+}
+
+/** Any invoice-style document (invoice, quotation, purchase, PO, GRN, notes) on a receipt roll. */
+function thermalInvoice(d: InvoiceDoc, paper: Paper): string {
+  const { invoice: i, business: b, client: c } = d;
+  const L = LABELS[d.docType ?? (i.docType === 'debit_note' ? 'debitNote' : 'invoice')];
+  const m = (v: number) => formatMoney(v, i.currency, i.currencyPrecision);
+  const rows = i.lines
+    .map((l) => `<tr><td colspan="2"><b>${esc(l.name)}</b></td></tr><tr><td class="muted">${qtyToString(l.qty)}${l.unit ? ` ${esc(l.unit)}` : ''} × ${m(l.unitPrice)}${l.discountValue ? ' (disc.)' : ''}${l.taxRateBp ? ` +${percentToString(l.taxRateBp)}%` : ''}</td><td class="r">${m(l.lineTotal ?? 0)}</td></tr>`)
+    .join('');
+  const final = i.status === 'final';
+  const paid = d.payments.filter((p) => p.verificationStatus !== 'rejected');
+  const qr = qrFor(d);
+  const body = `<div class="page">${thermalTop(b, L.title)}
+    <table>${trow(`${L.short} No`, esc(i.number ?? 'DRAFT'))}${trow('Date', fd(i.issueDate))}${i.dueDate && i.dueDate !== i.issueDate ? trow(L.due, fd(i.dueDate)) : ''}${i.reference ? trow('Ref', esc(i.reference)) : ''}${STATUS[i.displayStatus] ? trow('Status', STATUS[i.displayStatus]) : ''}</table>
+    <div class="rule"></div><div><b>${L.to}:</b> ${esc(c.name)}${c.phone ? `<br/>${esc(c.phone)}` : ''}</div>
+    <div class="rule"></div><table>${rows}</table><div class="rule"></div>
+    <table>${trow('Sub total', m(i.subtotal))}${i.itemDiscounts + i.overallDiscount ? trow('Discount', `− ${m(i.itemDiscounts + i.overallDiscount)}`) : ''}${i.taxAmount ? trow(i.taxInclusive ? 'Tax (incl.)' : 'Tax', m(i.taxAmount)) : ''}
+      ${i.charges.map((ch) => trow(esc(ch.label), m(ch.amount))).join('')}${i.roundingAdjustment ? trow('Rounding', m(i.roundingAdjustment)) : ''}${trow('TOTAL', m(i.total), 'big')}
+      ${paid.map((p) => trow(`${PAYMENT_METHOD_LABELS[p.method]} ${esc(p.number)}`, m(p.allocations.find((a) => a.invoiceId === i.id)?.amount ?? p.amount))).join('')}
+      ${final && i.paid > 0 ? trow('Paid', m(i.paid)) : ''}${final && i.balance > 0 && i.paid > 0 ? trow('Balance due', m(i.balance), 'big') : ''}</table>
+    ${(d.info ?? []).length ? `<div class="rule"></div><table>${(d.info ?? []).map(([k, v]) => trow(esc(k), esc(v))).join('')}</table>` : ''}
+    ${i.installments.length ? `<div class="rule"></div><div><b>Installments</b></div><table>${i.installments.map((s, n) => trow(`${n + 1}. ${fd(s.dueDate)}${s.status === 'paid' ? ' ✓' : ''}`, m(s.amount))).join('')}</table>` : ''}
+    ${i.notes ? `<div class="rule"></div><div class="muted">${nl(i.notes)}</div>` : ''}
+    ${qr ? `<div class="rule"></div><div class="c">${qr.svg}<div class="muted">${qr.label}</div></div>` : ''}
+    <div class="rule"></div><div class="c">${b.invoiceFooter ? nl(b.invoiceFooter) : 'Thank you for your business!'}</div></div>`;
+  return localize(shell(`${L.short} ${i.number ?? ''}`, paper, thermalCss(paper), body, ''), b.docLanguage ?? 'en');
+}
+
+// ---------------------------------------------------------------- amount in words (printed on slips)
+
+const ONES = ['', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten', 'eleven', 'twelve', 'thirteen', 'fourteen', 'fifteen', 'sixteen', 'seventeen', 'eighteen', 'nineteen'];
+const TENS = ['', '', 'twenty', 'thirty', 'forty', 'fifty', 'sixty', 'seventy', 'eighty', 'ninety'];
+function under1000(n: number): string {
+  const h = Math.floor(n / 100), r = n % 100;
+  const rest = r < 20 ? ONES[r] : `${TENS[Math.floor(r / 10)]}${r % 10 ? '-' + ONES[r % 10] : ''}`;
+  return [h ? `${ONES[h]} hundred` : '', rest].filter(Boolean).join(' ');
+}
+/** 1250000 → "twelve lakh fifty thousand" (Pakistani grouping: thousand, lakh, crore). */
+function inWords(n: number): string {
+  if (n === 0) return 'zero';
+  const crore = Math.floor(n / 10_000_000), lakh = Math.floor((n % 10_000_000) / 100_000), thousand = Math.floor((n % 100_000) / 1000), rest = n % 1000;
+  return [crore ? `${inWords(crore)} crore` : '', lakh ? `${under1000(lakh)} lakh` : '', thousand ? `${under1000(thousand)} thousand` : '', rest ? under1000(rest) : ''].filter(Boolean).join(' ');
+}
+export function amountInWords(minor: number, precision: number, currency: string): string {
+  const unit = 10 ** precision;
+  const major = Math.floor(Math.abs(minor) / unit), frac = Math.abs(minor) % unit;
+  const name = currency === 'PKR' ? ['rupees', 'paisa'] : [currency, 'cents'];
+  const s = `${inWords(major)} ${name[0]}${frac ? ` and ${inWords(frac)} ${name[1]}` : ''} only`;
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+// ---------------------------------------------------------------- designed slips (receipt, payslip)
+
+const SLIP_CSS = `
+.hero { position: relative; background: linear-gradient(118deg, var(--d) 0%, var(--d) 45%, var(--a) 140%); color: #fff; padding: 26px 34px 60px; overflow: hidden; }
+.hero i { position: absolute; display: block; border-radius: 50%; }
+.c1 { right: -50px; top: -80px; width: 230px; height: 230px; background: rgba(255,255,255,.07); }
+.c2 { right: 130px; bottom: -90px; width: 160px; height: 160px; border: 16px solid rgba(255,255,255,.06); }
+.hrow { position: relative; display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.tile { width: 50px; height: 50px; flex: none; border-radius: 14px; background: #fff; display: flex; align-items: center; justify-content: center; overflow: hidden; color: var(--d); font-weight: 900; font-size: 1.6em; }
+.tile .logo { max-width: 44px; max-height: 44px; }
+.hero h1 { font-size: 1.75em; letter-spacing: 3px; font-weight: 900; text-align: right; }
+.pill { display: inline-block; margin-top: 6px; padding: 3px 12px; border-radius: 20px; background: rgba(255,255,255,.15); border: 1px solid rgba(255,255,255,.28); font-weight: 700; font-size: .9em; }
+.float { position: relative; margin: -36px 26px 0; background: #fff; border-radius: 16px; box-shadow: 0 10px 28px rgba(15,42,59,.14); padding: 18px 22px; display: flex; align-items: center; gap: 18px; }
+.float .big { font-size: 2.2em; font-weight: 900; color: var(--d); line-height: 1.1; }
+.words { color: #555; font-style: italic; font-size: .92em; margin-top: 3px; }
+.stamp { margin-left: auto; flex: none; width: 92px; height: 92px; border-radius: 50%; border: 3px solid var(--a); outline: 1px dashed var(--a); outline-offset: 3px; color: var(--a); display: flex; align-items: center; justify-content: center; flex-direction: column; font-weight: 900; letter-spacing: 1px; transform: rotate(-14deg); font-size: .92em; text-align: center; }
+.stamp small { font-size: .62em; font-weight: 700; letter-spacing: .5px; }
+.label { color: var(--a); }
+.grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 16px 26px 0; }
+.tl { background: var(--l3); border-radius: 12px; padding: 10px 14px; min-width: 0; }
+.tl b { display: block; overflow-wrap: anywhere; }
+.in { padding: 0 26px; }
+.items { border-radius: 12px; overflow: hidden; }
+.items th { background: var(--l3); color: var(--d); border-bottom: 2px solid var(--a); }
+.items td { border-bottom: 1px solid #eef1f0; }
+.ftr { margin-top: 18px; position: relative; background: var(--d); color: #fff; padding: 14px 26px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; font-size: .88em; }
+.ftr::before { content: ''; position: absolute; left: 0; right: 0; top: 0; height: 4px; background: linear-gradient(90deg, var(--a), transparent); }`;
+
+function slipHero(b: BusinessProfile, title: string, pill: string) {
+  const name = esc(b.tradingName || b.legalName);
+  const initial = esc((b.tradingName || b.legalName || '?').trim().charAt(0).toUpperCase());
+  return `<div class="hero"><i class="c1"></i><i class="c2"></i><div class="hrow"><div style="display:flex;gap:12px;align-items:center"><div class="tile">${b.logo ? `<img class="logo" src="${esc(b.logo)}" alt=""/>` : initial}</div>
+    <div><b style="font-size:1.25em">${name}</b><div style="opacity:.8;font-size:.86em">${[b.phone, b.email].filter(Boolean).map(esc).join(' · ')}</div></div></div>
+    <div><h1>${title}</h1><div style="text-align:right"><span class="pill">${pill}</span></div></div></div></div>`;
+}
+function slipFooter(b: BusinessProfile) {
+  return `<div class="ftr"><span>${b.invoiceFooter ? nl(b.invoiceFooter) : 'Thank you for your business!'}</span><span>${[b.address && oneLine(nl(b.address)), b.ntn && `NTN ${esc(b.ntn)}`].filter(Boolean).join(' · ')}</span></div>`;
+}
+
+const DESIGNS: Record<InvoiceTemplate, (p: Parts) => [string, string]> = { tijar, royal, amber, ocean, violet, crimson, classic };
 
 function colorVars(template: InvoiceTemplate, accentOverride: string): string {
   const base = TEMPLATE_COLORS[template];
   const a = accentOverride || base.accent;
-  return `--a: ${a}; --d: ${base.dark}; --l1: ${tint(a, 0.55)}; --l2: ${tint(a, 0.3)};`;
+  return `--a: ${a}; --d: ${base.dark}; --l1: ${tint(a, 0.55)}; --l2: ${tint(a, 0.3)}; --l3: ${tint(a, 0.9)};`;
 }
 
 export function invoiceHtml(d: InvoiceDoc, paper: Paper = 'A4', template?: InvoiceTemplate): string {
-  // narrow receipt rolls always use the plain layout
-  const chosen: InvoiceTemplate = paper === 'thermal' || paper === 'thermal58' ? 'classic' : (template ?? d.business.invoiceTemplate ?? 'amber');
+  // narrow receipt rolls always print plain: black text, one column
+  if (isThermal(paper)) return thermalInvoice(d, paper);
+  const chosen: InvoiceTemplate = template ?? d.business.invoiceTemplate ?? 'amber';
   const [css, body] = DESIGNS[chosen](parts(d));
   const html = shell(`${d.docType === 'quotation' ? 'Quotation' : d.docType === 'purchase' ? 'Purchase' : 'Invoice'} ${d.invoice.number ?? 'Draft'}`, paper, css + QR_CSS, body, colorVars(chosen, chosen === (d.business.invoiceTemplate ?? 'amber') ? d.business.accentColor : ''));
   return localize(html, d.business.docLanguage ?? 'en');
@@ -518,28 +723,41 @@ export function receiptHtml(d: { payment: Payment; business: BusinessProfile; cl
   const { payment: p, business: b, client: c, invoices } = d;
   const m = (v: number) => formatMoney(v, p.currency, p.currencyPrecision);
   const installment = invoices.some((i) => i.installments.length > 0);
+  const title = installment ? 'INSTALLMENT RECEIPT' : 'PAYMENT RECEIPT';
+  const state = p.verificationStatus === 'rejected' ? 'REJECTED' : p.verificationStatus === 'pending' ? 'PENDING' : 'RECEIVED';
+  if (isThermal(paper)) {
+    const body = `<div class="page">${thermalTop(b, title)}
+      <table>${trow('Receipt', esc(p.number))}${trow('Date', fd(p.date))}${state !== 'RECEIVED' ? trow('Status', state) : ''}</table><div class="rule"></div>
+      <div><b>Received from:</b> ${esc(c.name)}${c.phone ? `<br/>${esc(c.phone)}` : ''}</div><div class="rule"></div>
+      <table>${trow('AMOUNT', m(p.amount), 'big')}${trow('Method', PAYMENT_METHOD_LABELS[p.method])}${trow('Txn ID', esc(txnId(p.method, p.reference)))}${p.receivedBy ? trow('Received by', esc(p.receivedBy)) : ''}</table>
+      ${p.allocations.length ? `<div class="rule"></div><table>${p.allocations.map((a) => trow(esc(a.invoiceNumber ?? ''), m(a.amount))).join('')}</table>` : ''}
+      ${p.unallocated > 0 ? `<div class="muted">${m(p.unallocated)} kept as advance</div>` : ''}
+      ${p.notes ? `<div class="rule"></div><div class="muted">${nl(p.notes)}</div>` : ''}
+      <div class="rule"></div><div class="c">${b.invoiceFooter ? nl(b.invoiceFooter) : 'Thank you!'}</div></div>`;
+    return localize(shell(`Receipt ${p.number}`, paper, thermalCss(paper), body, ''), b.docLanguage ?? 'en');
+  }
   const applied = p.allocations
     .map((a) => {
       const inv = invoices.find((i) => i.id === a.invoiceId);
-      return `<tr><td>${esc(a.invoiceNumber ?? '')}</td><td class="r">${inv ? m(inv.total) : ''}</td><td class="r">${m(a.amount)}</td><td class="r">${inv ? m(inv.balance) : ''}</td></tr>`;
+      return `<tr><td><b>${esc(a.invoiceNumber ?? '')}</b></td><td class="r">${inv ? m(inv.total) : ''}</td><td class="r"><b>${m(a.amount)}</b></td><td class="r">${inv ? m(inv.balance) : ''}</td></tr>`;
     })
     .join('');
-  const state = p.verificationStatus === 'rejected' ? '<span class="badge">REJECTED</span>' : p.verificationStatus === 'pending' ? '<span class="badge">PENDING VERIFICATION</span>' : '';
-  return shell(
-    `Receipt ${p.number}`,
-    paper,
-    SIMPLE_CSS,
-    `<div class="page">${simpleHead(b, installment ? 'INSTALLMENT RECEIPT' : 'PAYMENT RECEIPT', `<b>${esc(p.number)}</b> · ${fd(p.date)}<br/>${state}`)}
-    <div class="in"><div class="two"><div><div class="label">Received from</div><b style="font-size:1.15em">${esc(c.name)}</b><div class="muted">${[esc(c.contactPerson), esc(c.phone)].filter(Boolean).join('<br/>')}</div></div>
-      <div class="r"><div class="label">Amount received</div><div class="amount">${m(p.amount)}</div></div></div>
-    <table class="kv" style="margin-top:14px"><tr><td>Payment method</td><td class="r">${PAYMENT_METHOD_LABELS[p.method]}</td></tr>
-      <tr><td>Transaction ID</td><td class="r">${esc(txnId(p.method, p.reference))}</td></tr><tr><td>Received by</td><td class="r">${esc(p.receivedBy)}</td></tr></table>
-    ${tailHtml(p.notes, b)}
-    ${applied ? `<div class="extra"><div class="label">Applied to</div><table class="items"><tr><th>Invoice</th><th class="r">Invoice total</th><th class="r">This payment</th><th class="r">Balance now</th></tr>${applied}</table></div>` : ''}
-    ${p.unallocated > 0 ? `<div class="extra"><b>${m(p.unallocated)}</b> is held as an advance on the client's account.</div>` : ''}
-    ${simpleSig(b)}</div><div class="grow"></div><div class="muted" style="text-align:center;margin-top:14px">${b.invoiceFooter ? nl(b.invoiceFooter) : ''}</div></div>`,
-    simpleVars(b),
-  );
+  const body = `<div class="page">${slipHero(b, title, `${esc(p.number)} · ${fd(p.date)}`)}
+    <div class="float"><div style="min-width:0"><div class="label">Amount received</div><div class="big">${m(p.amount)}</div><div class="words">${amountInWords(p.amount, p.currencyPrecision, p.currency)}</div></div>
+      <div class="stamp">${state}<small>${fd(p.date)}</small></div></div>
+    <div class="grid">
+      <div class="tl"><div class="label">Received from</div><b>${esc(c.name)}</b><span class="muted">${[esc(c.contactPerson), esc(c.phone)].filter(Boolean).join(' · ')}</span></div>
+      <div class="tl"><div class="label">Payment method</div><b>${PAYMENT_METHOD_LABELS[p.method]}</b><span class="muted">Txn ID: ${esc(txnId(p.method, p.reference))}</span></div>
+      <div class="tl"><div class="label">Received by</div><b>${esc(p.receivedBy) || '—'}</b></div>
+      <div class="tl"><div class="label">Date</div><b>${fd(p.date)}</b></div>
+    </div>
+    <div class="in">
+      ${applied ? `<div class="extra"><div class="label">Applied to</div><table class="items"><tr><th>Invoice</th><th class="r">Invoice total</th><th class="r">This payment</th><th class="r">Balance now</th></tr>${applied}</table></div>` : ''}
+      ${p.unallocated > 0 ? `<div class="extra"><b>${m(p.unallocated)}</b> is held as an advance on the client's account.</div>` : ''}
+      ${tailHtml(p.notes, b)}
+      ${simpleSig(b)}</div>
+    <div class="grow"></div>${slipFooter(b)}</div>`;
+  return localize(shell(`Receipt ${p.number}`, paper, SLIP_CSS, body, simpleVars(b)), b.docLanguage ?? 'en');
 }
 
 /** Slip for one purchase bill: what was bought, from whom, and what was paid. */
@@ -650,17 +868,47 @@ export function payslipHtml(s: Payslip, run: PayrollRun, b: BusinessProfile, pap
   const m = (v: number) => formatMoney(v, run.currency, run.currencyPrecision);
   const row = (k: string, v: string, cls = '') => `<tr class="${cls}"><td>${k}</td><td class="r">${v}</td></tr>`;
   const month = new Date(`${run.month}-01T00:00:00Z`).toLocaleDateString('en-GB', { month: 'long', year: 'numeric', timeZone: 'UTC' });
-  const css = '.page{padding:28px}.head{display:flex;justify-content:space-between;align-items:flex-start;border-bottom:3px solid var(--a);padding-bottom:12px;margin-bottom:14px}h1{font-size:1.6em;margin:0;color:var(--d)}table{width:100%;border-collapse:collapse}td{padding:7px 4px;border-bottom:1px solid #e3e3e6}.r{text-align:right}.net td{font-weight:800;font-size:1.15em;border-top:2px solid #111}.minus td:last-child{color:#B42318}';
-  const body = `<div class="page"><div class="head"><div>${b.logo ? `<img class="logo" src="${esc(b.logo)}" alt=""/>` : ''}<b>${esc(b.tradingName || b.legalName)}</b><div class="muted">${nl(b.address)}</div></div>
-    <div class="r"><h1>PAYSLIP</h1><div class="muted">${month}</div></div></div>
-    <table>${row('Employee', `<b>${esc(s.employeeName)}</b>`)}${s.designation ? row('Designation', esc(s.designation)) : ''}
-    ${row(s.payType === 'monthly' ? 'Monthly salary' : 'Daily wage', m(s.rate))}${row(s.payType === 'monthly' ? 'Days worked' : 'Days', s.payType === 'monthly' ? `${s.days} of ${s.daysInMonth}` : String(s.days))}</table>
-    <div class="label" style="margin-top:14px">Earnings</div><table>${row('Pay for days worked', m(s.earned))}${s.overtime ? row('Overtime', m(s.overtime)) : ''}${s.allowances ? row('Allowances', m(s.allowances)) : ''}${s.bonus ? row('Bonus', m(s.bonus)) : ''}</table>
-    ${s.deductions || s.tax || s.advanceRecovery ? `<div class="label" style="margin-top:14px">Deductions</div><table>${s.deductions ? row('Deductions', `− ${m(s.deductions)}`, 'minus') : ''}${s.tax ? row('Income tax', `− ${m(s.tax)}`, 'minus') : ''}${s.advanceRecovery ? row('Advance recovered', `− ${m(s.advanceRecovery)}`, 'minus') : ''}</table>` : ''}
-    <table style="margin-top:10px">${row('Net pay', m(s.net), 'net')}</table>
-    ${s.notes ? `<div class="muted" style="margin-top:10px">${nl(s.notes)}</div>` : ''}
-    <div class="two" style="margin-top:40px"><div class="muted">Employee signature<div style="border-bottom:1px solid #999;height:36px"></div></div><div class="muted">${run.status === 'paid' && run.paidDate ? `Paid on ${fd(run.paidDate)}` : 'Authorized signature'}<div style="border-bottom:1px solid #999;height:36px"></div></div></div></div>`;
-  return localize(shell(`Payslip ${s.employeeName} ${run.month}`, paper, css, body, colorVars('classic', b.accentColor)), b.docLanguage ?? 'en');
+  const earnings = [row('Pay for days worked', m(s.earned)), s.overtime ? row('Overtime', m(s.overtime)) : '', s.allowances ? row('Allowances', m(s.allowances)) : '', s.bonus ? row('Bonus', m(s.bonus)) : ''].join('');
+  const gross = s.earned + (s.overtime ?? 0) + (s.allowances ?? 0) + (s.bonus ?? 0);
+  const deductions = [s.deductions ? row('Deductions', `− ${m(s.deductions)}`) : '', s.tax ? row('Income tax', `− ${m(s.tax)}`) : '', s.advanceRecovery ? row('Advance recovered', `− ${m(s.advanceRecovery)}`) : ''].join('');
+  const less = (s.deductions ?? 0) + (s.tax ?? 0) + (s.advanceRecovery ?? 0);
+  const paidOn = run.status === 'paid' && run.paidDate ? `Paid on ${fd(run.paidDate)}` : '';
+  if (isThermal(paper)) {
+    const body = `<div class="page">${thermalTop(b, 'PAYSLIP')}
+      <table>${trow('Month', month)}${trow('Employee', `<b>${esc(s.employeeName)}</b>`)}${s.designation ? trow('Designation', esc(s.designation)) : ''}${trow(s.payType === 'monthly' ? 'Days worked' : 'Days', s.payType === 'monthly' ? `${s.days}/${s.daysInMonth}` : String(s.days))}</table>
+      <div class="rule"></div><table>${earnings}${row('Gross', m(gross))}</table>
+      ${deductions ? `<div class="rule"></div><table>${deductions}</table>` : ''}
+      <div class="rule"></div><table>${trow('NET PAY', m(s.net), 'big')}</table>${paidOn ? `<div class="muted">${paidOn}</div>` : ''}
+      <div class="rule"></div><br/><div>Signature: ____________</div></div>`;
+    return localize(shell(`Payslip ${s.employeeName} ${run.month}`, paper, thermalCss(paper), body, ''), b.docLanguage ?? 'en');
+  }
+  const css = `${SLIP_CSS}
+.emp { display: flex; align-items: center; gap: 14px; }
+.av { width: 54px; height: 54px; flex: none; border-radius: 50%; background: linear-gradient(135deg, var(--a), var(--d)); color: #fff; font-weight: 900; font-size: 1.5em; display: flex; align-items: center; justify-content: center; }
+.cols { display: flex; gap: 14px; margin: 16px 26px 0; align-items: flex-start; }
+.col { flex: 1; border: 1px solid #e6ecea; border-radius: 14px; overflow: hidden; min-width: 0; }
+.col h3 { margin: 0; padding: 9px 14px; font-size: .9em; letter-spacing: 1px; text-transform: uppercase; background: var(--l3); color: var(--d); border-bottom: 2px solid var(--a); }
+.col.minus h3 { border-bottom-color: #B42318; }
+.col table td { padding: 7px 14px; border-bottom: 1px solid #f0f2f1; }
+.col .sum td { font-weight: 800; background: #fafbfb; }
+.col.minus td.r { color: #B42318; }
+.net { margin: 16px 26px 0; border-radius: 16px; padding: 16px 20px; background: linear-gradient(118deg, var(--d), var(--a)); color: #fff; display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.net .big { font-size: 2em; font-weight: 900; color: #fff; }
+.net .words { color: rgba(255,255,255,.85); }
+.signs { display: flex; gap: 30px; margin: 34px 26px 0; }
+.signs div { flex: 1; color: #666; font-size: .9em; border-top: 1px solid #999; padding-top: 6px; }`;
+  const body = `<div class="page">${slipHero(b, 'PAYSLIP', month)}
+    <div class="float"><div class="emp"><div class="av">${esc((s.employeeName || '?').trim().charAt(0).toUpperCase())}</div><div><div class="big" style="font-size:1.4em">${esc(s.employeeName)}</div><div class="muted">${[s.designation && esc(s.designation), s.payType === 'monthly' ? `Monthly salary ${m(s.rate)}` : `Daily wage ${m(s.rate)}`].filter(Boolean).join(' · ')}</div></div></div>
+      <div class="stamp" style="width:84px;height:84px">${s.payType === 'monthly' ? `${s.days}/${s.daysInMonth}` : s.days}<small>DAYS WORKED</small></div></div>
+    <div class="cols">
+      <div class="col"><h3>Earnings</h3><table>${earnings}${row('Gross pay', m(gross), 'sum')}</table></div>
+      ${deductions ? `<div class="col minus"><h3>Deductions</h3><table>${deductions}${row('Total deductions', `− ${m(less)}`, 'sum')}</table></div>` : ''}
+    </div>
+    <div class="net"><div style="min-width:0"><div style="opacity:.85;font-weight:700;letter-spacing:1px;font-size:.85em">NET PAY</div><div class="big">${m(s.net)}</div><div class="words">${amountInWords(s.net, run.currencyPrecision, run.currency)}</div></div>${paidOn ? `<span class="pill">${paidOn}</span>` : ''}</div>
+    ${s.notes ? `<div class="in"><div class="extra muted">${nl(s.notes)}</div></div>` : ''}
+    <div class="signs"><div>Employee signature</div><div>Authorized signature</div></div>
+    <div class="grow"></div>${slipFooter(b)}</div>`;
+  return localize(shell(`Payslip ${s.employeeName} ${run.month}`, paper, css, body, simpleVars(b)), b.docLanguage ?? 'en');
 }
 
 /** A compact counter receipt for thermal printers (80 or 58 mm), with a QR of the receipt number. */

@@ -63,7 +63,7 @@ export const businessSchema = z.object({
   invoicePrefix: z.string().trim().max(12).default('INV-'),
   taxInclusive: z.boolean().default(false),
   rounding: z.enum(['none', 'nearest_1', 'nearest_5', 'nearest_10']).default('none'),
-  invoiceTemplate: z.enum(INVOICE_TEMPLATES).default('amber'),
+  invoiceTemplate: z.enum(INVOICE_TEMPLATES).default('tijar'),
   accentColor: z.string().regex(/^(#[0-9a-fA-F]{6})?$/, 'Use a colour like #1F4E9C').default(''),
   fyStartMonth: z.number().int().min(1).max(12).default(7),
   numberReset: z.enum(['never', 'yearly']).default('never'),

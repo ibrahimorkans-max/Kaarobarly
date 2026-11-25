@@ -17,10 +17,10 @@ type Form = Omit<BusinessProfile, 'id'>;
 const blank: Form = {
   legalName: '', tradingName: '', ownerName: '', logo: '', registrationNo: '', ntn: '', phone: '', whatsapp: '', email: '', address: '', website: '',
   bankDetails: '', iban: '', paymentInstructions: '', signature: '', stamp: '', invoiceFooter: '', invoiceDisclaimer: '', currency: 'PKR', currencyPrecision: 2,
-  invoicePrefix: 'INV-', taxInclusive: false, rounding: 'none', invoiceTemplate: 'amber', accentColor: '', fyStartMonth: 7, numberReset: 'never', dashboardStyle: 'classic', status: 'active',
+  invoicePrefix: 'INV-', taxInclusive: false, rounding: 'none', invoiceTemplate: 'tijar', accentColor: '', fyStartMonth: 7, numberReset: 'never', dashboardStyle: 'classic', status: 'active',
   qrMode: 'none', reminderTemplate: '', docLanguage: 'en',
 };
-const ACCENTS = ['', '#E9A23B', '#1F3A8A', '#4B3F9E', '#E0483E', '#0F766E', '#BE185D', '#334155'];
+const ACCENTS = ['', '#14A383', '#B8893B', '#E9A23B', '#1F3A8A', '#4B3F9E', '#E0483E', '#0F766E', '#BE185D', '#334155'];
 
 function ImageSlot({ label, value, onChange, onDraw }: { label: string; value: string; onChange: (v: string) => void; onDraw?: () => void }) {
   const toast = useToast();
@@ -50,6 +50,9 @@ function ImageSlot({ label, value, onChange, onDraw }: { label: string; value: s
   );
 }
 
+/** A very light tint of a colour, for thumbnail table headers. */
+const tint3 = (hex: string) => (hex.length === 7 ? hex + '22' : hex);
+
 /** Tiny drawing of each design so the choice can be made at a glance. */
 function TemplateThumb({ id, accent, selected, onPress }: { id: InvoiceTemplate; accent: string; selected: boolean; onPress: () => void }) {
   const t = useTheme();
@@ -59,20 +62,25 @@ function TemplateThumb({ id, accent, selected, onPress }: { id: InvoiceTemplate;
   return (
     <Pressable accessibilityRole="radio" accessibilityState={{ selected }} accessibilityLabel={`${INVOICE_TEMPLATE_LABELS[id]} design`} onPress={onPress} style={{ width: 118, gap: 6 }}>
       <View style={{ height: 150, backgroundColor: '#fff', borderRadius: 10, borderWidth: selected ? 3 : 1, borderColor: selected ? t.primary : t.border, overflow: 'hidden', padding: 8, gap: 6 }}>
+        {id === 'tijar' && <View style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 34, backgroundColor: d }}><View style={{ position: 'absolute', right: -10, top: -14, width: 44, height: 44, borderRadius: 22, backgroundColor: a, opacity: 0.55 }} /></View>}
+        {id === 'tijar' && <View style={{ position: 'absolute', left: 8, right: 8, top: 26, height: 16, flexDirection: 'row', gap: 4 }}><View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 4, borderTopWidth: 2, borderTopColor: a, elevation: 2 }} /><View style={{ flex: 1, backgroundColor: '#fff', borderRadius: 4, elevation: 2 }} /><View style={{ flex: 1, backgroundColor: a, borderRadius: 4 }} /></View>}
+        {id === 'royal' && <View style={{ position: 'absolute', left: 4, right: 4, top: 4, bottom: 4, borderWidth: 1, borderColor: a }} />}
+        {id === 'royal' && <View style={{ alignSelf: 'center', width: '50%', height: 6, backgroundColor: d, borderRadius: 2, marginTop: 4 }} />}
+        {id === 'royal' && <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}><View style={{ flex: 1, height: 1, backgroundColor: a }} /><View style={{ width: 5, height: 5, backgroundColor: a, transform: [{ rotate: '45deg' }] }} /><View style={{ flex: 1, height: 1, backgroundColor: a }} /></View>}
         {id === 'amber' && <View style={{ position: 'absolute', left: 0, top: 0, width: '68%', height: 20, backgroundColor: a, borderBottomRightRadius: 14 }} />}
         {id === 'amber' && <View style={{ position: 'absolute', right: 0, top: 0, bottom: 0, width: 5, backgroundColor: d }} />}
         {id === 'ocean' && <View style={{ position: 'absolute', right: 0, top: 0, width: '68%', height: 26, backgroundColor: a, borderBottomLeftRadius: 12 }} />}
         {id === 'ocean' && <View style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 16, backgroundColor: a }} />}
         {id === 'crimson' && <View style={{ width: 12, height: 12, backgroundColor: a }} />}
-        <View style={{ height: id === 'amber' || id === 'ocean' ? 22 : 4 }} />
+        <View style={{ height: id === 'amber' || id === 'ocean' ? 22 : id === 'tijar' ? 34 : 4 }} />
         {id === 'violet' && line('40%', a, 7)}
         {line('55%')}
         {line('35%')}
-        <View style={{ height: 9, backgroundColor: id === 'classic' ? '#fff' : a, borderBottomWidth: id === 'classic' ? 1.5 : 0, borderBottomColor: '#111', marginTop: 4 }} />
+        <View style={{ height: 9, backgroundColor: id === 'classic' || id === 'royal' ? '#fff' : id === 'tijar' ? tint3(a) : a, borderBottomWidth: id === 'classic' || id === 'royal' || id === 'tijar' ? 1.5 : 0, borderBottomColor: id === 'classic' ? '#111' : a, marginTop: 4 }} />
         {line('100%', id === 'crimson' ? '#d4d8d9' : '#e6e7ee', 7)}
         {line('100%', '#eeeef3', 7)}
         {line('100%', id === 'crimson' ? '#d4d8d9' : '#e6e7ee', 7)}
-        <View style={{ alignSelf: 'flex-end', width: '48%', height: 10, backgroundColor: id === 'classic' ? '#111' : a, marginTop: 4 }} />
+        <View style={{ alignSelf: 'flex-end', width: '48%', height: 10, backgroundColor: id === 'classic' ? '#111' : id === 'royal' ? '#fff' : a, borderTopWidth: id === 'royal' ? 1 : 0, borderBottomWidth: id === 'royal' ? 3 : 0, borderColor: a, marginTop: 4 }} />
         {selected && (
           <View style={{ position: 'absolute', right: 6, bottom: id === 'ocean' ? 20 : 6, backgroundColor: t.primary, borderRadius: 11 }}>
             <Ionicons name="checkmark" size={18} color={t.onPrimary} />
