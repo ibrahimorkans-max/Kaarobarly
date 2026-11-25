@@ -217,8 +217,11 @@ export function Card({ children, style, onPress, label }: { children: ReactNode;
   return (
     <Animated.View style={[outer, { transform: [{ scale: press.scale }] }]}>
       <Pressable
-        accessibilityRole="button"
+        // on the web role "button" renders a <button>, and cards often hold their own buttons
+        // (a button inside a button is invalid HTML), so there it stays a focusable box
+        accessibilityRole={NATIVE ? 'button' : undefined}
         accessibilityLabel={label}
+        focusable
         onPress={onPress}
         onPressIn={press.onPressIn}
         onPressOut={press.onPressOut}
