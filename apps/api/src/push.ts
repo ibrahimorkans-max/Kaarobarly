@@ -103,7 +103,7 @@ export function saveClient(db: Db, body: z.infer<typeof clientSchema>) {
   } else {
     c = { projectId: body.projectId ?? '', senderId: body.senderId ?? '', appId: body.appId ?? '', apiKey: body.apiKey ?? '', storageBucket: body.storageBucket ?? '' };
   }
-  if (!/^[a-z0-9-]{4,}$/.test(c.projectId)) throw new HttpError(422, 'Project ID looks wrong (e.g. kaarobarly-12345).');
+  if (!/^[a-z0-9-]{4,}$/.test(c.projectId)) throw new HttpError(422, 'Project ID looks wrong (e.g. tijar-12345).');
   if (!/^\d{6,}$/.test(c.senderId)) throw new HttpError(422, 'Sender ID (project number) must be digits only.');
   if (!/^1:\d+:android:[0-9a-f]+$/.test(c.appId)) throw new HttpError(422, 'App ID must look like 1:123456789012:android:abc123def456.');
   if (!/^AIza[0-9A-Za-z_-]{20,}$/.test(c.apiKey)) throw new HttpError(422, 'API key must start with AIza.');

@@ -1,7 +1,7 @@
 {
   "name": "kaarobarly-desktop",
   "productName": "Tijar",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "Tijar for Windows: counter, invoices and reports with silent printing",
   "author": "ZH Trader",
   "private": true,

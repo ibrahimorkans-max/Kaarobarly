@@ -2,7 +2,7 @@
   "expo": {
     "name": "Tijar",
     "slug": "kaarobarly",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "orientation": "default",
     "icon": "./assets/images/icon.png",
     "scheme": "kaarobarly",
@@ -14,7 +14,7 @@
     },
     "android": {
       "package": "com.zhtrader.kaarobarly",
-      "versionCode": 9,
+      "versionCode": 10,
       "adaptiveIcon": {
         "backgroundColor": "#0C2433",
         "foregroundImage": "./assets/images/android-icon-foreground.png",

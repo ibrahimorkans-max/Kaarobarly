@@ -84,16 +84,16 @@ export default function AdminPushScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             style={{ minHeight: 120 } as any}
-            placeholder={'{\n  "project_info": { "project_number": "123456789012", "project_id": "kaarobarly-12345", … },\n  "client": [ … ]\n}'}
+            placeholder={'{\n  "project_info": { "project_number": "123456789012", "project_id": "tijar-12345", … },\n  "client": [ … ]\n}'}
           />
           <Btn icon="document-text-outline" title="Read the file and save" loading={busy === 'gs'} disabled={gs.trim().length < 50} onPress={() => run('gs', () => api('/platform/push/client', { method: 'PUT', body: { googleServices: gs.trim() } }), 'Phone connection saved', () => setGs(''))} />
 
           <Txt v="small" color={th.sub}>Or type the values (Project settings → General):</Txt>
-          <Field label="Project ID" value={fields.projectId} onChangeText={set('projectId')} autoCapitalize="none" autoCorrect={false} placeholder="kaarobarly-12345" />
+          <Field label="Project ID" value={fields.projectId} onChangeText={set('projectId')} autoCapitalize="none" autoCorrect={false} placeholder="tijar-12345" />
           <Field label="Sender ID (project number)" value={fields.senderId} onChangeText={set('senderId')} keyboardType="number-pad" placeholder="123456789012" />
           <Field label="App ID (Android)" value={fields.appId} onChangeText={set('appId')} autoCapitalize="none" autoCorrect={false} placeholder="1:123456789012:android:a1b2c3d4e5f6a7b8" />
           <Field label="Web API key" value={fields.apiKey} onChangeText={set('apiKey')} autoCapitalize="none" autoCorrect={false} placeholder="AIzaSy…" />
-          <Field label="Storage bucket (optional)" value={fields.storageBucket} onChangeText={set('storageBucket')} autoCapitalize="none" autoCorrect={false} placeholder="kaarobarly-12345.appspot.com" />
+          <Field label="Storage bucket (optional)" value={fields.storageBucket} onChangeText={set('storageBucket')} autoCapitalize="none" autoCorrect={false} placeholder="tijar-12345.appspot.com" />
           <Btn icon="save-outline" kind="secondary" title="Save these values" loading={busy === 'fields'} disabled={!fields.projectId || !fields.senderId || !fields.appId || !fields.apiKey} onPress={() => run('fields', () => api('/platform/push/client', { method: 'PUT', body: fields }), 'Phone connection saved')} />
           {data?.clientReady && <Btn small kind="danger" title="Remove phone connection" loading={busy === 'clear'} onPress={() => run('clear', () => api('/platform/push/client', { method: 'DELETE' }), 'Removed')} />}
         </Card>
@@ -112,7 +112,7 @@ export default function AdminPushScreen() {
             autoCapitalize="none"
             autoCorrect={false}
             style={{ minHeight: 120 } as any}
-            placeholder={'{\n  "type": "service_account",\n  "project_id": "kaarobarly-12345",\n  "private_key": "-----BEGIN PRIVATE KEY-----\\n…",\n  "client_email": "firebase-adminsdk-…@kaarobarly-12345.iam.gserviceaccount.com"\n}'}
+            placeholder={'{\n  "type": "service_account",\n  "project_id": "tijar-12345",\n  "private_key": "-----BEGIN PRIVATE KEY-----\\n…",\n  "client_email": "firebase-adminsdk-…@tijar-12345.iam.gserviceaccount.com"\n}'}
           />
           <Btn icon="key-outline" title="Save key" loading={busy === 'sa'} disabled={json.trim().length < 50} onPress={() => run('sa', () => api('/platform/push', { method: 'PUT', body: { serviceAccount: json.trim() } }), 'Firebase key saved', () => setJson(''))} />
         </Card>

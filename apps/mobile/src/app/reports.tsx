@@ -98,7 +98,7 @@ export default function Reports() {
   async function excel() {
     setBusy(true);
     try {
-      await downloadFromApi(`/reports/export.xlsx${query}`, `kaarobarly-report-${range.from}-to-${range.to}.xlsx`);
+      await downloadFromApi(`/reports/export.xlsx${query}`, `tijar-report-${range.from}-to-${range.to}.xlsx`);
     } catch (e: any) {
       toast(e.message, 'error');
     } finally {
@@ -405,7 +405,7 @@ export default function Reports() {
         )}
       </Loader>
 
-      {r && business && <DocumentViewer visible={viewer} onClose={() => setViewer(false)} title="Financial report" fileName={`kaarobarly-report-${range.from}-to-${range.to}`} build={buildDoc} />}
+      {r && business && <DocumentViewer visible={viewer} onClose={() => setViewer(false)} title="Financial report" fileName={`tijar-report-${range.from}-to-${range.to}`} build={buildDoc} />}
     </Screen>
   );
 }

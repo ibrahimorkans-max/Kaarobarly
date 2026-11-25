@@ -196,5 +196,5 @@ export async function reportWorkbook(db: Db, tenantId: string, f: ReportFilter, 
   return Buffer.from(await wb.xlsx.writeBuffer());
 }
 
-/** Plain-text filename-safe label, e.g. "kaarobarly-report-2026-11-01-to-2026-11-30". */
-export const reportFileName = (f: ReportFilter) => `kaarobarly-report-${f.from}-to-${f.to}.xlsx`;
+/** Plain-text filename-safe label, e.g. "tijar-report-2026-11-01-to-2026-11-30". */
+export const reportFileName = (f: ReportFilter) => `tijar-report-${f.from}-to-${f.to}.xlsx`;

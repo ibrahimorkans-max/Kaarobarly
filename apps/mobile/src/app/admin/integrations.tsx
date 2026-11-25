@@ -79,7 +79,7 @@ export default function IntegrationsScreen() {
             <Field label="Phone number ID" value={wa.phoneNumberId} onChangeText={(v) => setWa({ ...wa, phoneNumberId: v })} keyboardType="number-pad" placeholder="From Meta → WhatsApp → API setup" />
             <Field label={data?.whatsapp?.hasToken ? 'Access token (saved; paste to change)' : 'Permanent access token'} value={wa.accessToken} onChangeText={(v) => setWa({ ...wa, accessToken: v })} secureTextEntry autoCapitalize="none" />
             <Row gap={10} style={{ alignItems: 'flex-start' }}>
-              <Field style={{ flex: 2 }} label="Code template name" value={wa.template} onChangeText={(v) => setWa({ ...wa, template: v.trim().toLowerCase() })} autoCapitalize="none" placeholder="kaarobarly_code" />
+              <Field style={{ flex: 2 }} label="Code template name" value={wa.template} onChangeText={(v) => setWa({ ...wa, template: v.trim().toLowerCase() })} autoCapitalize="none" placeholder="tijar_code" />
               <Field style={{ flex: 1 }} label="Language" value={wa.language} onChangeText={(v) => setWa({ ...wa, language: v.trim() })} autoCapitalize="none" placeholder="en" />
             </Row>
             <Row style={{ justifyContent: 'space-between' }}>

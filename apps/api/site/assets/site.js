@@ -108,7 +108,7 @@ function page() {
   </section>`);
 
   if (on('stats') && C.stats?.length)
-    parts.push(`<div class="wrap stats">${C.stats.map((s, i) => `<div class="stat reveal" style="--d:${i * 0.08}s"><b data-count="${esc(s.value)}">${esc(s.value)}</b><span>${esc(s.label)}</span></div>`).join('')}</div>`);
+    parts.push(`<div class="wrap stats">${C.stats.map((s, i) => `<div class="stat reveal" data-d3 style="--d:${i * 0.08}s"><b data-count="${esc(s.value)}">${esc(s.value)}</b><span>${esc(s.label)}</span></div>`).join('')}</div>`);
 
   if (on('features') && C.features?.length)
     parts.push(`<section class="block" id="features"><div class="wrap">
@@ -157,7 +157,7 @@ function page() {
   if (on('steps') && C.steps?.length)
     parts.push(`<section class="block" id="start"><div class="wrap">
       <div class="head reveal"><span class="kicker">Get going in minutes</span><h2 class="title">Three steps to <span class="grad">your first sale.</span></h2></div>
-      <div class="steps">${C.steps.map((s, i) => `<div class="step card reveal" style="--d:${i * 0.1}s"><div class="cube-wrap"><div class="cube">${'<b>N</b>'.repeat(6).replaceAll('N', i + 1)}</div></div><h3>${esc(s.title)}</h3><p>${esc(s.text)}</p></div>`).join('')}</div>
+      <div class="steps">${C.steps.map((s, i) => `<div class="step card reveal" data-d3 style="--d:${i * 0.1}s"><div class="cube-wrap"><div class="cube">${'<b>N</b>'.repeat(6).replaceAll('N', i + 1)}</div></div><h3>${esc(s.title)}</h3><p>${esc(s.text)}</p></div>`).join('')}</div>
     </div></section>`);
 
   if (on('pricing') && C.plans?.length) {
@@ -186,19 +186,17 @@ function page() {
   }
 
   if (on('testimonials') && C.testimonials?.length) {
-    const q = (t) => `<figure class="quote"><div class="stars">★★★★★</div><p>“${esc(t.quote)}”</p><figcaption class="who"><span class="av">${esc((t.name || '?').trim()[0] || '?')}</span><span><b>${esc(t.name)}</b><span>${esc(t.role)}</span></span></figcaption></figure>`;
-    const row = (list) => { const a = list.length < 4 ? [...list, ...list, ...list] : list; return a.map(q).join('') + a.map(q).join(''); };
-    const half = Math.ceil(C.testimonials.length / 2);
-    const second = C.testimonials.length > 3 ? C.testimonials.slice(half) : [...C.testimonials].reverse();
+    const q = (t) => `<figure class="quote-in"><div class="stars">★★★★★</div><p>“${esc(t.quote)}”</p><figcaption class="who"><span class="av">${esc((t.name || '?').trim()[0] || '?')}</span><span><b>${esc(t.name)}</b><span>${esc(t.role)}</span></span></figcaption></figure>`;
+    const list = C.testimonials.length < 5 ? [...C.testimonials, ...C.testimonials].slice(0, Math.max(6, C.testimonials.length)) : C.testimonials;
     parts.push(`<section class="block" id="love"><div class="wrap"><div class="head center reveal"><span class="kicker">Loved by owners</span><h2 class="title">Businesses that <span class="grad">moved smarter.</span></h2></div></div>
-      <div class="marquee reveal"><div class="track" style="--t:48s">${row(C.testimonials.length > 3 ? C.testimonials.slice(0, half) : C.testimonials)}</div><div class="track rev" style="--t:56s">${row(second)}</div></div>
+      <div class="wrap"><div class="ring-stage quotes reveal" id="quoteStage"><div class="ring-floor"></div><div class="ring" id="quoteRing">${list.map((t) => `<div class="rc">${q(t)}</div>`).join('')}</div></div></div>
     </section>`);
   }
 
   if (on('faq') && C.faq?.length)
     parts.push(`<section class="block" id="faq"><div class="wrap">
       <div class="head center reveal"><span class="kicker">FAQ</span><h2 class="title">Questions, <span class="grad">answered.</span></h2></div>
-      <div class="faq">${C.faq.map((f, i) => `<details class="reveal" style="--d:${i * 0.05}s"${i ? '' : ' open'}><summary>${esc(f.q)}<i>+</i></summary><div class="ans">${esc(f.a)}</div></details>`).join('')}</div>
+      <div class="faq">${C.faq.map((f, i) => `<details class="reveal" data-d3 style="--d:${i * 0.05}s"${i ? '' : ' open'}><summary>${esc(f.q)}<i>+</i></summary><div class="ans">${esc(f.a)}</div></details>`).join('')}</div>
     </div></section>`);
 
   if (on('download')) {
@@ -208,7 +206,7 @@ function page() {
       d.windows && `<a class="store" href="${safe(d.windows)}"${ext(d.windows)}>${ICON.windows}<span><small>Download for</small><b>Windows</b></span></a>`,
       d.web && `<a class="store" href="${safe(d.web)}"${ext(d.web)}>${ICON.globe}<span><small>Open in your</small><b>Browser</b></span></a>`,
     ].filter(Boolean);
-    parts.push(`<section class="block" id="download"><div class="wrap"><div class="download reveal">
+    parts.push(`<section class="block" id="download"><div class="wrap"><div class="download reveal" data-d3>
       <canvas id="orb3d" aria-hidden="true"></canvas>
       <div class="inner"><span class="kicker">Get started</span><h2 class="title">${esc(d.title)}</h2><p class="sub">${esc(d.subtitle)}</p>
         <div class="stores">${stores.length ? stores.join('') : `<a class="btn primary" href="#contact">Request access ${ICON.arrow}</a>`}</div></div>
@@ -226,7 +224,7 @@ function page() {
     ].filter(Boolean);
     parts.push(`<section class="block" id="contact"><div class="wrap contact">
       <div class="reveal"><span class="kicker">Contact</span><h2 class="title">${esc(c.title)}</h2><p class="sub">${esc(c.subtitle)}</p>${info.length ? `<div class="info">${info.join('')}</div>` : ''}</div>
-      <form class="lead card reveal" id="leadForm" novalidate>
+      <form class="lead card reveal" data-d3 id="leadForm" novalidate>
         <label>Your name<input name="name" required maxlength="80" autocomplete="name"></label>
         <label>Business name<input name="business" maxlength="120" autocomplete="organization"></label>
         <label>Phone / WhatsApp<input name="phone" maxlength="40" inputmode="tel" autocomplete="tel"></label>
@@ -249,7 +247,7 @@ function page() {
       <div><h4>Product</h4><ul>${navLinks.map(([href, t]) => `<li><a href="${href}">${t}</a></li>`).join('')}</ul></div>
       <div><h4>Get the app</h4><ul>${[C.download.android && ['Android', C.download.android], C.download.windows && ['Windows', C.download.windows], C.download.web && ['Web app', C.download.web]].filter(Boolean).map(([t, u]) => `<li><a href="${safe(u)}"${ext(u)}>${t}</a></li>`).join('') || '<li><a href="#contact">Request access</a></li>'}</ul></div>
     </div>
-    ${wordSvg('big-word')}
+    <canvas id="word3d" aria-label="Tijar"></canvas>${wordSvg('big-word')}
     <div class="copy"><span>© ${new Date().getFullYear()} Tijar. All rights reserved.</span><span>Every Business Move, <b class="grad">Made Smarter</b></span></div>
   </div></footer>`);
 
@@ -284,17 +282,18 @@ function interactions() {
   if (finePointer && !reduceMotion) {
     const glow = document.getElementById('cursor-glow');
     addEventListener('pointermove', (e) => (glow.style.transform = `translate3d(${e.clientX}px, ${e.clientY}px, 0)`), { passive: true });
-    document.querySelectorAll('.tilt').forEach((el) => {
-      const base = el.classList.contains('hot') ? ' translateY(-14px)' : '';
+    document.querySelectorAll('.tilt, [data-d3]').forEach((el) => {
       el.addEventListener('pointermove', (e) => {
         const r = el.getBoundingClientRect();
         const x = (e.clientX - r.left) / r.width;
         const y = (e.clientY - r.top) / r.height;
-        el.style.transform = `perspective(900px) rotateX(${(0.5 - y) * 12}deg) rotateY(${(x - 0.5) * 14}deg)${base} scale(1.02)`;
+        el.style.setProperty('--hx', `${(0.5 - y) * 14}deg`);
+        el.style.setProperty('--hy', `${(x - 0.5) * 16}deg`);
+        el.style.setProperty('--s', '1.02');
         el.style.setProperty('--mx', `${x * 100}%`);
         el.style.setProperty('--my', `${y * 100}%`);
       });
-      el.addEventListener('pointerleave', () => (el.style.transform = ''));
+      el.addEventListener('pointerleave', () => ['--hx', '--hy', '--s'].forEach((p) => el.style.removeProperty(p)));
     });
   }
 
@@ -308,7 +307,29 @@ function interactions() {
 
   leadForm();
   showcase();
-  ring();
+  ring('ringStage', 'ring', 0.12);
+  ring('quoteStage', 'quoteRing', -0.08);
+  scrollTilt();
+}
+
+/** Cards lean back as they rise from the bottom of the screen and settle flat in the middle. */
+function scrollTilt() {
+  const els = [...document.querySelectorAll('.tilt, [data-d3]')];
+  if (reduceMotion || !els.length) return;
+  let raf = 0;
+  const update = () => {
+    raf = 0;
+    const vh = innerHeight;
+    for (const el of els) {
+      const r = el.getBoundingClientRect();
+      if (r.bottom < -100 || r.top > vh + 100) continue;
+      const off = (r.top + r.height / 2 - vh / 2) / vh; // -0.5 (top) … 0.5 (bottom)
+      el.style.setProperty('--sx', `${Math.max(-1, Math.min(1, off * 1.6)) * 16}deg`);
+    }
+  };
+  addEventListener('scroll', () => (raf ||= requestAnimationFrame(update)), { passive: true });
+  addEventListener('resize', update);
+  update();
 }
 
 function countUp(el) {
@@ -390,11 +411,11 @@ function showcase() {
   update();
 }
 
-/** Business types on a ring you can spin by dragging; it turns slowly on its own. */
-function ring() {
-  const stage = document.getElementById('ringStage');
-  const el = document.getElementById('ring');
-  if (!stage || !el) return;
+/** Cards on a 3D ring you can spin by dragging; it turns slowly on its own. */
+function ring(stageId, ringId, speed) {
+  const stage = document.getElementById(stageId);
+  const el = document.getElementById(ringId);
+  if (!stage || !el || !el.children.length) return;
   const cards = [...el.children];
   const n = cards.length;
   const place = () => {
@@ -406,7 +427,8 @@ function ring() {
   };
   place();
   addEventListener('resize', place);
-  let angle = 0, vel = reduceMotion ? 0 : 0.12, drag = false, lastX = 0;
+  const cruise = reduceMotion ? 0 : speed;
+  let angle = 0, vel = cruise, drag = false, lastX = 0;
   stage.addEventListener('pointerdown', (e) => { drag = true; lastX = e.clientX; stage.setPointerCapture(e.pointerId); });
   stage.addEventListener('pointermove', (e) => { if (!drag) return; const dx = e.clientX - lastX; lastX = e.clientX; angle += dx * 0.3; vel = dx * 0.3; });
   const up = () => { drag = false; };
@@ -416,7 +438,7 @@ function ring() {
   new IntersectionObserver(([e]) => (visible = e.isIntersecting)).observe(stage);
   const loop = () => {
     if (visible) {
-      if (!drag) { vel += ((reduceMotion ? 0 : 0.12) - vel) * 0.03; angle += vel; }
+      if (!drag) { vel += (cruise - vel) * 0.03; angle += vel; }
       el.style.transform = `translateZ(calc(var(--r) * -1px)) rotateX(-8deg) rotateY(${angle}deg)`;
     }
     requestAnimationFrame(loop);
@@ -440,6 +462,13 @@ async function three() {
   } catch (e) {
     console.warn('3D hero off:', e);
     document.documentElement.classList.add('no-webgl');
+  }
+  for (const [name, fn] of [['background', bgScene], ['wordmark', wordScene]]) {
+    try {
+      fn(THREE, SVGLoader, RoomEnvironment);
+    } catch (e) {
+      console.warn('3D ' + name + ' off:', e);
+    }
   }
   try {
     orbScene(THREE);
@@ -766,3 +795,122 @@ const hide = () => loader.classList.add('done');
 if (reduceMotion) hide();
 else setTimeout(hide, 900);
 three();
+
+/** Behind the whole page: a slow 3D wave of points that the camera glides over as you scroll. */
+function bgScene(THREE) {
+  const canvas = document.getElementById('bg3d');
+  if (!canvas) return;
+  const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, alpha: true, powerPreference: 'low-power' });
+  renderer.setPixelRatio(Math.min(devicePixelRatio, 1.5));
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.FogExp2(0x050f16, 0.055);
+  const camera = new THREE.PerspectiveCamera(55, 1, 0.1, 80);
+  const COLS = 140, ROWS = 90, GAP = 0.32;
+  const pos = new Float32Array(COLS * ROWS * 3);
+  const col = new Float32Array(COLS * ROWS * 3);
+  const a = new THREE.Color(0x2bd8b0), b = new THREE.Color(0x12505a), c = new THREE.Color();
+  for (let i = 0; i < COLS; i++)
+    for (let j = 0; j < ROWS; j++) {
+      const k = (i * ROWS + j) * 3;
+      pos[k] = (i - COLS / 2) * GAP;
+      pos[k + 2] = -j * GAP;
+      c.copy(b).lerp(a, Math.random() * 0.6 + (i % 7 === 0 ? 0.4 : 0));
+      col.set([c.r, c.g, c.b], k);
+    }
+  const geo = new THREE.BufferGeometry();
+  geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
+  geo.setAttribute('color', new THREE.BufferAttribute(col, 3));
+  const pts = new THREE.Points(geo, new THREE.PointsMaterial({ size: 0.06, vertexColors: true, transparent: true, opacity: 0.85, depthWrite: false, blending: THREE.AdditiveBlending }));
+  pts.position.y = -2.2;
+  scene.add(pts);
+  const resize = () => {
+    renderer.setSize(innerWidth, innerHeight, false);
+    camera.aspect = innerWidth / innerHeight;
+    camera.updateProjectionMatrix();
+  };
+  resize();
+  addEventListener('resize', resize);
+  let mx = 0;
+  addEventListener('pointermove', (e) => (mx = e.clientX / innerWidth - 0.5), { passive: true });
+  const clock = new THREE.Clock();
+  const frame = () => {
+    requestAnimationFrame(frame);
+    if (document.hidden) return;
+    const t = reduceMotion ? 0 : clock.getElapsedTime();
+    const p = geo.attributes.position;
+    for (let k = 0; k < COLS * ROWS; k++) {
+      const x = p.getX(k), z = p.getZ(k);
+      p.setY(k, Math.sin(x * 0.45 + t * 0.8) * 0.35 + Math.cos(z * 0.5 + t * 0.6) * 0.35);
+    }
+    p.needsUpdate = true;
+    const doc = Math.max(1, document.documentElement.scrollHeight - innerHeight);
+    const sp = scrollY / doc;
+    camera.position.set(mx * 2, 1.2 + Math.sin(sp * Math.PI) * 1.4, 4 - sp * 14);
+    camera.lookAt(mx * 4, -1.5, camera.position.z - 10);
+    renderer.render(scene, camera);
+  };
+  frame();
+}
+
+/** Footer: TIJAR in solid 3D letters that turn towards the pointer. */
+function wordScene(THREE, SVGLoader, RoomEnvironment) {
+  const canvas = document.getElementById('word3d');
+  if (!canvas) return;
+  const renderer = makeRenderer(THREE, canvas);
+  const scene = new THREE.Scene();
+  const pmrem = new THREE.PMREMGenerator(renderer);
+  scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+  const camera = new THREE.PerspectiveCamera(30, 1, 0.1, 100);
+  camera.position.set(0, 0, 13);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.4));
+  const key = new THREE.DirectionalLight(0xffffff, 2.4);
+  key.position.set(-4, 5, 8);
+  scene.add(key);
+  const rim = new THREE.PointLight(0x2bd8b0, 80, 40);
+  rim.position.set(6, -2, 4);
+  scene.add(rim);
+  const svg = '<svg xmlns="http://www.w3.org/2000/svg">' + WORD.map((d) => '<path fill-rule="evenodd" d="' + d + '"/>').join('') + '<path id="tri" d="M280 60 L296 100 H264 Z"/></svg>';
+  const data = new SVGLoader().parse(svg);
+  const group = new THREE.Group();
+  const letters = new THREE.MeshPhysicalMaterial({ color: 0x14384a, metalness: 0.55, roughness: 0.25, clearcoat: 1, clearcoatRoughness: 0.1 });
+  const green = new THREE.MeshPhysicalMaterial({ color: 0x19b892, metalness: 0.3, roughness: 0.2, clearcoat: 1, emissive: 0x0b6f59, emissiveIntensity: 0.5 });
+  const S = 1 / 40;
+  data.paths.forEach((p) => {
+    const tri = p.userData.node.id === 'tri';
+    const geo = new THREE.ExtrudeGeometry(SVGLoader.createShapes(p), { depth: 26, bevelEnabled: true, bevelThickness: 4, bevelSize: 2.5, bevelSegments: 4, curveSegments: 16 });
+    geo.translate(-223, -50, tri ? 10 : -13);
+    const m = new THREE.Mesh(geo, tri ? green : letters);
+    m.scale.set(S, -S, S);
+    group.add(m);
+  });
+  scene.add(group);
+  const resize = () => {
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    // fit the word's width (about 11.2 units) with some margin
+    camera.position.z = Math.max(9, 13.5 / camera.aspect / (2 * Math.tan((camera.fov * Math.PI) / 360)));
+    camera.updateProjectionMatrix();
+  };
+  resize();
+  addEventListener('resize', resize);
+  document.documentElement.classList.add('has-word3d');
+  const target = { x: 0, y: 0 };
+  addEventListener('pointermove', (e) => { target.x = e.clientX / innerWidth - 0.5; target.y = e.clientY / innerHeight - 0.5; }, { passive: true });
+  let visible = false, seen = 0;
+  new IntersectionObserver(([e]) => { visible = e.isIntersecting; if (visible && !seen) seen = performance.now(); }).observe(canvas);
+  const clock = new THREE.Clock();
+  const frame = () => {
+    requestAnimationFrame(frame);
+    if (!visible) return;
+    const t = clock.getElapsedTime();
+    const intro = reduceMotion ? 1 : Math.min(1, (performance.now() - seen) / 1400);
+    const e = 1 - Math.pow(1 - intro, 3);
+    group.rotation.x += ((-0.25 + target.y * 0.4) * e + (1 - e) * -1.2 - group.rotation.x) * 0.08;
+    group.rotation.y += (target.x * 0.6 + Math.sin(t * 0.4) * 0.12 - group.rotation.y) * 0.06;
+    group.position.y = (1 - e) * -2;
+    rim.position.x = Math.sin(t * 0.7) * 7;
+    renderer.render(scene, camera);
+  };
+  frame();
+}
