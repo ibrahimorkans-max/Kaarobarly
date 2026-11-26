@@ -1,5 +1,5 @@
 /**
- * Renders brand/promo/promo.html to PNG posters (feed 1080x1350, story 1080x1920, square 1080x1080).
+ * Renders brand/promo/promo.html to PNG posters in English and Urdu (feed 1080x1350, story 1080x1920, square 1080x1080).
  * Run from the repo root:  apps/desktop/node_modules/electron/dist/electron.exe brand/promo/render-promo.cjs [days]
  * Uses the DevTools screenshot call, so the image is full size whatever the screen size is.
  */
@@ -22,17 +22,17 @@ app.whenReady().then(async () => {
   dbg.attach('1.3');
   log('ready');
   try {
-    for (const [size, h] of Object.entries(SIZES)) {
+    for (const lang of ['en', 'ur']) for (const [size, h] of Object.entries(SIZES)) {
       await dbg.sendCommand('Emulation.setDeviceMetricsOverride', { width: 1080, height: h, deviceScaleFactor: 1, mobile: false });
-      log('loading', size);
-      await win.loadURL(pathToFileURL(path.join(__dirname, 'promo.html')).href + `?size=${size}&days=${days}`);
+      log('loading', lang, size);
+      await win.loadURL(pathToFileURL(path.join(__dirname, 'promo.html')).href + `?size=${size}&lang=${lang}&days=${days}`);
       for (let i = 0; i < 40; i++) {
         if (await win.webContents.executeJavaScript('document.body.dataset.ready === "1"')) break;
         await wait(250);
       }
       await wait(900);
       const shot = await dbg.sendCommand('Page.captureScreenshot', { format: 'png', clip: { x: 0, y: 0, width: 1080, height: h, scale: 1 }, captureBeyondViewport: true });
-      const out = path.join(__dirname, `tijar-promo-${size}.png`);
+      const out = path.join(__dirname, `tijar-promo-${lang}-${size}.png`);
       fs.writeFileSync(out, Buffer.from(shot.data, 'base64'));
       log('wrote', out, `1080x${h}`);
     }
